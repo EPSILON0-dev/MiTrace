@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ray.hpp"
+#include "Ray.hpp"
 
 class Camera
 {

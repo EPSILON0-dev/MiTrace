@@ -1,11 +1,10 @@
 #include <thread>
 
-#include "common/cpu_texture.hpp"
-#include "gui/gui.hpp"
-#include "scene/scene.hpp"
-#include "trace/trace.hpp"
+#include "GUI/GUI.hpp"
+#include "Scene/Scene.hpp"
+#include "Trace/Trace.hpp"
 
-void RenderThread(GUI::Window& gui, CPUTexture& texture)
+void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture)
 {
     Camera cam(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f), 45.0f);
 
@@ -36,7 +35,7 @@ void RenderThread(GUI::Window& gui, CPUTexture& texture)
 int main()
 {
     GUI::Window gui(800, 600, "Render View");
-    CPUTexture tex(100, 100);
+    Trace::ImageBuffer tex(100, 100);
 
     std::thread renderThread(RenderThread, std::ref(gui), std::ref(tex));
 

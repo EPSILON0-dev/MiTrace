@@ -52,10 +52,10 @@ set(IMGUI_BACKEND_FILES
 # Add ImGui backend files to the build
 set(SRC_FILES
     src/main.cpp
-    src/gui/gui.cpp
-    src/gui/gl_texture.cpp
-    src/trace/camera.cpp
-    src/trace/trace.cpp
+    src/GUI/GUI.cpp
+    src/GUI/GL_Texture.cpp
+    src/Trace/Camera.cpp
+    src/Trace/Trace.cpp
     ${IMGUI_BACKEND_FILES}
 )
 

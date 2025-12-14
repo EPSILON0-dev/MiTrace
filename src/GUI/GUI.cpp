@@ -1,10 +1,11 @@
-#include "gui.hpp"
+#include "GUI.hpp"
 
 #include <stdexcept>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "Trace/ImageBuffer.hpp"
 
 GUI::Window::Window(int w, int h, const char* t)
 {
@@ -99,7 +100,7 @@ void GUI::Window::RefreshTextureIfNeeded()
 
     if (interval > 0.0f && (currentTime - lastUpdateTime) >= interval)
     {
-        const CPUTexture* cpuTex = cpuTexture_.Get();
+        const auto& cpuTex = cpuTexture_.Get();
         if (cpuTex)
         {
             texture_ = std::make_unique<GLTexture>(
@@ -139,11 +140,11 @@ void GUI::Window::MainWindow()
     ImVec2 region = ImGui::GetContentRegionAvail();
     ImVec2 boxSize(region.x * 0.95f, region.y * 0.95f);
 
-    boxSize = ImVec2(
-        std::min(boxSize.x, boxSize.y * (static_cast<float>(texture_->GetWidth()) /
-                           static_cast<float>(texture_->GetHeight()))),
-        std::min(boxSize.y, boxSize.x * (static_cast<float>(texture_->GetHeight()) /
-                           static_cast<float>(texture_->GetWidth()))));
+    boxSize =
+        ImVec2(std::min(boxSize.x, boxSize.y * (static_cast<float>(texture_->GetWidth()) /
+                                                   static_cast<float>(texture_->GetHeight()))),
+            std::min(boxSize.y, boxSize.x * (static_cast<float>(texture_->GetHeight()) /
+                                                static_cast<float>(texture_->GetWidth()))));
 
     ImVec2 cursor = ImGui::GetCursorPos();
     ImGui::SetCursorPos(

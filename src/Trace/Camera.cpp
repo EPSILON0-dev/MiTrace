@@ -1,9 +1,7 @@
-#include "camera.hpp"
+#include "Camera.hpp"
 
 Ray Camera::GenerateRay(float u, float v, float aspectRatio) const noexcept
 {
-    // --- AI GENERATED CODE START ---
-
     // Convert field of view from degrees to radians
     float theta = glm::radians(yfov);
     float halfHeight = tan(theta / 2.0f);
@@ -25,6 +23,4 @@ Ray Camera::GenerateRay(float u, float v, float aspectRatio) const noexcept
     glm::vec3 rayDirection = lowerLeftCorner + u * horizontal + v * vertical - position;
 
     return Ray(position, glm::normalize(rayDirection));
-
-    // --- AI GENERATED CODE END ---
 }

@@ -1,5 +1,5 @@
 #include "GL/glew.h"
-#include "gl_texture.hpp"
+#include "GL_Texture.hpp"
 
 GUI::GLTexture::GLTexture(unsigned width, unsigned height, const unsigned char* rgbPixelsU8)
     : width_(width), height_(height)

@@ -1,10 +1,8 @@
-#include "trace.hpp"
+#include "Trace.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/intersect.hpp>
 #include <numeric>
-
-#include "rayhit.hpp"
 
 static bool RaySphereIntersect(const Ray& ray, const glm::vec4& sphere, float& distance)
 {

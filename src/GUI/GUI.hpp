@@ -5,9 +5,9 @@
 #include <memory>
 #include <string>
 
-#include "common/cpu_texture.hpp"
-#include "common/thread_safe_var.hpp"
-#include "gui/gl_texture.hpp"
+#include "Common/ThreadSafeVar.hpp"
+#include "GUI/GL_Texture.hpp"
+#include "Trace/ImageBuffer.hpp"
 
 namespace GUI
 {
@@ -20,7 +20,7 @@ class GUI::Window
     GLFWwindow* window_ = nullptr;
     ThreadSafeVariable<std::string> statusMessage_;
     ThreadSafeVariable<float> progress_;
-    ThreadSafeVariable<const CPUTexture*> cpuTexture_;
+    ThreadSafeVariable<const Trace::ImageBuffer*> cpuTexture_;
     ThreadSafeVariable<float> textureRefreshInterval_{0.0f};
     std::unique_ptr<GLTexture> texture_;
 
@@ -32,7 +32,7 @@ class GUI::Window
 
     void SetProgress(float progress) { this->progress_.Set(progress); }
     void SetStatusMessage(const char* message) { statusMessage_.Set(message); }
-    void SetTexture(CPUTexture& texture) { cpuTexture_.Set(&texture); }
+    void SetTexture(Trace::ImageBuffer& texture) { cpuTexture_.Set(&texture); }
     void SetTextureRefreshInterval(float seconds) { textureRefreshInterval_.Set(seconds); }
 
    private:

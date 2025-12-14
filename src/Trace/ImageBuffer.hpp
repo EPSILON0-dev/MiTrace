@@ -2,7 +2,9 @@
 
 #include <memory>
 
-class CPUTexture
+namespace Trace { class ImageBuffer; }
+
+class Trace::ImageBuffer
 {
    private:
     unsigned int width_ = 0;
@@ -10,7 +12,7 @@ class CPUTexture
     std::unique_ptr<unsigned char[]> pixels_;  // RGB format
 
    public:
-    CPUTexture(unsigned width, unsigned height)
+    ImageBuffer(unsigned width, unsigned height)
         : width_(width), height_(height), pixels_(new unsigned char[width * height * 3]())
     {
     }
