@@ -3,7 +3,7 @@
 #include "Camera.hpp"  // IWYU pragma: keep
 #include "Ray.hpp"
 #include "RayHit.hpp"  // IWYU pragma: keep
-#include "Scene/Scene.hpp"
+#include "Scene.hpp"
 
 namespace Trace
 {

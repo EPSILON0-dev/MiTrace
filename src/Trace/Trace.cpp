@@ -2,7 +2,6 @@
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/intersect.hpp>
-#include <numeric>
 
 static bool RaySphereIntersect(const Ray& ray, const glm::vec4& sphere, float& distance)
 {
@@ -12,19 +11,19 @@ static bool RaySphereIntersect(const Ray& ray, const glm::vec4& sphere, float& d
 
 bool Trace::TraceScene(const Ray& ray, const Scene& scene)
 {
-    RayHit closestHit;
+    float lowestDistance = std::numeric_limits<float>::max();
+    bool didHit = false;
 
-    auto checkLambda = [&ray](auto closestHit, const auto& sphere)
+    for (const auto& meshInstance : scene.GetMeshInstances())
     {
-        float hitDist;
-        if (RaySphereIntersect(ray, sphere, hitDist))
-            if (hitDist < closestHit.distance || closestHit.distance < 0.0f)
-                closestHit.distance = hitDist;
-        return closestHit;
-    };
+        auto hit = meshInstance.IntersectRay(ray);
+        if (hit.has_value())
+        {
+            didHit = true;
+            if (hit->distance < lowestDistance)
+                lowestDistance = hit->distance;
+        }
+    }
 
-    closestHit = std::accumulate(
-        scene.GetSpheres().begin(), scene.GetSpheres().end(), closestHit, checkLambda);
-
-    return closestHit.distance > 0.0f;
+    return didHit;
 }

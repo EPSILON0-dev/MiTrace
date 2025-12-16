@@ -10,16 +10,16 @@ class ThreadSafeVariable
     mutable std::mutex mutex_;
 
    public:
-    ThreadSafeVariable() = default;
-    explicit ThreadSafeVariable(const T& initial) : value_(initial) {}
+    ThreadSafeVariable() noexcept = default;
+    explicit ThreadSafeVariable(const T& initial) noexcept : value_(initial) {}
 
-    T Get() const
+    T Get() const noexcept
     {
         std::lock_guard<std::mutex> lock(mutex_);
         return value_;
     }
 
-    void Set(const T& newValue)
+    void Set(const T& newValue) noexcept
     {
         std::lock_guard<std::mutex> lock(mutex_);
         value_ = newValue;

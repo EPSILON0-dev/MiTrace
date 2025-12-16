@@ -1,11 +1,12 @@
 #include "GUI.hpp"
 
+#include <chrono>
 #include <stdexcept>
 
+#include "Trace/ImageBuffer.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include "Trace/ImageBuffer.hpp"
 
 GUI::Window::Window(int w, int h, const char* t)
 {
@@ -19,6 +20,9 @@ GUI::Window::~Window()
 
 void GUI::Window::Init(int w, int h, const char* t)
 {
+    using std::chrono::milliseconds;
+    using std::this_thread::sleep_for;
+
     if (!glfwInit())
     {
         throw std::runtime_error("Failed to initialize GLFW");
@@ -47,10 +51,23 @@ void GUI::Window::Init(int w, int h, const char* t)
     ImGui_ImplOpenGL3_Init("#version 330");
 
     texture_ = std::make_unique<GLTexture>(1, 1, nullptr);
+
+    textureRefreshThread_ = std::thread(
+        [this]()
+        {
+            while (!exitTextureRefreshThread_)
+            {
+                shouldRefreshTexture_ = true;
+                sleep_for(milliseconds(static_cast<int>(textureRefreshInterval_ * 1000)));
+            }
+        });
 }
 
 void GUI::Window::Shutdown()
 {
+    exitTextureRefreshThread_ = true;
+    textureRefreshThread_.join();
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -94,19 +111,14 @@ void GUI::Window::Frame()
 
 void GUI::Window::RefreshTextureIfNeeded()
 {
-    float interval = textureRefreshInterval_.Get();
-    double currentTime = glfwGetTime();
-    static double lastUpdateTime = 0.0;
+    if (!shouldRefreshTexture_) return;
+    shouldRefreshTexture_ = false;
 
-    if (interval > 0.0f && (currentTime - lastUpdateTime) >= interval)
+    const auto& cpuTex = cpuTexture_.load();
+    if (cpuTex)
     {
-        const auto& cpuTex = cpuTexture_.Get();
-        if (cpuTex)
-        {
-            texture_ = std::make_unique<GLTexture>(
-                cpuTex->GetWidth(), cpuTex->GetHeight(), cpuTex->GetPixels());
-        }
-        lastUpdateTime = currentTime;
+        texture_ = std::make_unique<GLTexture>(
+            cpuTex->GetWidth(), cpuTex->GetHeight(), cpuTex->GetPixels());
     }
 }
 
@@ -162,7 +174,7 @@ void GUI::Window::MainWindow()
     ImGui::BeginChild("StatusBar", ImVec2(avail.x, bottomHeight), true);
 
     ImGui::TextUnformatted(statusMessage_.Get().c_str());
-    ImGui::ProgressBar(progress_.Get(), ImVec2(-1.0f, 0.0f));
+    ImGui::ProgressBar(progressPercent_, ImVec2(-1.0f, 0.0f));
 
     ImGui::EndChild();
 

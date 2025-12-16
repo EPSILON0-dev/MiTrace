@@ -4,6 +4,8 @@
 
 #include <memory>
 #include <string>
+#include <thread>
+#include <atomic>
 
 #include "Common/ThreadSafeVar.hpp"
 #include "GUI/GL_Texture.hpp"
@@ -19,9 +21,12 @@ class GUI::Window
    private:
     GLFWwindow* window_ = nullptr;
     ThreadSafeVariable<std::string> statusMessage_;
-    ThreadSafeVariable<float> progress_;
-    ThreadSafeVariable<const Trace::ImageBuffer*> cpuTexture_;
-    ThreadSafeVariable<float> textureRefreshInterval_{0.0f};
+    std::atomic<float> progressPercent_;
+    std::atomic<const Trace::ImageBuffer*> cpuTexture_; // TODO: potential ownership issue
+    std::atomic<float> textureRefreshInterval_{0.0f};
+    std::atomic<bool> shouldRefreshTexture_{true};
+    std::thread textureRefreshThread_;
+    std::atomic<bool> exitTextureRefreshThread_{false};
     std::unique_ptr<GLTexture> texture_;
 
    public:
@@ -30,10 +35,10 @@ class GUI::Window
 
     void Run();
 
-    void SetProgress(float progress) { this->progress_.Set(progress); }
+    void SetProgress(float progress) { this->progressPercent_ = progress; }
     void SetStatusMessage(const char* message) { statusMessage_.Set(message); }
-    void SetTexture(Trace::ImageBuffer& texture) { cpuTexture_.Set(&texture); }
-    void SetTextureRefreshInterval(float seconds) { textureRefreshInterval_.Set(seconds); }
+    void SetTexture(Trace::ImageBuffer& texture) { cpuTexture_ = &texture; }
+    void SetTextureRefreshInterval(float seconds) { textureRefreshInterval_ = seconds; }
 
    private:
     void Init(int w, int h, const char* t);

@@ -1,4 +1,7 @@
+# Set the minimum required version for compatibility with dependencies
 cmake_minimum_required(VERSION 3.16)
+
+set(CMAKE_POLICY_VERSION_MINIMUM 3.16)
 
 project(RayTracing)
 
@@ -55,7 +58,11 @@ set(SRC_FILES
     src/GUI/GUI.cpp
     src/GUI/GL_Texture.cpp
     src/Trace/Camera.cpp
+    src/Trace/Mesh.cpp
+    src/Trace/MeshInstance.cpp
+    src/Trace/Intersect.cpp
     src/Trace/Trace.cpp
+    src/Trace/Scene.cpp
     ${IMGUI_BACKEND_FILES}
 )
 
@@ -64,3 +71,21 @@ add_executable(RayTracing ${SRC_FILES})
 
 # Link imgui library
 target_link_libraries(RayTracing PUBLIC imgui glfw GL)
+
+# Add nlohmann/json library
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.2
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
+# Precompiled header setup
+set(PCH_HEADER ${nlohmann_json_SOURCE_DIR}/single_include/nlohmann/json.hpp)
+
+# Generate precompiled header
+add_library(PCH INTERFACE)
+target_precompile_headers(PCH INTERFACE ${PCH_HEADER})
+
+# Link PCH to the main executable
+target_link_libraries(RayTracing PUBLIC PCH)
