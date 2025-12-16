@@ -7,6 +7,9 @@
 #include <numeric>
 #include <stdexcept>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/intersect.hpp>
+
 Mesh::Accessor Mesh::ParseAccessor(const nlohmann::json& gltf, size_t accessorIndex)
 {
     const auto& accessorData = gltf["accessors"][accessorIndex];
@@ -182,6 +185,7 @@ Mesh Mesh::FromGLTF(const nlohmann::json& gltf, size_t meshIndex, size_t primiti
         {
             auto shortIndices = LoadAttribute<uint16_t>(
                 gltf, basePath, indicesAcc, AttributeType::SCALAR, ComponentType::UNSIGNED_SHORT);
+            mesh.indices_.reserve(shortIndices.size());
             std::transform(shortIndices.begin(), shortIndices.end(),
                 std::back_inserter(mesh.indices_),
                 [](uint16_t index) { return static_cast<uint32_t>(index); });
@@ -271,4 +275,34 @@ glm::vec3 Mesh::GetAABBMax() const noexcept
     return std::accumulate(positions_.begin(), positions_.end(),
         glm::vec3(std::numeric_limits<float>::lowest()),
         [](const auto& a, const auto& b) { return glm::max(a, b); });
+}
+
+bool Mesh::Intersect(
+    const Ray& ray, size_t& triangleIndex, float& dist, glm::vec2& baryCoord) const noexcept
+{
+    triangleIndex = std::numeric_limits<size_t>::max();
+    dist = std::numeric_limits<float>::max();
+
+    for (size_t i = 0; i < indices_.size(); i += 3)
+    {
+        const glm::vec3& v0 = positions_[indices_[i + 0]];
+        const glm::vec3& v1 = positions_[indices_[i + 1]];
+        const glm::vec3& v2 = positions_[indices_[i + 2]];
+
+        float currentDistance;
+        glm::vec2 currentBaryCoord;
+
+        if (glm::intersectRayTriangle(ray.origin, ray.direction, glm::vec3(v0), glm::vec3(v1),
+                glm::vec3(v2), currentBaryCoord, currentDistance))
+        {
+            if (currentDistance < dist)
+            {
+                dist = currentDistance;
+                baryCoord = currentBaryCoord;
+                triangleIndex = i / 3;
+            }
+        }
+    }
+
+    return triangleIndex != std::numeric_limits<size_t>::max();
 }

@@ -2,9 +2,6 @@
 
 #include <limits>
 
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/intersect.hpp>
-
 #include "Intersect.hpp"
 
 MeshInstance::MeshInstance(std::shared_ptr<Mesh> mesh, const glm::mat4& transform)
@@ -36,40 +33,29 @@ MeshInstance::MeshInstance(std::shared_ptr<Mesh> mesh, const glm::mat4& transfor
     }
 }
 
-// TODO Move the intersect logic into Mesh class (only transform the ray into local space)
 std::optional<RayHit> MeshInstance::IntersectRay(const Ray& ray) const
 {
+    // First, check intersection with world AABB
     if (!IntersectRayAABB(ray, worldAABBMin_, worldAABBMax_)) return std::nullopt;
 
-    float closestDistance = std::numeric_limits<float>::max();
-    size_t hitTriangleIndex = std::numeric_limits<size_t>::max();
+    // Transform ray to local space
+    glm::mat4 invTransform = glm::inverse(transform_);
+    Ray localRay;
+    localRay.origin = glm::vec3(invTransform * glm::vec4(ray.origin, 1.0f));
+    localRay.direction = glm::normalize(glm::vec3(invTransform * glm::vec4(ray.direction, 0.0f)));
 
-    // Unfortunately a deadly sin has to be committed here: for loop over vertices.
-    for (size_t i = 0; i < mesh_->GetIndices().size(); i += 3)
+    // Do the intersection test in local space
+    size_t triangleIndex;
+    float dist;
+    glm::vec2 baryCoord;
+    if (mesh_->Intersect(localRay, triangleIndex, dist, baryCoord))
     {
-        // TODO optimize: transform the ray into local space instead of transforming each vertex
-        glm::vec4 v0 =
-            transform_ * glm::vec4(mesh_->GetPositions()[mesh_->GetIndices()[i + 0]], 1.0f);
-        glm::vec4 v1 =
-            transform_ * glm::vec4(mesh_->GetPositions()[mesh_->GetIndices()[i + 1]], 1.0f);
-        glm::vec4 v2 =
-            transform_ * glm::vec4(mesh_->GetPositions()[mesh_->GetIndices()[i + 2]], 1.0f);
-
-        glm::vec2 baryPosUnused;
-        float distance;
-
-        if (glm::intersectRayTriangle(ray.origin, ray.direction, glm::vec3(v0), glm::vec3(v1),
-                glm::vec3(v2), baryPosUnused, distance))
-        {
-            if (distance < closestDistance)
-            {
-                closestDistance = distance;
-                hitTriangleIndex = i / 3;
-            }
-        }
+        RayHit hit;
+        hit.distance = dist;
+        return hit;
     }
-
-    if (hitTriangleIndex == std::numeric_limits<size_t>::max()) return std::nullopt;
-
-    return RayHit(ray, glm::vec3(0.0f), glm::vec3(0.0f), closestDistance);
+    else
+    {
+        return std::nullopt;
+    }
 }

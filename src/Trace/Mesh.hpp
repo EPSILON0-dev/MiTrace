@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <glm/glm.hpp>
 
+#include "Ray.hpp"
+
 class Mesh
 {
    private:
@@ -91,4 +93,7 @@ class Mesh
    public:
     glm::vec3 GetAABBMin() const noexcept;
     glm::vec3 GetAABBMax() const noexcept;
+
+    bool Intersect(
+        const Ray& ray, size_t& triangleIndex, float& dist, glm::vec2& baryCoord) const noexcept;
 };
