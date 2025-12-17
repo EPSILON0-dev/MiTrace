@@ -63,11 +63,9 @@ set(SRC_FILES
     src/Trace/Mesh.cpp
     src/Trace/MeshInstance.cpp
     src/Trace/MaterialGLTF.cpp
-    src/Trace/GLTF_Loader.cpp
+    src/Loader/GLTF_Loader.cpp
     src/Trace/Intersect.cpp
     src/Trace/Trace.cpp
-    src/Trace/Texture.cpp
-    src/Trace/Scene.cpp
     src/Common/STB_Impl.cpp
     ${IMGUI_BACKEND_FILES}
 )

@@ -4,7 +4,7 @@
 #include <thread>
 
 #include "GUI/GUI.hpp"
-#include "Trace/GLTF_Loader.hpp"
+#include "Loader/GLTF_Loader.hpp"
 #include "Trace/MeshInstance.hpp"
 #include "Trace/Scene.hpp"
 #include "Trace/Trace.hpp"

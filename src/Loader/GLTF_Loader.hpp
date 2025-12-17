@@ -6,7 +6,7 @@
 #include <nlohmann/json.hpp>
 #include <vector>
 
-#include "Mesh.hpp"
+#include "Trace/Mesh.hpp"
 #include "Trace/Image.hpp"
 #include "Trace/MaterialGLTF.hpp"
 
