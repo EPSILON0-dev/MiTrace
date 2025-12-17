@@ -1,32 +1,33 @@
-#include <filesystem>
-#include <fstream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <memory>
 #include <thread>
 
 #include "GUI/GUI.hpp"
+#include "Trace/GLTF_Loader.hpp"
 #include "Trace/MeshInstance.hpp"
 #include "Trace/Scene.hpp"
 #include "Trace/Trace.hpp"
+
+// TODO : Add global kill switch for render thread
 
 void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture, const char* gltfFilePath)
 {
     Camera cam(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f), 45.0f);
 
-    std::filesystem::path basePath = std::filesystem::path(gltfFilePath).parent_path();
-    nlohmann::json gltf = nlohmann::json::parse(std::ifstream(gltfFilePath));
-    Mesh mesh = Mesh::FromGLTF(gltf, 0, 0, basePath);
+    GLTF_Loader loader(gltfFilePath);
+    std::shared_ptr<Mesh> meshPtr = loader.LoadMesh(0, 0);
+    auto &mesh = *meshPtr;
 
     glm::mat4 meshMat(1.0f);
     meshMat = glm::rotate(meshMat, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     meshMat = glm::rotate(meshMat, glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
-    MeshInstance meshInstance(std::make_shared<Mesh>(mesh), meshMat);
+    MeshInstance meshInstance(meshPtr, meshMat);
 
     Scene scene;
     scene.AddMeshInstance(meshInstance);
 
-    // Generate the texture
     const int texSize = 100;
     const float aspectRatio = 1.0f;
     for (int y = 0; y < texSize; ++y)
