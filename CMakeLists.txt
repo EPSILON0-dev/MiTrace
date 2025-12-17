@@ -14,7 +14,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-set(CMAKE_CXX_FLAGS_COMMON "-pthread")
+set(CMAKE_CXX_FLAGS_COMMON "-pthread -Wall -Wextra -Wpedantic")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -fsanitize=address,undefined ${CMAKE_CXX_FLAGS_COMMON}")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native ${CMAKE_CXX_FLAGS_COMMON}")
 
@@ -59,12 +59,16 @@ set(SRC_FILES
     src/GUI/GUI.cpp
     src/GUI/GL_Texture.cpp
     src/Trace/Camera.cpp
+    src/Trace/Image.cpp
     src/Trace/Mesh.cpp
     src/Trace/MeshInstance.cpp
+    src/Trace/MaterialGLTF.cpp
     src/Trace/GLTF_Loader.cpp
     src/Trace/Intersect.cpp
     src/Trace/Trace.cpp
+    src/Trace/Texture.cpp
     src/Trace/Scene.cpp
+    src/Common/STB_Impl.cpp
     ${IMGUI_BACKEND_FILES}
 )
 

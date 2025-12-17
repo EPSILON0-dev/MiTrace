@@ -51,7 +51,10 @@ std::optional<RayHit> MeshInstance::IntersectRay(const Ray& ray) const
     if (mesh_->Intersect(localRay, triangleIndex, dist, baryCoord))
     {
         RayHit hit;
+        hit.meshInstance = this;
         hit.distance = dist;
+        hit.baryCoord = baryCoord;
+        hit.triangleIndex = triangleIndex;
         return hit;
     }
     else

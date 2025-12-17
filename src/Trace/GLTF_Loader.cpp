@@ -2,8 +2,11 @@
 
 #include <format>
 #include <fstream>
-#include <stdexcept>
+#include <glm/gtc/type_ptr.hpp>
 #include <memory>
+#include <stdexcept>
+
+#include "Trace/MaterialGLTF.hpp"
 
 GLTF_Loader::GLTF_Loader(const std::filesystem::path& filePath)
     : filePath_(filePath), basePath_(filePath.parent_path())
@@ -161,15 +164,52 @@ std::vector<T> GLTF_Loader::LoadMeshAttribute(
     return LoadMeshAttributeData<T>(bufferView, accessor, expectedType, expectedComponentType);
 }
 
+Texture GLTF_Loader::LoadTexture(size_t textureIndex)
+{
+    const auto& textureData = gltfData_["textures"][textureIndex];
+    size_t imageIndex = textureData["source"].get<size_t>();
+    auto imagePtr = LoadImage(imageIndex);
+
+    // Check the coord set
+    if (textureData.contains("texCoord"))
+    {
+        size_t texCoordSet = textureData["texCoord"].get<size_t>();
+        if (texCoordSet != 0) throw std::runtime_error("Only TEXCOORD_0 is supported");
+    }
+
+    // TODO : Handle sampler parameters properly
+    Image::FilterMode filterMode = Image::FilterMode::Linear;
+    if (textureData.contains("sampler"))
+    {
+        size_t samplerIndex = textureData["sampler"].get<size_t>();
+        const auto& samplerData = gltfData_["samplers"][samplerIndex];
+
+        // Minification filter
+        if (samplerData.contains("minFilter"))
+        {
+            size_t minFilter = samplerData["minFilter"].get<size_t>();
+            if (minFilter == 9728)  // NEAREST
+                filterMode = Image::FilterMode::Nearest;
+            else if (minFilter == 9729)  // LINEAR
+                filterMode = Image::FilterMode::Linear;
+        }
+    }
+
+    return Texture(imagePtr, filterMode);
+}
+
+// TODO : Simplify this function
 std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIndex)
 {
     // If we found it in the cache, return it
-    if (loadedMeshes_.find(meshIndex) != loadedMeshes_.end())
-        return loadedMeshes_.at(meshIndex);
+    if (loadedMeshes_.find(meshIndex) != loadedMeshes_.end()) return loadedMeshes_.at(meshIndex);
 
     // Create a new mesh
     auto meshPtr = std::make_shared<Mesh>();
     auto& mesh = *meshPtr;
+
+    // Load the useless name
+    mesh.name_ = gltfData_["meshes"][meshIndex].value("name", "Unnamed_Mesh");
 
     // Validate primitive data
     const auto& primitiveData = gltfData_["meshes"][meshIndex]["primitives"][primitiveIndex];
@@ -278,7 +318,93 @@ std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIn
         }
     }
 
+    // Load the material if present
+    if (primitiveData.contains("material"))
+    {
+        size_t materialIndex = primitiveData["material"].get<size_t>();
+        auto materialPtr = LoadMaterial(materialIndex);
+        mesh.SetMaterial(std::dynamic_pointer_cast<MaterialBase>(materialPtr));
+    }
+
     // Cache and return the loaded mesh
     loadedMeshes_[meshIndex] = meshPtr;
     return meshPtr;
+}
+
+std::shared_ptr<Image> GLTF_Loader::LoadImage(size_t imageIndex)
+{
+    // Return from cache if already loaded
+    if (loadedImages_.find(imageIndex) != loadedImages_.end()) return loadedImages_.at(imageIndex);
+
+    // Load the image
+    auto& imageData = gltfData_["images"][imageIndex];
+    if (!imageData.contains("uri")) throw std::runtime_error("Only URI-based images are supported");
+    auto image = std::make_shared<Image>(basePath_ / imageData["uri"].get<std::string>());
+    image->name_ = imageData.value("name", "Unnamed_Image");
+
+    // Emplace in cache and return
+    loadedImages_.emplace(imageIndex, image);
+    return image;
+}
+
+std::shared_ptr<MaterialGLTF> GLTF_Loader::LoadMaterial(size_t materialIndex)
+{
+    const auto& materialData = gltfData_["materials"][materialIndex];
+    const auto& pbrData = materialData["pbrMetallicRoughness"];
+    MaterialGLTF material;
+
+    // Load emissive texture and factor
+    if (pbrData.contains("emissiveTexture"))
+        material.emissiveTexture_ = LoadTexture(pbrData["emissiveTexture"]["index"].get<size_t>());
+    material.emissiveFactor_ =
+        pbrData.contains("emissiveFactor")
+            ? glm::make_vec3(pbrData["emissiveFactor"].get<std::vector<float>>().data())
+            : glm::vec3(1.0f);
+
+    // Load PBR material properties
+    material.name_ = materialData.value("name", "Unnamed_Material");
+    material.baseColorFactor_ =
+        pbrData.contains("baseColorFactor")
+            ? glm::make_vec4(pbrData["baseColorFactor"].get<std::vector<float>>().data())
+            : glm::vec4(1.0f);
+    material.metallicFactor_ = pbrData.value("metallicFactor", 1.0f);
+    material.roughnessFactor_ = pbrData.value("roughnessFactor", 1.0f);
+
+    // Load textures if present
+    if (pbrData.contains("baseColorTexture"))
+        material.baseColorTexture_ =
+            LoadTexture(pbrData["baseColorTexture"]["index"].get<size_t>());
+    if (pbrData.contains("metallicRoughnessTexture"))
+        material.metallicRoughnessTexture_ =
+            LoadTexture(pbrData["metallicRoughnessTexture"]["index"].get<size_t>());
+
+    // Load normal texture if present
+    if (materialData.contains("normalTexture"))
+        material.normalTexture_ = LoadTexture(materialData["normalTexture"]["index"].get<size_t>());
+    material.normalScale_ = materialData.value("normalTexture", 1.0f);
+
+    // Load occlusion texture if present
+    if (materialData.contains("occlusionTexture"))
+        material.occlusionTexture_ =
+            LoadTexture(materialData["occlusionTexture"]["index"].get<size_t>());
+    material.occlusionStrength_ = materialData.value("occlusionStrength", 1.0f);
+
+    // Cache and return
+    loadedMaterials_.emplace(materialIndex, std::make_shared<MaterialGLTF>(material));
+    return loadedMaterials_.at(materialIndex);
+}
+
+void GLTF_Loader::Cleanup()
+{
+    // Drop all buffers
+    loadedBuffers_.clear();
+
+    // Drop materials, images and meshes that only have one reference (to avoid dropping shared
+    // materials)
+    loadedMaterials_.erase(std::erase_if(
+        loadedMaterials_, [](const auto& pair) { return pair.second.use_count() <= 1; }));
+    loadedImages_.erase(std::erase_if(
+        loadedImages_, [](const auto& pair) { return pair.second.use_count() <= 1; }));
+    loadedMeshes_.erase(std::erase_if(
+        loadedMeshes_, [](const auto& pair) { return pair.second.use_count() <= 1; }));
 }

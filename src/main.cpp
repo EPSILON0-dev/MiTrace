@@ -16,33 +16,37 @@ void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture, const char* glt
     Camera cam(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f), 45.0f);
 
     GLTF_Loader loader(gltfFilePath);
-    std::shared_ptr<Mesh> meshPtr = loader.LoadMesh(0, 0);
-    auto &mesh = *meshPtr;
-
-    glm::mat4 meshMat(1.0f);
-    meshMat = glm::rotate(meshMat, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    meshMat = glm::rotate(meshMat, glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
-    MeshInstance meshInstance(meshPtr, meshMat);
-
-    Scene scene;
-    scene.AddMeshInstance(meshInstance);
-
-    const int texSize = 100;
-    const float aspectRatio = 1.0f;
-    for (int y = 0; y < texSize; ++y)
     {
-        for (int x = 0; x < texSize; ++x)
-        {
-            Ray ray = cam.GenerateRay((static_cast<float>(x) + 0.5f) / static_cast<float>(texSize),
-                (static_cast<float>(y) + 0.5f) / static_cast<float>(texSize), 1.0f);
-            int hit = Trace::TraceScene(ray, scene) * 255;
-            texture.SetPixel(x, y, hit, hit, hit);
-        }
+        std::shared_ptr<Mesh> mesh = loader.LoadMesh(0, 0);
 
-        gui.SetProgress(y / 99.0f);
-        gui.SetStatusMessage(("Rendering... "));
+        glm::mat4 meshMat(1.0f);
+        meshMat = glm::rotate(meshMat, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        meshMat = glm::rotate(meshMat, glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+        MeshInstance meshInstance(mesh, meshMat);
+
+        Scene scene;
+        scene.AddMeshInstance(meshInstance);
+
+        const int texSize = 100;
+        // const float aspectRatio = 1.0f;
+        for (int y = 0; y < texSize; ++y)
+        {
+            for (int x = 0; x < texSize; ++x)
+            {
+                Ray ray =
+                    cam.GenerateRay((static_cast<float>(x) + 0.5f) / static_cast<float>(texSize),
+                        (static_cast<float>(y) + 0.5f) / static_cast<float>(texSize), 1.0f);
+                auto color = Trace::TraceScene(ray, scene);
+                texture.SetPixel(x, y, color.r, color.g, color.b);
+            }
+
+            gui.SetProgress(y / 99.0f);
+            gui.SetStatusMessage(("Rendering... "));
+        }
     }
+
+    loader.Cleanup();
 
     gui.SetStatusMessage("Render complete.");
 }
