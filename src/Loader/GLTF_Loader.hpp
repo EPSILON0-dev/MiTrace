@@ -6,9 +6,10 @@
 #include <nlohmann/json.hpp>
 #include <vector>
 
-#include "Trace/Mesh.hpp"
 #include "Trace/Image.hpp"
 #include "Trace/MaterialGLTF.hpp"
+#include "Trace/Mesh.hpp"
+#include "Trace/MeshInstance.hpp"
 
 class GLTF_Loader
 {
@@ -56,7 +57,7 @@ class GLTF_Loader
     std::map<size_t, std::shared_ptr<Image>> loadedImages_;
     std::map<size_t, std::shared_ptr<Mesh>> loadedMeshes_;
 
-   private:  // Mesh related methods
+   private:  // Helper methods
     const std::vector<uint8_t>& GetBufferData(size_t bufferIndex);
     bool IsAccessorCorrect(
         size_t accessorIndex, AttributeType expectedType, ComponentType expectedComponentType);
@@ -68,6 +69,7 @@ class GLTF_Loader
     template <typename T>
     std::vector<T> LoadMeshAttribute(
         size_t accessorIndex, AttributeType expectedType, ComponentType expectedComponentType);
+    glm::mat4 ComputeNodeTransform(size_t nodeIndex) const;
 
    public:  // Rule of zero
     GLTF_Loader(const std::filesystem::path& filePath);
@@ -77,6 +79,10 @@ class GLTF_Loader
     std::shared_ptr<Image> LoadImage(size_t imageIndex);
     Texture LoadTexture(size_t textureIndex);
     std::shared_ptr<MaterialGLTF> LoadMaterial(size_t materialIndex);
+    std::vector<MeshInstance> LoadNode(
+        size_t nodeIndex, const glm::mat4& transform = glm::mat4(1.0f));
+    std::vector<MeshInstance> LoadScene(
+        size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f));
 
    public:  // Other methods
     void Cleanup();

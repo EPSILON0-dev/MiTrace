@@ -133,7 +133,6 @@ std::vector<T> GLTF_Loader::LoadMeshAttributeData(const BufferView& bufferView,
     data.reserve(accessor.count);
 
     // We assume tightly packed data with the same byte order as the host architecture
-    // TODO: Maybe there's a better way to handle this?
     size_t stride = accessor.attributeCount * accessor.componentSize;
     for (size_t i = 0; i < accessor.count; ++i)
     {
@@ -177,28 +176,61 @@ Texture GLTF_Loader::LoadTexture(size_t textureIndex)
         if (texCoordSet != 0) throw std::runtime_error("Only TEXCOORD_0 is supported");
     }
 
-    // TODO : Handle sampler parameters properly
     Image::FilterMode filterMode = Image::FilterMode::Linear;
+    const static std::map<size_t, Image::FilterMode> filterModeMap = {
+        {9728, Image::FilterMode::Nearest},  // NEAREST
+        {9729, Image::FilterMode::Linear}};  // LINEAR
+
     if (textureData.contains("sampler"))
     {
-        size_t samplerIndex = textureData["sampler"].get<size_t>();
-        const auto& samplerData = gltfData_["samplers"][samplerIndex];
-
-        // Minification filter
-        if (samplerData.contains("minFilter"))
+        const auto& samplerData =
+            gltfData_["samplers"][textureData["sampler"].get<size_t>()].value("minFilter", 9729);
+        try
         {
-            size_t minFilter = samplerData["minFilter"].get<size_t>();
-            if (minFilter == 9728)  // NEAREST
-                filterMode = Image::FilterMode::Nearest;
-            else if (minFilter == 9729)  // LINEAR
-                filterMode = Image::FilterMode::Linear;
+            filterMode = filterModeMap.at(samplerData);
+        }
+        catch (const std::out_of_range&)
+        {
+            throw std::runtime_error("Unsupported filter mode in texture sampler");
         }
     }
 
     return Texture(imagePtr, filterMode);
 }
 
-// TODO : Simplify this function
+glm::mat4 GLTF_Loader::ComputeNodeTransform(size_t nodeIndex) const
+{
+    const auto& nodeData = gltfData_["nodes"][nodeIndex];
+
+    glm::mat4 transform = glm::mat4(1.0f);
+    if (nodeData.contains("matrix"))
+    {
+        transform = glm::make_mat4(nodeData["matrix"].get<std::vector<float>>().data());
+    }
+    else
+    {
+        if (nodeData.contains("translation"))
+        {
+            glm::vec3 translation =
+                glm::make_vec3(nodeData["translation"].get<std::vector<float>>().data());
+            transform = glm::translate(transform, translation);
+        }
+        if (nodeData.contains("rotation"))
+        {
+            glm::quat rotation =
+                glm::make_quat(nodeData["rotation"].get<std::vector<float>>().data());
+            transform *= glm::mat4_cast(rotation);
+        }
+        if (nodeData.contains("scale"))
+        {
+            glm::vec3 scale = glm::make_vec3(nodeData["scale"].get<std::vector<float>>().data());
+            transform = glm::scale(transform, scale);
+        }
+    }
+
+    return transform;
+}
+
 std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIndex)
 {
     // If we found it in the cache, return it
@@ -389,9 +421,68 @@ std::shared_ptr<MaterialGLTF> GLTF_Loader::LoadMaterial(size_t materialIndex)
             LoadTexture(materialData["occlusionTexture"]["index"].get<size_t>());
     material.occlusionStrength_ = materialData.value("occlusionStrength", 1.0f);
 
+    // Load alpha properties
+    static const std::map<std::string, MaterialGLTF::TransparencyMode> alphaModeMap = {
+        {"OPAQUE", MaterialGLTF::TransparencyMode::OPAQUE},  // OPAQUE
+        {"MASK", MaterialGLTF::TransparencyMode::MASK},      // MASK
+        {"BLEND", MaterialGLTF::TransparencyMode::BLEND}};   // BLEND
+    std::string alphaMode = materialData.value("alphaMode", "OPAQUE");
+    try
+    {
+        material.transparencyMode_ = alphaModeMap.at(alphaMode);
+    }
+    catch (const std::out_of_range&)
+    {
+        throw std::runtime_error("Unsupported alpha mode in material");
+    }
+    material.alphaCutoff_ = materialData.value("alphaCutoff", 0.5f);
+    material.doubleSided_ = materialData.value("doubleSided", false);
+
     // Cache and return
     loadedMaterials_.emplace(materialIndex, std::make_shared<MaterialGLTF>(material));
     return loadedMaterials_.at(materialIndex);
+}
+
+std::vector<MeshInstance> GLTF_Loader::LoadNode(size_t nodeIndex, const glm::mat4& transform)
+{
+    std::vector<MeshInstance> instances;
+    const auto& nodeData = gltfData_["nodes"][nodeIndex];
+
+    glm::mat4 worldTransform = transform * ComputeNodeTransform(nodeIndex);
+
+    if (nodeData.contains("mesh"))
+    {
+        auto meshPtr = LoadMesh(nodeData["mesh"].get<size_t>());
+        instances.push_back(MeshInstance(std::move(meshPtr), worldTransform));
+    }
+
+    if (nodeData.contains("children"))
+    {
+        const auto& children = nodeData["children"];
+        for (const auto& childIndex : children)
+        {
+            auto childInstances = LoadNode(childIndex.get<size_t>(), worldTransform);
+            instances.insert(instances.end(), std::make_move_iterator(childInstances.begin()),
+                std::make_move_iterator(childInstances.end()));
+        }
+    }
+
+    return instances;
+}
+
+std::vector<MeshInstance> GLTF_Loader::LoadScene(size_t sceneIndex, const glm::mat4& transform)
+{
+    const auto& sceneData = gltfData_["scenes"][sceneIndex];
+
+    std::vector<MeshInstance> instances;
+    for (const auto& nodeIndex : sceneData["nodes"])
+    {
+        auto nodeInstances = LoadNode(nodeIndex.get<size_t>(), transform);
+        instances.insert(instances.end(), std::make_move_iterator(nodeInstances.begin()),
+            std::make_move_iterator(nodeInstances.end()));
+    }
+
+    return instances;
 }
 
 void GLTF_Loader::Cleanup()

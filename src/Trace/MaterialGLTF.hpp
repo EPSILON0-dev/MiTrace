@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
 #include <optional>
+#include <string>
 
 #include "MaterialBase.hpp"
 #include "Trace/Texture.hpp"
@@ -9,6 +9,14 @@
 class MaterialGLTF : public MaterialBase
 {
     friend class GLTF_Loader;
+
+   public:
+    enum class TransparencyMode : uint8_t
+    {
+        OPAQUE,
+        MASK,
+        BLEND
+    };
 
    private:
     std::string name_;
@@ -23,7 +31,9 @@ class MaterialGLTF : public MaterialBase
     float metallicFactor_;
     float roughnessFactor_;
     float occlusionStrength_;
-    // TODO: alpha, cutoff, doubleSided type shii
+    float alphaCutoff_;
+    TransparencyMode transparencyMode_;
+    bool doubleSided_;
 
    public:
     MaterialGLTF()
@@ -38,7 +48,9 @@ class MaterialGLTF : public MaterialBase
           normalScale_(1.0f),
           metallicFactor_(1.0f),
           roughnessFactor_(1.0f),
-          occlusionStrength_(1.0f) {}
+          occlusionStrength_(1.0f)
+    {
+    }
 
     virtual void Reflect(const GeometryInfo& geometryInfo, glm::vec3& direction,
         glm::vec3& energy) const noexcept override;

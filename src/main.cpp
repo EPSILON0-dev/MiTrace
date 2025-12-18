@@ -1,11 +1,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
-#include <memory>
 #include <thread>
 
 #include "GUI/GUI.hpp"
 #include "Loader/GLTF_Loader.hpp"
-#include "Trace/MeshInstance.hpp"
 #include "Trace/Scene.hpp"
 #include "Trace/Trace.hpp"
 
@@ -17,16 +15,13 @@ void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture, const char* glt
 
     GLTF_Loader loader(gltfFilePath);
     {
-        std::shared_ptr<Mesh> mesh = loader.LoadMesh(0, 0);
-
-        glm::mat4 meshMat(1.0f);
-        meshMat = glm::rotate(meshMat, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        meshMat = glm::rotate(meshMat, glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
-        MeshInstance meshInstance(mesh, meshMat);
+        glm::mat4 transform(1.0f);
+        transform = glm::rotate(transform, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        transform = glm::rotate(transform, glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
         Scene scene;
-        scene.AddMeshInstance(meshInstance);
+        auto instances = loader.LoadScene(0, transform);
+        scene.AddMeshInstances(instances);
 
         const int texSize = 100;
         // const float aspectRatio = 1.0f;

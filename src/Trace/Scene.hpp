@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <vector>
+
 #include "Trace/MeshInstance.hpp"
 
 class Scene
@@ -17,8 +18,10 @@ class Scene
         meshInstances_.push_back(meshInstance);
     }
 
-    const std::vector<MeshInstance>& GetMeshInstances() const noexcept
+    void AddMeshInstances(const std::vector<MeshInstance>& meshInstances) noexcept
     {
-        return meshInstances_;
+        meshInstances_.insert(meshInstances_.end(), meshInstances.begin(), meshInstances.end());
     }
+
+    const std::vector<MeshInstance>& GetMeshInstances() const noexcept { return meshInstances_; }
 };
