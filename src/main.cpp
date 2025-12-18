@@ -2,6 +2,7 @@
 #include <iostream>
 #include <thread>
 
+#include "Common/Logger.pch.hpp"  // IWYU pragma: keep
 #include "GUI/GUI.hpp"
 #include "Loader/GLTF_Loader.hpp"
 #include "Trace/Scene.hpp"
@@ -13,6 +14,8 @@ void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture, const char* glt
 {
     Camera cam(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f), 45.0f);
 
+    spdlog::set_level(static_cast<spdlog::level::level_enum>(SPDLOG_ACTIVE_LEVEL));
+
     GLTF_Loader loader(gltfFilePath);
     {
         glm::mat4 transform(1.0f);
@@ -20,7 +23,7 @@ void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture, const char* glt
         transform = glm::rotate(transform, glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
         Scene scene;
-        auto instances = loader.LoadScene(0, transform);
+        auto instances = loader.LoadSceneMeshes(0, transform);
         scene.AddMeshInstances(instances);
 
         const int texSize = 100;

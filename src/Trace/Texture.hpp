@@ -19,4 +19,6 @@ class Texture
     {
         return image_->Sample(uv, filterMode_);
     };
+
+    bool IsValid() const noexcept { return image_ != nullptr; }
 };

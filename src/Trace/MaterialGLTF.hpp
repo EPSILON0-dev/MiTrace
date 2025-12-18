@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <string>
 
 #include "MaterialBase.hpp"
@@ -20,11 +19,11 @@ class MaterialGLTF : public MaterialBase
 
    private:
     std::string name_;
-    std::optional<Texture> baseColorTexture_;
-    std::optional<Texture> metallicRoughnessTexture_;
-    std::optional<Texture> normalTexture_;
-    std::optional<Texture> occlusionTexture_;
-    std::optional<Texture> emissiveTexture_;
+    Texture baseColorTexture_;
+    Texture metallicRoughnessTexture_;
+    Texture normalTexture_;
+    Texture occlusionTexture_;
+    Texture emissiveTexture_;
     glm::vec4 baseColorFactor_;
     glm::vec3 emissiveFactor_;
     float normalScale_;

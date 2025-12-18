@@ -2,10 +2,12 @@
 
 #include <format>
 #include <fstream>
+#include <glm/gtc/constants.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <memory>
 #include <stdexcept>
 
+#include "Common/Logger.pch.hpp"  // IWYU pragma: keep
 #include "Trace/MaterialGLTF.hpp"
 
 GLTF_Loader::GLTF_Loader(const std::filesystem::path& filePath)
@@ -20,6 +22,8 @@ GLTF_Loader::GLTF_Loader(const std::filesystem::path& filePath)
         throw std::runtime_error(
             std::format("Failed to load GLTF file '{}': {}", filePath_.string(), e.what()));
     }
+
+    SPDLOG_INFO("Loaded GLTF file \"{}\"", filePath_.filename().string());
 }
 
 const std::vector<uint8_t>& GLTF_Loader::GetBufferData(size_t bufferIndex)
@@ -247,7 +251,7 @@ std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIn
     const auto& primitiveData = gltfData_["meshes"][meshIndex]["primitives"][primitiveIndex];
     if (!primitiveData.contains("attributes") || !primitiveData.contains("indices"))
         throw std::runtime_error("Invalid GLTF primitive data: missing attributes or indices");
-    if (primitiveData["mode"] != 4)
+    if (primitiveData.contains("mode") && primitiveData["mode"] != 4)
         throw std::runtime_error("Only triangle primitives (mode 4) are supported");
     const auto& attributes = primitiveData["attributes"];
     if (!attributes.contains("POSITION") || !attributes.contains("NORMAL"))
@@ -358,6 +362,11 @@ std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIn
         mesh.SetMaterial(std::dynamic_pointer_cast<MaterialBase>(materialPtr));
     }
 
+    SPDLOG_DEBUG("Loaded new mesh \"{}\", triangles: {}, attributes: P-N{}{}{}{}-I", mesh.name_,
+        mesh.indices_.size() / 3, (mesh.tangents_.empty() ? "" : "-T"),
+        (mesh.texCoord0_.empty() ? "" : "-U0"), (mesh.texCoord1_.empty() ? "" : "-U1"),
+        (mesh.color0_.empty() ? "" : "-C0"));
+
     // Cache and return the loaded mesh
     loadedMeshes_[meshIndex] = meshPtr;
     return meshPtr;
@@ -373,6 +382,9 @@ std::shared_ptr<Image> GLTF_Loader::LoadImage(size_t imageIndex)
     if (!imageData.contains("uri")) throw std::runtime_error("Only URI-based images are supported");
     auto image = std::make_shared<Image>(basePath_ / imageData["uri"].get<std::string>());
     image->name_ = imageData.value("name", "Unnamed_Image");
+
+    SPDLOG_DEBUG("Loaded new image \"{}\" ({}x{}, {} channels)", image->name_, image->width_,
+        image->height_, image->channels_);
 
     // Emplace in cache and return
     loadedImages_.emplace(imageIndex, image);
@@ -438,12 +450,113 @@ std::shared_ptr<MaterialGLTF> GLTF_Loader::LoadMaterial(size_t materialIndex)
     material.alphaCutoff_ = materialData.value("alphaCutoff", 0.5f);
     material.doubleSided_ = materialData.value("doubleSided", false);
 
+    SPDLOG_DEBUG("Loaded new material \"{}\"", material.name_);
+
     // Cache and return
     loadedMaterials_.emplace(materialIndex, std::make_shared<MaterialGLTF>(material));
     return loadedMaterials_.at(materialIndex);
 }
 
-std::vector<MeshInstance> GLTF_Loader::LoadNode(size_t nodeIndex, const glm::mat4& transform)
+Light::PointLight GLTF_Loader::LoadPointLight(size_t lightIndex) const
+{
+    const auto& lightData = gltfData_["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+
+    Light::PointLight pointLight;
+    if (lightData.contains("color"))
+        pointLight.Color = glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
+    else
+        pointLight.Color = glm::vec3(1.0f);
+    pointLight.Intensity = lightData.value("intensity", 1.0f);
+    pointLight.Range = lightData.value("range", 0.0f);
+    pointLight.Size = lightData.value("size", 0.0f);
+    return pointLight;
+}
+
+Light::DirectionalLight GLTF_Loader::LoadDirectionalLight(size_t lightIndex) const
+{
+    const auto& lightData = gltfData_["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+
+    Light::DirectionalLight directionalLight;
+    if (lightData.contains("color"))
+        directionalLight.Color =
+            glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
+    else
+        directionalLight.Color = glm::vec3(1.0f);
+    directionalLight.Intensity = lightData.value("intensity", 1.0f);
+    directionalLight.Angle = lightData.value("angle", 0.0f);
+    return directionalLight;
+}
+
+Light::SpotLight GLTF_Loader::LoadSpotLight(size_t lightIndex) const
+{
+    const auto& lightData = gltfData_["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+
+    Light::SpotLight spotLight;
+    if (lightData.contains("color"))
+        spotLight.Color = glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
+    else
+        spotLight.Color = glm::vec3(1.0f);
+    spotLight.Intensity = lightData.value("intensity", 1.0f);
+    spotLight.Range = lightData.value("range", 0.0f);
+    spotLight.Size = lightData.value("size", 0.0f);
+    spotLight.InnerConeAngle = lightData["spot"].value("innerConeAngle", 0.0f);
+    spotLight.OuterConeAngle = lightData["spot"].value("outerConeAngle", glm::quarter_pi<float>());
+    return spotLight;
+}
+
+Light::AreaLight GLTF_Loader::LoadAreaLight(size_t lightIndex) const
+{
+    const auto& lightData = gltfData_["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+
+    if (!lightData.contains("area_size"))
+        throw std::runtime_error("Area light missing 'area_size' property");
+
+    Light::AreaLight areaLight;
+    if (lightData.contains("color"))
+        areaLight.Color = glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
+    else
+        areaLight.Color = glm::vec3(1.0f);
+    areaLight.Intensity = lightData.value("intensity", 1.0f);
+    areaLight.Range = lightData.value("range", 0.0f);
+    areaLight.Size = glm::make_vec2(lightData["area_size"].get<std::vector<float>>().data());
+    return areaLight;
+}
+
+Light GLTF_Loader::LoadLight(size_t lightIndex, const glm::mat4& transform)
+{
+    const auto& lightData = gltfData_["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+
+    static const std::map<std::string, Light::Type> lightTypeMap = {
+        {"point", Light::Type::POINT},              // POINT
+        {"directional", Light::Type::DIRECTIONAL},  // DIRECTIONAL
+        {"spot", Light::Type::SPOT},                // SPOT
+        {"area", Light::Type::AREA}};               // AREA
+    Light::Type type;
+    try
+    {
+        type = lightTypeMap.at(lightData["type"].get<std::string>());
+    }
+    catch (const std::out_of_range&)
+    {
+        throw std::runtime_error("Unsupported light type in GLTF");
+    }
+
+    switch (type)
+    {
+        case Light::Type::POINT:
+            return Light(transform, LoadPointLight(lightIndex));
+        case Light::Type::DIRECTIONAL:
+            return Light(transform, LoadDirectionalLight(lightIndex));
+        case Light::Type::SPOT:
+            return Light(transform, LoadSpotLight(lightIndex));
+        case Light::Type ::AREA:
+            return Light(transform, LoadAreaLight(lightIndex));
+        default:
+            throw std::runtime_error("Unsupported light type in GLTF");
+    }
+}
+
+std::vector<MeshInstance> GLTF_Loader::LoadNodeMeshes(size_t nodeIndex, const glm::mat4& transform)
 {
     std::vector<MeshInstance> instances;
     const auto& nodeData = gltfData_["nodes"][nodeIndex];
@@ -452,8 +565,25 @@ std::vector<MeshInstance> GLTF_Loader::LoadNode(size_t nodeIndex, const glm::mat
 
     if (nodeData.contains("mesh"))
     {
-        auto meshPtr = LoadMesh(nodeData["mesh"].get<size_t>());
-        instances.push_back(MeshInstance(std::move(meshPtr), worldTransform));
+        // TODO Load all submeshes of the mesh
+
+        try
+        {
+            auto meshIndex = nodeData["mesh"].get<size_t>();
+            auto meshPtr = LoadMesh(meshIndex);
+            instances.push_back(MeshInstance(std::move(meshPtr), worldTransform));
+
+            SPDLOG_DEBUG("Loaded mesh {} ({}) on node {} ({})",
+                instances.back().GetMesh().GetName(), meshIndex,
+                nodeData.value("name", "Unnamed_Node"), nodeIndex);
+        }
+        catch (const std::exception& e)
+        {
+            const auto error =
+                std::format("Failed to load mesh on node {}: {}", nodeIndex, e.what());
+            SPDLOG_ERROR(error);
+            throw std::runtime_error(error);
+        }
     }
 
     if (nodeData.contains("children"))
@@ -461,7 +591,7 @@ std::vector<MeshInstance> GLTF_Loader::LoadNode(size_t nodeIndex, const glm::mat
         const auto& children = nodeData["children"];
         for (const auto& childIndex : children)
         {
-            auto childInstances = LoadNode(childIndex.get<size_t>(), worldTransform);
+            auto childInstances = LoadNodeMeshes(childIndex.get<size_t>(), worldTransform);
             instances.insert(instances.end(), std::make_move_iterator(childInstances.begin()),
                 std::make_move_iterator(childInstances.end()));
         }
@@ -470,14 +600,15 @@ std::vector<MeshInstance> GLTF_Loader::LoadNode(size_t nodeIndex, const glm::mat
     return instances;
 }
 
-std::vector<MeshInstance> GLTF_Loader::LoadScene(size_t sceneIndex, const glm::mat4& transform)
+std::vector<MeshInstance> GLTF_Loader::LoadSceneMeshes(
+    size_t sceneIndex, const glm::mat4& transform)
 {
     const auto& sceneData = gltfData_["scenes"][sceneIndex];
 
     std::vector<MeshInstance> instances;
     for (const auto& nodeIndex : sceneData["nodes"])
     {
-        auto nodeInstances = LoadNode(nodeIndex.get<size_t>(), transform);
+        auto nodeInstances = LoadNodeMeshes(nodeIndex.get<size_t>(), transform);
         instances.insert(instances.end(), std::make_move_iterator(nodeInstances.begin()),
             std::make_move_iterator(nodeInstances.end()));
     }
@@ -485,17 +616,80 @@ std::vector<MeshInstance> GLTF_Loader::LoadScene(size_t sceneIndex, const glm::m
     return instances;
 }
 
+std::vector<Light> GLTF_Loader::LoadNodeLights(size_t nodeIndex, const glm::mat4& transform)
+{
+    std::vector<Light> lights;
+    const auto& nodeData = gltfData_["nodes"][nodeIndex];
+
+    glm::mat4 worldTransform = transform * ComputeNodeTransform(nodeIndex);
+
+    if (nodeData.contains("extensions") && nodeData["extensions"].contains("KHR_lights_punctual"))
+    {
+        try
+        {
+            auto lightIndex = nodeData["extensions"]["KHR_lights_punctual"]["light"].get<size_t>();
+            lights.push_back(LoadLight(lightIndex, worldTransform));
+
+            SPDLOG_DEBUG("Loaded light {} on node {} ({})", lightIndex,
+                nodeData.value("name", "Unnamed_Node"), nodeIndex);
+        }
+        catch (const std::exception& e)
+        {
+            const auto error =
+                std::format("Failed to load light on node {}: {}", nodeIndex, e.what());
+            SPDLOG_ERROR(error);
+            throw std::runtime_error(error);
+        }
+    }
+
+    if (nodeData.contains("children"))
+    {
+        const auto& children = nodeData["children"];
+        for (const auto& childIndex : children)
+        {
+            auto childInstances = LoadNodeLights(childIndex.get<size_t>(), worldTransform);
+            lights.insert(lights.end(), std::make_move_iterator(childInstances.begin()),
+                std::make_move_iterator(childInstances.end()));
+        }
+    }
+
+    return lights;
+}
+
+std::vector<Light> GLTF_Loader::LoadSceneLights(size_t sceneIndex, const glm::mat4& transform)
+{
+    const auto& sceneData = gltfData_["scenes"][sceneIndex];
+
+    std::vector<Light> lights;
+    for (const auto& nodeIndex : sceneData["nodes"])
+    {
+        auto nodeInstances = LoadNodeLights(nodeIndex.get<size_t>(), transform);
+        lights.insert(lights.end(), std::make_move_iterator(nodeInstances.begin()),
+            std::make_move_iterator(nodeInstances.end()));
+    }
+
+    return lights;
+}
+
 void GLTF_Loader::Cleanup()
 {
-    // Drop all buffers
+    size_t droppedBuffers = loadedBuffers_.size();
+    [[maybe_unused]] size_t initialMaterialCount = loadedMaterials_.size();
+    [[maybe_unused]] size_t initialImagesCount = loadedImages_.size();
+    [[maybe_unused]] size_t initialMeshCount = loadedMeshes_.size();
+
     loadedBuffers_.clear();
 
-    // Drop materials, images and meshes that only have one reference (to avoid dropping shared
-    // materials)
-    loadedMaterials_.erase(std::erase_if(
-        loadedMaterials_, [](const auto& pair) { return pair.second.use_count() <= 1; }));
-    loadedImages_.erase(std::erase_if(
-        loadedImages_, [](const auto& pair) { return pair.second.use_count() <= 1; }));
-    loadedMeshes_.erase(std::erase_if(
-        loadedMeshes_, [](const auto& pair) { return pair.second.use_count() <= 1; }));
+    // Drop materials, images and meshes that only have one reference (the one in the loader)
+    auto unusedCheck = [](const auto& pair) { return (pair.second.use_count() <= 1); };
+
+    loadedMaterials_.erase(std::erase_if(loadedMaterials_, unusedCheck));
+    loadedImages_.erase(std::erase_if(loadedImages_, unusedCheck));
+    loadedMeshes_.erase(std::erase_if(loadedMeshes_, unusedCheck));
+
+    SPDLOG_INFO(
+        "GLTF Loader cleaned up unused resources, dropped {} buffers, {} materials, {} images, and "
+        "{} meshes",
+        droppedBuffers, initialMaterialCount - loadedMaterials_.size(),
+        initialImagesCount - loadedImages_.size(), initialMeshCount - loadedMeshes_.size());
 }

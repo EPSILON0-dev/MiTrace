@@ -14,13 +14,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-set(CMAKE_CXX_FLAGS_COMMON "-pthread -Wall -Wextra -Wpedantic")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -fsanitize=address,undefined ${CMAKE_CXX_FLAGS_COMMON}")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native ${CMAKE_CXX_FLAGS_COMMON}")
-
-# Include directories
-include_directories(src)
-
 # Fetch glfw and imgui globally
 include(FetchContent)
 
@@ -44,8 +37,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(imgui)
 
-# Ensure imgui backends are included
-include_directories(${imgui_SOURCE_DIR}/backends)
+# Add nlohmann/json library
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.2
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 
 # Ensure imgui and its backends are linked
 set(IMGUI_BACKEND_FILES
@@ -70,26 +69,30 @@ set(SRC_FILES
     ${IMGUI_BACKEND_FILES}
 )
 
+# Force STB implementation to not include PCH
+set_source_files_properties(src/Common/STB_Impl.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+
 # Main executable
 add_executable(RayTracing ${SRC_FILES})
 
 # Link imgui library
-target_link_libraries(RayTracing PUBLIC imgui glfw GL)
-
-# Add nlohmann/json library
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.11.2
-)
-FetchContent_MakeAvailable(nlohmann_json)
-
-# Precompiled header setup
-set(PCH_HEADER ${nlohmann_json_SOURCE_DIR}/single_include/nlohmann/json.hpp)
+target_link_libraries(RayTracing PUBLIC imgui glfw GL spdlog fmt)
 
 # Generate precompiled header
-add_library(PCH INTERFACE)
-target_precompile_headers(PCH INTERFACE ${PCH_HEADER})
+target_precompile_headers(RayTracing PRIVATE src/Common/Logger.pch.hpp src/Common/Json.pch.hpp)
 
-# Link PCH to the main executable
-target_link_libraries(RayTracing PUBLIC PCH)
+# Include directories
+target_include_directories(RayTracing PRIVATE src)
+target_include_directories(RayTracing PRIVATE ${imgui_SOURCE_DIR}/backends)
+
+# Compiler options
+target_compile_options(RayTracing PRIVATE
+    $<$<CONFIG:Release>:-O2 -march=native>
+    $<$<CONFIG:Debug>:-O0 -g -fsanitize=address,undefined>
+    -pthread -Wall -Wextra -Wpedantic
+)
+
+# Link options
+target_link_options(RayTracing PRIVATE
+    $<$<CONFIG:Debug>:-fsanitize=address,undefined>
+)

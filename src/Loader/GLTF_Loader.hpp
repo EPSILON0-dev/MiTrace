@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "Trace/Image.hpp"
+#include "Trace/Light.hpp"
 #include "Trace/MaterialGLTF.hpp"
 #include "Trace/Mesh.hpp"
 #include "Trace/MeshInstance.hpp"
@@ -71,6 +72,11 @@ class GLTF_Loader
         size_t accessorIndex, AttributeType expectedType, ComponentType expectedComponentType);
     glm::mat4 ComputeNodeTransform(size_t nodeIndex) const;
 
+    Light::PointLight LoadPointLight(size_t lightIndex) const;
+    Light::DirectionalLight LoadDirectionalLight(size_t lightIndex) const;
+    Light::SpotLight LoadSpotLight(size_t lightIndex) const;
+    Light::AreaLight LoadAreaLight(size_t lightIndex) const;
+
    public:  // Rule of zero
     GLTF_Loader(const std::filesystem::path& filePath);
 
@@ -79,9 +85,17 @@ class GLTF_Loader
     std::shared_ptr<Image> LoadImage(size_t imageIndex);
     Texture LoadTexture(size_t textureIndex);
     std::shared_ptr<MaterialGLTF> LoadMaterial(size_t materialIndex);
-    std::vector<MeshInstance> LoadNode(
+
+    Light LoadLight(size_t lightIndex, const glm::mat4& transform = glm::mat4(1.0f));
+
+    std::vector<MeshInstance> LoadNodeMeshes(
         size_t nodeIndex, const glm::mat4& transform = glm::mat4(1.0f));
-    std::vector<MeshInstance> LoadScene(
+    std::vector<MeshInstance> LoadSceneMeshes(
+        size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f));
+
+    std::vector<Light> LoadNodeLights(
+        size_t nodeIndex, const glm::mat4& transform = glm::mat4(1.0f));
+    std::vector<Light> LoadSceneLights(
         size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f));
 
    public:  // Other methods
