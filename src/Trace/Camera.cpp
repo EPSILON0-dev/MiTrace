@@ -2,25 +2,16 @@
 
 Ray Camera::GenerateRay(float u, float v, float aspectRatio) const noexcept
 {
-    // Convert field of view from degrees to radians
-    float theta = glm::radians(yfov);
-    float halfHeight = tan(theta / 2.0f);
-    float halfWidth = aspectRatio * halfHeight;
+    float fovScale = tanf(yfovRadians_ * 0.5f);
+    float px = (2.0f * u - 1.0f) * aspectRatio * fovScale;
+    float py = (1.0f - 2.0f * v) * fovScale;
 
-    // Calculate the camera basis vectors
-    glm::vec3 w = glm::normalize(-forward); // Camera looks towards -forward
-    glm::vec3 uVec = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), w));
-    glm::vec3 vVec = glm::cross(w, uVec);
+    glm::vec4 rayOriginCameraSpace = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    // TODO: Verify if -1.0f is correct for right-handed system
+    glm::vec4 rayDirectionCameraSpace = glm::normalize(glm::vec4(px, -py, -1.0f, 0.0f));
 
-    // Calculate the lower left corner of the view plane
-    glm::vec3 lowerLeftCorner = position - halfWidth * uVec - halfHeight * vVec - w;
+    glm::vec4 rayOriginWorldSpace = cameraToWorld_ * rayOriginCameraSpace;
+    glm::vec4 rayDirectionWorldSpace = cameraToWorld_ * rayDirectionCameraSpace;
 
-    // Calculate the horizontal and vertical spans of the view plane
-    glm::vec3 horizontal = 2.0f * halfWidth * uVec;
-    glm::vec3 vertical = 2.0f * halfHeight * vVec;
-
-    // Calculate the direction of the ray through the pixel (u, v)
-    glm::vec3 rayDirection = lowerLeftCorner + u * horizontal + v * vertical - position;
-
-    return Ray(position, glm::normalize(rayDirection));
+    return Ray(glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace)));
 }

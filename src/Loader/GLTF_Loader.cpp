@@ -238,7 +238,8 @@ glm::mat4 GLTF_Loader::ComputeNodeTransform(size_t nodeIndex) const
 std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIndex)
 {
     // If we found it in the cache, return it
-    if (loadedMeshes_.find(meshIndex) != loadedMeshes_.end()) return loadedMeshes_.at(meshIndex);
+    if (loadedMeshes_.find(std::pair(meshIndex, primitiveIndex)) != loadedMeshes_.end())
+        return loadedMeshes_.at(std::pair(meshIndex, primitiveIndex));
 
     // Create a new mesh
     auto meshPtr = std::make_shared<Mesh>();
@@ -368,7 +369,7 @@ std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIn
         (mesh.color0_.empty() ? "" : "-C0"));
 
     // Cache and return the loaded mesh
-    loadedMeshes_[meshIndex] = meshPtr;
+    loadedMeshes_.emplace(std::pair(meshIndex, primitiveIndex), meshPtr);
     return meshPtr;
 }
 
@@ -455,6 +456,25 @@ std::shared_ptr<MaterialGLTF> GLTF_Loader::LoadMaterial(size_t materialIndex)
     // Cache and return
     loadedMaterials_.emplace(materialIndex, std::make_shared<MaterialGLTF>(material));
     return loadedMaterials_.at(materialIndex);
+}
+
+Camera GLTF_Loader::LoadCamera(size_t cameraIndex) const
+{
+    const auto& cameraData = gltfData_["cameras"][cameraIndex];
+
+    std::string type = cameraData["type"].get<std::string>();
+    if (type != "perspective")
+        throw std::runtime_error(std::format("Unsupported camera type in GLTF: {}", type));
+
+    const auto& perspectiveData = cameraData["perspective"];
+    float yfov = perspectiveData["yfov"].get<float>();
+
+    // We don't need these parameters
+    // float aspectRatio = perspectiveData.value("aspectRatio", 1.0f);
+    // float znear = perspectiveData["znear"].get<float>();
+    // float zfar = perspectiveData.value("zfar", 1000.0f);
+
+    return Camera(yfov);
 }
 
 Light::PointLight GLTF_Loader::LoadPointLight(size_t lightIndex) const
@@ -565,17 +585,20 @@ std::vector<MeshInstance> GLTF_Loader::LoadNodeMeshes(size_t nodeIndex, const gl
 
     if (nodeData.contains("mesh"))
     {
-        // TODO Load all submeshes of the mesh
-
         try
         {
-            auto meshIndex = nodeData["mesh"].get<size_t>();
-            auto meshPtr = LoadMesh(meshIndex);
-            instances.push_back(MeshInstance(std::move(meshPtr), worldTransform));
+            const auto primitiveCount =
+                gltfData_["meshes"][nodeData["mesh"].get<size_t>()]["primitives"].size();
+            for (size_t primitiveIndex = 0; primitiveIndex < primitiveCount; ++primitiveIndex)
+            {
+                auto meshIndex = nodeData["mesh"].get<size_t>();
+                auto meshPtr = LoadMesh(meshIndex, primitiveIndex);
+                instances.push_back(MeshInstance(std::move(meshPtr), worldTransform));
 
-            SPDLOG_DEBUG("Loaded mesh {} ({}) on node {} ({})",
-                instances.back().GetMesh().GetName(), meshIndex,
-                nodeData.value("name", "Unnamed_Node"), nodeIndex);
+                SPDLOG_DEBUG("Loaded mesh {} ({}:{}) on node {} ({})",
+                    instances.back().GetMesh().GetName(), meshIndex, primitiveIndex,
+                    nodeData.value("name", "Unnamed_Node"), nodeIndex);
+            }
         }
         catch (const std::exception& e)
         {
@@ -671,6 +694,83 @@ std::vector<Light> GLTF_Loader::LoadSceneLights(size_t sceneIndex, const glm::ma
     return lights;
 }
 
+std::vector<Camera> GLTF_Loader::LoadNodeCameras(size_t nodeIndex, const glm::mat4& transform) const
+{
+    std::vector<Camera> cameras;
+    const auto& nodeData = gltfData_["nodes"][nodeIndex];
+    glm::mat4 worldTransform = transform * ComputeNodeTransform(nodeIndex);
+
+    if (nodeData.contains("camera"))
+    {
+        try
+        {
+            size_t cameraIndex = nodeData["camera"].get<size_t>();
+            Camera camera = LoadCamera(cameraIndex);
+            camera.SetCameraToWorld(worldTransform);
+            cameras.push_back(camera);
+
+            SPDLOG_DEBUG("Loaded camera {} on node {} ({})", cameraIndex,
+                nodeData.value("name", "Unnamed_Node"), nodeIndex);
+        }
+        catch (const std::exception& e)
+        {
+            const auto error =
+                std::format("Failed to load camera on node {}: {}", nodeIndex, e.what());
+            SPDLOG_ERROR(error);
+            throw std::runtime_error(error);
+        }
+    }
+
+    if (nodeData.contains("children"))
+    {
+        const auto& children = nodeData["children"];
+        for (const auto& childIndex : children)
+        {
+            auto childCameras = LoadNodeCameras(childIndex.get<size_t>(), worldTransform);
+            cameras.insert(cameras.end(), std::make_move_iterator(childCameras.begin()),
+                std::make_move_iterator(childCameras.end()));
+        }
+    }
+
+    return cameras;
+}
+
+std::vector<Camera> GLTF_Loader::LoadSceneCameras(
+    size_t sceneIndex, const glm::mat4& transform) const
+{
+    std::vector<Camera> cameras;
+    const auto& sceneData = gltfData_["scenes"][sceneIndex];
+
+    for (const auto& nodeIndex : sceneData["nodes"])
+    {
+        auto nodeCameras = LoadNodeCameras(nodeIndex.get<size_t>(), transform);
+        cameras.insert(cameras.end(), std::make_move_iterator(nodeCameras.begin()),
+            std::make_move_iterator(nodeCameras.end()));
+    }
+
+    return cameras;
+}
+
+Camera GLTF_Loader::LoadSceneCamera(size_t sceneIndex, const glm::mat4& transform) const
+{
+    const auto cameras = LoadSceneCameras(sceneIndex, transform);
+
+    if (cameras.empty()) throw std::runtime_error("No camera found in the scene");
+
+    if (cameras.size() > 1)
+        SPDLOG_WARN("Multiple cameras found in the scene, using the first one loaded");
+
+    return cameras.front();
+}
+
+template <typename Tm, typename Tl>
+static auto CleanupMap(Tm& map, Tl check)
+{
+    Tm cleanedMap;
+    std::copy_if(map.begin(), map.end(), std::inserter(cleanedMap, cleanedMap.end()), check);
+    map = std::move(cleanedMap);
+}
+
 void GLTF_Loader::Cleanup()
 {
     size_t droppedBuffers = loadedBuffers_.size();
@@ -681,11 +781,10 @@ void GLTF_Loader::Cleanup()
     loadedBuffers_.clear();
 
     // Drop materials, images and meshes that only have one reference (the one in the loader)
-    auto unusedCheck = [](const auto& pair) { return (pair.second.use_count() <= 1); };
-
-    loadedMaterials_.erase(std::erase_if(loadedMaterials_, unusedCheck));
-    loadedImages_.erase(std::erase_if(loadedImages_, unusedCheck));
-    loadedMeshes_.erase(std::erase_if(loadedMeshes_, unusedCheck));
+    auto usedCheck = [](const auto& pair) { return (pair.second.use_count() > 1); };
+    CleanupMap(loadedMaterials_, usedCheck);
+    CleanupMap(loadedImages_, usedCheck);
+    CleanupMap(loadedMeshes_, usedCheck);
 
     SPDLOG_INFO(
         "GLTF Loader cleaned up unused resources, dropped {} buffers, {} materials, {} images, and "

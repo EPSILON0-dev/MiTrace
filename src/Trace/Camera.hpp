@@ -1,26 +1,31 @@
 #pragma once
 
+#include <glm/fwd.hpp>
+
 #include "Ray.hpp"
 
 class Camera
 {
-   public:
-    glm::vec3 position;
-    glm::vec3 forward;
-    float yfov;
+   private:
+    glm::mat4 cameraToWorld_;
+    float yfovRadians_;
 
    public:
-    Camera() noexcept
-        : position(0.0f),
-          forward(0.0f, 0.0f, -1.0f),
-          yfov(60.0f)
-    {
-    }
+    Camera() noexcept : yfovRadians_(60.0f) {};
 
-    Camera(const glm::vec3& pos, const glm::vec3& fwd, float yfov) noexcept
-        : position(pos), forward(fwd), yfov(yfov)
+    Camera(float yfov, const glm::mat4& cameraToWorld = glm::mat4(1.0f)) noexcept
+        : cameraToWorld_(cameraToWorld), yfovRadians_(yfov) {};
+
+   public:
+    glm::mat4 GetCameraToWorld() noexcept { return cameraToWorld_; }
+    float GetYFOV() noexcept { return yfovRadians_; }
+
+   public:
+    void SetCameraToWorld(const glm::mat4& cameraToWorld) noexcept
     {
+        cameraToWorld_ = cameraToWorld;
     }
+    void SetYFOV(float yfov) noexcept { yfovRadians_ = yfov; }
 
    public:
     // UV coordinates are in range [0, 1]

@@ -9,6 +9,7 @@ class RayHit : public Ray
    public:
     const MeshInstance* meshInstance;
     glm::vec2 baryCoord;
+    glm::vec3 worldPosition;
     size_t triangleIndex;
     float distance;
 
@@ -19,4 +20,26 @@ class RayHit : public Ray
         : Ray(orig, dir), distance(t_val)
     {
     }
+};
+
+class RayHitGeometryInfo : public RayHit
+{
+   public:
+    struct Flags
+    { 
+        // Always has normals
+        // bool HasNormal : 1;  
+        bool HasTangent : 1;
+        bool HasTexCoord0 : 1;
+        bool HasTexCoord1 : 1;
+        bool HasColor0 : 1;
+    } Flags;
+
+    glm::vec3 Normal;
+    glm::vec4 Tangent;
+    glm::vec2 TexCoord0;
+    glm::vec2 TexCoord1;
+    glm::vec3 Color0;
+
+    RayHitGeometryInfo(const RayHit &rayHit) noexcept;
 };

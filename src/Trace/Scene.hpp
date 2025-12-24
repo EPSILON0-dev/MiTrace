@@ -3,12 +3,14 @@
 #include <glm/glm.hpp>
 #include <vector>
 
+#include "Trace/Light.hpp"
 #include "Trace/MeshInstance.hpp"
 
 class Scene
 {
    private:
     std::vector<MeshInstance> meshInstances_;
+    std::vector<Light> lights_;
 
    public:
     Scene() noexcept {}
@@ -23,5 +25,16 @@ class Scene
         meshInstances_.insert(meshInstances_.end(), meshInstances.begin(), meshInstances.end());
     }
 
+    void AddLight(const Light& light) noexcept
+    {
+        lights_.push_back(light);
+    }
+
+    void AddLights(const std::vector<Light>& lights) noexcept
+    {
+        lights_.insert(lights_.end(), lights.begin(), lights.end());
+    }
+
     const std::vector<MeshInstance>& GetMeshInstances() const noexcept { return meshInstances_; }
+    const std::vector<Light>& GetLights() const noexcept { return lights_; }
 };

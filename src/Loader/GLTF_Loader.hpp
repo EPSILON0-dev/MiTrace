@@ -3,9 +3,10 @@
 #include <filesystem>
 #include <map>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <vector>
 
+#include "Common/Json.pch.hpp"
+#include "Trace/Camera.hpp"
 #include "Trace/Image.hpp"
 #include "Trace/Light.hpp"
 #include "Trace/MaterialGLTF.hpp"
@@ -56,7 +57,7 @@ class GLTF_Loader
     std::map<size_t, std::vector<uint8_t>> loadedBuffers_;
     std::map<size_t, std::shared_ptr<MaterialGLTF>> loadedMaterials_;
     std::map<size_t, std::shared_ptr<Image>> loadedImages_;
-    std::map<size_t, std::shared_ptr<Mesh>> loadedMeshes_;
+    std::map<std::pair<size_t, size_t>, std::shared_ptr<Mesh>> loadedMeshes_;
 
    private:  // Helper methods
     const std::vector<uint8_t>& GetBufferData(size_t bufferIndex);
@@ -85,6 +86,7 @@ class GLTF_Loader
     std::shared_ptr<Image> LoadImage(size_t imageIndex);
     Texture LoadTexture(size_t textureIndex);
     std::shared_ptr<MaterialGLTF> LoadMaterial(size_t materialIndex);
+    Camera LoadCamera(size_t cameraIndex) const;
 
     Light LoadLight(size_t lightIndex, const glm::mat4& transform = glm::mat4(1.0f));
 
@@ -97,6 +99,12 @@ class GLTF_Loader
         size_t nodeIndex, const glm::mat4& transform = glm::mat4(1.0f));
     std::vector<Light> LoadSceneLights(
         size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f));
+
+    std::vector<Camera> LoadNodeCameras(
+        size_t nodeIndex, const glm::mat4& transform = glm::mat4(1.0f)) const;
+    std::vector<Camera> LoadSceneCameras(
+        size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f)) const;
+    Camera LoadSceneCamera(size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f)) const;
 
    public:  // Other methods
     void Cleanup();

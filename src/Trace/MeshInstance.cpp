@@ -38,23 +38,11 @@ std::optional<RayHit> MeshInstance::IntersectRay(const Ray& ray) const
     // First, check intersection with world AABB
     if (!IntersectRayAABB(ray, worldAABBMin_, worldAABBMax_)) return std::nullopt;
 
-    // Transform ray to local space
-    glm::mat4 invTransform = glm::inverse(transform_);
-    Ray localRay;
-    localRay.origin = glm::vec3(invTransform * glm::vec4(ray.origin, 1.0f));
-    localRay.direction = glm::normalize(glm::vec3(invTransform * glm::vec4(ray.direction, 0.0f)));
-
     // Do the intersection test in local space
-    size_t triangleIndex;
-    float dist;
-    glm::vec2 baryCoord;
-    if (mesh_->Intersect(localRay, triangleIndex, dist, baryCoord))
+    auto hit = mesh_->Intersect(ray, transform_);
+    if (hit.has_value())
     {
-        RayHit hit;
-        hit.meshInstance = this;
-        hit.distance = dist;
-        hit.baryCoord = baryCoord;
-        hit.triangleIndex = triangleIndex;
+        hit->meshInstance = this;
         return hit;
     }
     else

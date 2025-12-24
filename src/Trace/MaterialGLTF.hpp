@@ -51,6 +51,6 @@ class MaterialGLTF : public MaterialBase
     {
     }
 
-    virtual void Reflect(const GeometryInfo& geometryInfo, glm::vec3& direction,
+    virtual void Reflect(const RayHitGeometryInfo& geomInfo, glm::vec3& direction,
         glm::vec3& energy) const noexcept override;
 };

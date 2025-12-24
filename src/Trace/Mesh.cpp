@@ -19,11 +19,18 @@ glm::vec3 Mesh::GetAABBMax() const noexcept
         [](const auto& a, const auto& b) { return glm::max(a, b); });
 }
 
-bool Mesh::Intersect(
-    const Ray& ray, size_t& triangleIndex, float& dist, glm::vec2& baryCoord) const noexcept
+std::optional<RayHit> Mesh::Intersect(const Ray& ray, const glm::mat4& modelToWorld) const noexcept
 {
-    triangleIndex = std::numeric_limits<size_t>::max();
-    dist = std::numeric_limits<float>::max();
+    // Transform the ray to local space
+    Ray localRay;
+    auto invModelToWorld = glm::inverse(modelToWorld);
+    localRay.origin = glm::vec3(invModelToWorld * glm::vec4(ray.origin, 1.0f));
+    localRay.direction =
+        glm::normalize(glm::vec3(invModelToWorld * glm::vec4(ray.direction, 0.0f)));
+
+    float dist = std::numeric_limits<float>::max();
+    glm::vec2 baryCoord;
+    size_t triangleIndex;
 
     for (size_t i = 0; i < indices_.size(); i += 3)
     {
@@ -34,10 +41,10 @@ bool Mesh::Intersect(
         float currentDistance;
         glm::vec2 currentBaryCoord;
 
-        if (glm::intersectRayTriangle(ray.origin, ray.direction, glm::vec3(v0), glm::vec3(v1),
-                glm::vec3(v2), currentBaryCoord, currentDistance))
+        if (glm::intersectRayTriangle(
+                localRay.origin, localRay.direction, v0, v1, v2, currentBaryCoord, currentDistance))
         {
-            if (currentDistance < dist)
+            if (currentDistance > 0.0f && currentDistance < dist)
             {
                 dist = currentDistance;
                 baryCoord = currentBaryCoord;
@@ -46,5 +53,19 @@ bool Mesh::Intersect(
         }
     }
 
-    return triangleIndex != std::numeric_limits<size_t>::max();
+    if (dist < std::numeric_limits<float>::max())
+    {
+        RayHit hit;
+        hit.worldPosition =
+            glm::vec3(modelToWorld * glm::vec4(localRay.origin + dist * localRay.direction, 1.0f));
+        hit.distance = glm::length(hit.worldPosition - ray.origin);
+        hit.triangleIndex = triangleIndex;
+        hit.baryCoord = baryCoord;
+
+        return hit;
+    }
+    else
+    {
+        return std::nullopt;
+    }
 }

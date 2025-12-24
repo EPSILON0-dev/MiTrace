@@ -1,4 +1,3 @@
-#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <thread>
 
@@ -8,25 +7,20 @@
 #include "Trace/Scene.hpp"
 #include "Trace/Trace.hpp"
 
-// TODO : Add global kill switch for render thread
+bool shouldRenderDie = false;
 
 void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture, const char* gltfFilePath)
 {
-    Camera cam(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f), 45.0f);
-
     spdlog::set_level(static_cast<spdlog::level::level_enum>(SPDLOG_ACTIVE_LEVEL));
-
     GLTF_Loader loader(gltfFilePath);
+
     {
-        glm::mat4 transform(1.0f);
-        transform = glm::rotate(transform, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        transform = glm::rotate(transform, glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
         Scene scene;
-        auto instances = loader.LoadSceneMeshes(0, transform);
-        scene.AddMeshInstances(instances);
+        scene.AddMeshInstances(loader.LoadSceneMeshes(0));
+        scene.AddLights(loader.LoadSceneLights(0));
+        Camera cam = loader.LoadSceneCamera(0);
 
-        const int texSize = 100;
+        const int texSize = 500;
         // const float aspectRatio = 1.0f;
         for (int y = 0; y < texSize; ++y)
         {
@@ -39,7 +33,13 @@ void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture, const char* glt
                 texture.SetPixel(x, y, color.r, color.g, color.b);
             }
 
-            gui.SetProgress(y / 99.0f);
+            if (shouldRenderDie)
+            {
+                gui.SetStatusMessage("Render aborted.");
+                return;
+            }
+
+            gui.SetProgress(y / 499.0f);
             gui.SetStatusMessage(("Rendering... "));
         }
     }
@@ -58,12 +58,14 @@ int main(int argc, char** argv)
     }
 
     GUI::Window gui(800, 600, "Render View");
-    Trace::ImageBuffer tex(100, 100);
+    Trace::ImageBuffer tex(500, 500);
 
     std::thread renderThread(RenderThread, std::ref(gui), std::ref(tex), argv[1]);
 
     gui.SetTexture(tex);
     gui.SetTextureRefreshInterval(1.0f / 5.0f);
     gui.Run();
+
+    shouldRenderDie = true;
     renderThread.join();
 }

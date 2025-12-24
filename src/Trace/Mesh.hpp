@@ -1,10 +1,10 @@
 #pragma once
 
-#include <cstddef>
 #include <glm/glm.hpp>
 #include <memory>
 
 #include "Ray.hpp"
+#include "RayHit.hpp"
 #include "Trace/MaterialBase.hpp"
 
 class Mesh
@@ -46,6 +46,6 @@ class Mesh
     glm::vec3 GetAABBMin() const noexcept;
     glm::vec3 GetAABBMax() const noexcept;
 
-    bool Intersect(
-        const Ray& ray, size_t& triangleIndex, float& dist, glm::vec2& baryCoord) const noexcept;
+    std::optional<RayHit> Intersect(
+        const Ray& ray, const glm::mat4& modelToWorld) const noexcept;
 };

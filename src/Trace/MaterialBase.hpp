@@ -2,16 +2,10 @@
 
 #include <glm/glm.hpp>
 
+#include "RayHit.hpp"
+
 class MaterialBase
 {
-   public:
-    struct GeometryInfo
-    {
-        glm::vec3 normal;
-        glm::vec3 tangent;
-        glm::vec2 uv;
-    };
-
    public:
     MaterialBase() = default;
     virtual ~MaterialBase() = default;
@@ -19,6 +13,6 @@ class MaterialBase
    public:
     // Virtual method to access or use material properties
     // For now we'll only have reflect as an example
-    virtual void Reflect(const GeometryInfo& geometryInfo, glm::vec3& direction,
+    virtual void Reflect(const RayHitGeometryInfo& geomInfo, glm::vec3& direction,
         glm::vec3& energy) const noexcept = 0;
 };

@@ -57,13 +57,14 @@ set(SRC_FILES
     src/main.cpp
     src/GUI/GUI.cpp
     src/GUI/GL_Texture.cpp
+    src/Loader/GLTF_Loader.cpp
     src/Trace/Camera.cpp
     src/Trace/Image.cpp
     src/Trace/Mesh.cpp
     src/Trace/MeshInstance.cpp
     src/Trace/MaterialGLTF.cpp
-    src/Loader/GLTF_Loader.cpp
     src/Trace/Intersect.cpp
+    src/Trace/RayHit.cpp
     src/Trace/Trace.cpp
     src/Common/STB_Impl.cpp
     ${IMGUI_BACKEND_FILES}
