@@ -12,6 +12,7 @@
 #include "Trace/MaterialGLTF.hpp"
 #include "Trace/Mesh.hpp"
 #include "Trace/MeshInstance.hpp"
+#include "Trace/Scene.hpp"
 
 class GLTF_Loader
 {
@@ -105,6 +106,10 @@ class GLTF_Loader
     std::vector<Camera> LoadSceneCameras(
         size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f)) const;
     Camera LoadSceneCamera(size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f)) const;
+
+    std::optional<Texture> LoadSceneEnvironmentTexture();
+
+    Scene LoadScene(size_t sceneIndex = 0, const glm::mat4& transform = glm::mat4(1.0f));
 
    public:  // Other methods
     void Cleanup();

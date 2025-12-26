@@ -8,5 +8,5 @@
 namespace Trace
 {
 // TODO
-glm::u8vec4 TraceScene(const Ray& ray, const Scene& scene);
+glm::u8vec4 TraceSample(const Ray& ray, const Scene& scene);
 };  // namespace Trace

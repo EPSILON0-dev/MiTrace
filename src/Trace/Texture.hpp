@@ -20,5 +20,10 @@ class Texture
         return image_->Sample(uv, filterMode_);
     };
 
+    glm::uvec4 SampleEquirectangular(const glm::vec3& direction) const noexcept
+    {
+        return image_->SampleEquirectangular(direction, filterMode_);
+    };
+
     bool IsValid() const noexcept { return image_ != nullptr; }
 };

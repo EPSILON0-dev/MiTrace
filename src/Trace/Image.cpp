@@ -1,8 +1,11 @@
 #include "Image.hpp"
 
 #include <stb/stb_image.h>
+#include <glm/gtc/constants.hpp>
 
 #include <memory>
+
+// TODO move to templates
 
 Image::Image(const std::filesystem::path& filePath)
     : width_(0), height_(0), channels_(0), filePath_(filePath), data_(nullptr)
@@ -63,4 +66,18 @@ glm::u8vec4 Image::Sample(const glm::vec2& uv, const FilterMode filter) const no
         default:
             return glm::u8vec4(0, 0, 0, 255);
     }
+}
+
+glm::u8vec4 Image::SampleEquirectangular(
+    const glm::vec3& direction, const FilterMode filter) const noexcept
+{
+    // Convert direction to spherical coordinates
+    float theta = std::atan2(direction.z, direction.x);           // Longitude
+    float phi = std::acos(direction.y / glm::length(direction));  // Latitude
+
+    // Map spherical coordinates to [0, 1] range
+    float u = (theta + glm::pi<float>()) / (2.0f * glm::pi<float>());
+    float v = phi / glm::pi<float>();
+
+    return Sample(glm::vec2(u, v), filter);
 }

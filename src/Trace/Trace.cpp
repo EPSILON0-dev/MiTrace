@@ -7,59 +7,89 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/intersect.hpp>
 
-glm::u8vec4 Trace::TraceScene(const Ray& ray, const Scene& scene)
+static std::optional<RayHit> TraceScene(
+    const Ray& ray, const Scene& scene, bool anyHit = false) noexcept
 {
     float lowestDistance = std::numeric_limits<float>::max();
     std::optional<RayHit> bestHit = std::nullopt;
 
-    // Find the closest triangle
     for (const auto& meshInstance : scene.GetMeshInstances())
     {
         if (const auto hit = meshInstance.IntersectRay(ray); hit.has_value())
         {
-            // FIXME : Distance in world space should be compared, the intersect method returns
-            // distance in model's local space
             if (hit->distance < lowestDistance)
             {
                 lowestDistance = hit->distance;
                 bestHit = *hit;
+                if (anyHit) break;
             }
         }
     }
 
-    // Return if we missed completely
-    if (!bestHit.has_value())
+    return bestHit;
+}
+
+glm::u8vec4 Trace::TraceSample(const Ray& ray, const Scene& scene)
+{
+    // TODO don't do this for every sample...
+    std::random_device rd;
+    std::mt19937 rng(rd());
+
+    const int maxBounces = 3;
+    Ray currentRay = ray;
+
+    glm::vec3 accumulatedColor(0.0f);
+    glm::vec3 energy(1.0f);
+
+    for (int bounce = 0; bounce < maxBounces; ++bounce)
     {
-        return glm::u8vec4(0, 0, 0, 255);
-    }
-
-    const auto& mesh = bestHit->meshInstance->GetMesh();
-    const auto& material = mesh.GetMaterial();
-    RayHitGeometryInfo geomInfo(*bestHit);
-
-    glm::vec3 unused, color(1.0f);
-    material->Reflect(geomInfo, unused, color);
-
-    const auto hitPos = ray.origin + ray.direction * bestHit->distance;
-    const auto lightPos = static_cast<glm::vec3>(scene.GetLights()[0].GetTransform()[3]);
-    const auto lightDir = lightPos - hitPos;
-
-    bool inShadow = false;
-    Ray shadowRay(hitPos - ray.direction * 0.001f, glm::normalize(lightDir));
-    const float lightDistance = glm::length(lightDir);
-    for (const auto& meshInstance : scene.GetMeshInstances())
-    {
-        if (const auto shadowHit = meshInstance.IntersectRay(shadowRay); shadowHit.has_value())
+        // 1. Trace the main ray
+        auto hitOpt = TraceScene(currentRay, scene);
+        if (!hitOpt.has_value())
         {
-            if (shadowHit->distance < lightDistance)
+            // If there's an environment texture, sample it
+            if (scene.GetEnvironmentTexture().has_value())
             {
-                inShadow = true;
-                break;
+                const auto& tex = scene.GetEnvironmentTexture().value();
+                accumulatedColor +=
+                    energy * glm::vec3(tex.SampleEquirectangular(currentRay.direction)) / 255.0f;
+            }
+            break;
+        }
+
+        // 2. Compute the bounce and energy loss
+        const auto& hit = hitOpt.value();
+        const auto& geomHit = RayHitGeometryInfo(hit);
+        const auto& material = hit.meshInstance->GetMesh().GetMaterial();
+        glm::vec3 direction = currentRay.direction;
+        glm::vec3 energyMultiplier(1.0f);
+        material->Reflect(geomHit, direction, energyMultiplier, rng);
+
+        // 3. For each light:
+        for (const auto& light : scene.GetLights())
+        {
+            // 3.1. Test shadow rays against the lights
+            const auto lightPos = light.GetPosition();
+            const auto newOrig = geomHit.worldPosition + geomHit.Normal * 0.001f;
+            const auto lightRay = lightPos - newOrig;
+            const auto lightDir = glm::normalize(lightRay);
+            Ray shadowRay(newOrig, lightDir);
+            bool inShadow = TraceScene(shadowRay, scene, true).has_value();
+
+            // 3.2. Compute the ligths' contributions
+            if (!inShadow)
+            {
+                accumulatedColor += material->ComputeLightContribution(
+                    geomHit, currentRay.direction, lightRay, light.GetPointLight().Color);
             }
         }
+
+        // 4. Update the current ray and energy
+        currentRay = Ray(geomHit.worldPosition + geomHit.Normal * 0.001f, direction);
+        energy *= energyMultiplier;
     }
 
-    const float dot = glm::max(glm::dot(glm::normalize(lightDir), geomInfo.Normal), 0.0f);
-    color *= (inShadow ? 0.0f : 0.7f * dot) + 0.3f;
-    return glm::u8vec4(glm::clamp(color * 255.0f, glm::vec3(0.0f), glm::vec3(255.0f)), 255);
+    accumulatedColor += 0.25f;  // Simple ambient term
+    accumulatedColor = glm::pow(accumulatedColor, glm::vec3(2.2f));
+    return glm::u8vec4(glm::u8vec4(glm::clamp(accumulatedColor * 255.0f, 0.0f, 255.0f), 255));
 }

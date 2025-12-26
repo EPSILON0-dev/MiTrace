@@ -1,5 +1,7 @@
 # Cornell box
 
+This scene is meant to test global illumination algorithms and general renderer behaviour. It contains a Cornell box with two boxes inside and an area light on the ceiling.
+
 ![Preview from blender](./preview_blender.jpg)
 
 ## Note

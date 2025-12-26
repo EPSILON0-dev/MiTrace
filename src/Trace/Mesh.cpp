@@ -29,8 +29,8 @@ std::optional<RayHit> Mesh::Intersect(const Ray& ray, const glm::mat4& modelToWo
         glm::normalize(glm::vec3(invModelToWorld * glm::vec4(ray.direction, 0.0f)));
 
     float dist = std::numeric_limits<float>::max();
-    glm::vec2 baryCoord;
-    size_t triangleIndex;
+    glm::vec2 baryCoord = glm::vec2(0.0f);
+    size_t triangleIndex = 0;
 
     for (size_t i = 0; i < indices_.size(); i += 3)
     {

@@ -76,4 +76,5 @@ class Light
     const SpotLight& GetSpotLight() const { return spotLight_; }
     const AreaLight& GetAreaLight() const { return areaLight_; }
     const glm::mat4& GetTransform() const { return transform_; }
+    const glm::vec3 GetPosition() const { return glm::vec3(transform_[3]); }
 };

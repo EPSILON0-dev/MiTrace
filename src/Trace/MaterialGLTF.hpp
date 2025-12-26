@@ -1,9 +1,12 @@
 #pragma once
 
+#include <glm/fwd.hpp>
 #include <string>
 
 #include "MaterialBase.hpp"
 #include "Trace/Texture.hpp"
+
+// TODO emission strength, ior and transmission extensions
 
 class MaterialGLTF : public MaterialBase
 {
@@ -51,6 +54,51 @@ class MaterialGLTF : public MaterialBase
     {
     }
 
-    virtual void Reflect(const RayHitGeometryInfo& geomInfo, glm::vec3& direction,
-        glm::vec3& energy) const noexcept override;
+    glm::vec4 GetBaseColor(const glm::vec2& texCoord) const noexcept
+    {
+        return baseColorTexture_.IsValid()
+                   ? glm::vec4(baseColorTexture_.Sample(texCoord)) / 255.0f * baseColorFactor_
+                   : glm::vec4(baseColorFactor_);
+    }
+
+    float GetMetallic(const glm::vec2& texCoord) const noexcept
+    {
+        return metallicRoughnessTexture_.IsValid()
+                   ? metallicRoughnessTexture_.Sample(texCoord).r / 255.0f * metallicFactor_
+                   : metallicFactor_;
+    }
+
+    float GetRoughness(const glm::vec2& texCoord) const noexcept
+    {
+        return metallicRoughnessTexture_.IsValid()
+                   ? metallicRoughnessTexture_.Sample(texCoord).g / 255.0f * roughnessFactor_
+                   : roughnessFactor_;
+    }
+
+    glm::vec3 GetNormal(const glm::vec2& texCoord) const noexcept
+    {
+        return normalTexture_.IsValid()
+                   ? glm::vec3(normalTexture_.Sample(texCoord)) / 255.0f * normalScale_
+                   : glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+
+    glm::vec3 GetEmissive(const glm::vec2& texCoord) const noexcept
+    {
+        return emissiveTexture_.IsValid()
+                   ? glm::vec3(emissiveTexture_.Sample(texCoord)) / 255.0f * emissiveFactor_
+                   : emissiveFactor_;
+    }
+
+    glm::vec3 GetOcclusion(const glm::vec2& texCoord) const noexcept
+    {
+        return occlusionTexture_.IsValid()
+                   ? glm::vec3(occlusionTexture_.Sample(texCoord)) / 255.0f * occlusionStrength_
+                   : glm::vec3(1.0f);
+    }
+
+    virtual void Reflect(const RayHitGeometryInfo& geomInfo, glm::vec3& viewVec,
+        glm::vec3& energyMultiplier, std::mt19937& rng) const noexcept override;
+    virtual glm::vec3 ComputeLightContribution(const RayHitGeometryInfo& geomInfo,
+        const glm::vec3& viewVec, const glm::vec3& lightVec,
+        const glm::vec3& lightColor) const noexcept override;
 };

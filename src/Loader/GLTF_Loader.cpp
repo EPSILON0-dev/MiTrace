@@ -183,7 +183,11 @@ Texture GLTF_Loader::LoadTexture(size_t textureIndex)
     Image::FilterMode filterMode = Image::FilterMode::Linear;
     const static std::map<size_t, Image::FilterMode> filterModeMap = {
         {9728, Image::FilterMode::Nearest},  // NEAREST
-        {9729, Image::FilterMode::Linear}};  // LINEAR
+        {9984, Image::FilterMode::Nearest},  // NEAREST
+        {9985, Image::FilterMode::Nearest},  // NEAREST
+        {9729, Image::FilterMode::Linear},   // LINEAR
+        {9986, Image::FilterMode::Linear},   // LINEAR
+        {9987, Image::FilterMode::Linear}};  // LINEAR
 
     if (textureData.contains("sampler"))
     {
@@ -769,6 +773,44 @@ static auto CleanupMap(Tm& map, Tl check)
     Tm cleanedMap;
     std::copy_if(map.begin(), map.end(), std::inserter(cleanedMap, cleanedMap.end()), check);
     map = std::move(cleanedMap);
+}
+
+std::optional<Texture> GLTF_Loader::LoadSceneEnvironmentTexture()
+{
+    if (gltfData_.contains("extensions") && gltfData_["extensions"].contains("EXT_sky") &&
+        gltfData_["extensions"]["EXT_sky"].contains("sky_texture"))
+    {
+        const auto textureIndex = gltfData_["extensions"]["EXT_sky"]["sky_texture"].get<size_t>();
+        return LoadTexture(textureIndex);
+    }
+
+    return std::nullopt;
+}
+
+Scene GLTF_Loader::LoadScene(size_t sceneIndex, const glm::mat4& transform)
+{
+    Scene scene;
+
+    // Load meshes
+    auto meshInstances = LoadSceneMeshes(sceneIndex, transform);
+    for (auto& instance : meshInstances) scene.AddMeshInstance(std::move(instance));
+
+    // Load lights
+    auto lights = LoadSceneLights(sceneIndex, transform);
+    for (auto& light : lights) scene.AddLight(std::move(light));
+
+    // Load environment texture if present
+    auto envTexture = LoadSceneEnvironmentTexture();
+    if (envTexture.has_value())
+    {
+        scene.SetEnvironmentTexture(envTexture.value());
+        SPDLOG_INFO("Loaded environment texture for the scene");
+    }
+
+    SPDLOG_INFO("Loaded scene {} with {} mesh instances and {} lights", sceneIndex,
+        scene.GetMeshInstances().size(), scene.GetLights().size());
+
+    return scene;
 }
 
 void GLTF_Loader::Cleanup()

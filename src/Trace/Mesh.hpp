@@ -46,6 +46,5 @@ class Mesh
     glm::vec3 GetAABBMin() const noexcept;
     glm::vec3 GetAABBMax() const noexcept;
 
-    std::optional<RayHit> Intersect(
-        const Ray& ray, const glm::mat4& modelToWorld) const noexcept;
+    std::optional<RayHit> Intersect(const Ray& ray, const glm::mat4& modelToWorld) const noexcept;
 };

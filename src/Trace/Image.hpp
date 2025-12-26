@@ -39,4 +39,5 @@ class Image
 
    public:
     glm::u8vec4 Sample(const glm::vec2& uv, FilterMode filter) const noexcept;
+    glm::u8vec4 SampleEquirectangular(const glm::vec3& direction, FilterMode filter) const noexcept;
 };

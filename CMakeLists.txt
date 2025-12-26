@@ -89,8 +89,16 @@ target_include_directories(RayTracing PRIVATE ${imgui_SOURCE_DIR}/backends)
 # Compiler options
 target_compile_options(RayTracing PRIVATE
     $<$<CONFIG:Release>:-O2 -march=native>
+    $<$<CONFIG:RelWithDebInfo>:-O2 -march=native>
     $<$<CONFIG:Debug>:-O0 -g -fsanitize=address,undefined>
     -pthread -Wall -Wextra -Wpedantic
+)
+
+# Compile defines
+target_compile_definitions(RayTracing PRIVATE
+    $<$<CONFIG:Release>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_INFO>
+    $<$<CONFIG:Debug>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG>
+    $<$<CONFIG:RelWithDebInfo>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG>
 )
 
 # Link options
