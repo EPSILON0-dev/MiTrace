@@ -2,16 +2,16 @@
 
 #include <memory>
 
-#include "Image.hpp"
+#include "TextureImage.hpp"
 
 class Texture
 {
    private:
-   Image::FilterMode filterMode_;
-   std::shared_ptr<Image> image_;
+   TextureImage::FilterMode filterMode_;
+   std::shared_ptr<TextureImage> image_;
    
    public:
-    Texture(std::shared_ptr<Image> image, Image::FilterMode filter = Image::FilterMode::Nearest)
+    Texture(std::shared_ptr<TextureImage> image, TextureImage::FilterMode filter = TextureImage::FilterMode::Nearest)
         : filterMode_(filter), image_(image) {};
 
    public:

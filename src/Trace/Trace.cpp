@@ -1,8 +1,8 @@
-#include "Trace.hpp"
+#include "Trace/Trace.hpp"
 
 #include <glm/fwd.hpp>
 
-#include "Config/Config.hpp"
+#include "Trace/MaterialGLTF.hpp"
 #include "Trace/RayHit.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -30,70 +30,39 @@ static std::optional<RayHit> TraceScene(
     return bestHit;
 }
 
-glm::u8vec4 Trace::TraceSample(const Ray& ray, const Scene& scene)
+void Trace::Render()
 {
-    // TODO don't do this for every sample...
-    std::random_device rd;
-    std::mt19937 rng(rd());
+    const auto imageWidth = imageBuffer_.GetWidth();
+    const auto imageHeight = imageBuffer_.GetHeight();
 
-    const int maxBounces = Config::Instance().MaxBounces();
-    Ray currentRay = ray;
-
-    glm::vec3 accumulatedColor(0.0f);
-    glm::vec3 energy(1.0f);
-
-    for (int bounce = 0; bounce < maxBounces; ++bounce)
+    for (unsigned y = 0; y < imageHeight; ++y)
     {
-        // 1. Trace the main ray
-        auto hitOpt = TraceScene(currentRay, scene);
-        if (!hitOpt.has_value())
+        for (unsigned x = 0; x < imageWidth; ++x)
         {
-            // If there's an environment texture, sample it
-            if (scene.GetEnvironmentTexture().has_value())
+            const glm::vec2 uv{
+                (static_cast<float>(x) + 0.5f) / imageWidth,
+                (static_cast<float>(y) + 0.5f) / imageHeight,
+            };
+            const auto aspectRatio = static_cast<float>(imageWidth) / imageHeight;
+
+            const Ray ray = camera_.GenerateRay(uv.x, uv.y, aspectRatio);
+
+            glm::vec3 pixelColor{0.0f, 0.0f, 0.0f};
+
+            if (const auto hit = TraceScene(ray, scene_); hit.has_value())
             {
-                const auto& tex = scene.GetEnvironmentTexture().value();
-                accumulatedColor +=
-                    energy * glm::vec3(tex.SampleEquirectangular(currentRay.direction)) / 255.0f;
+                const auto& matBase = hit->meshInstance->GetMesh().GetMaterial().get();
+                const auto& mat = dynamic_cast<MaterialGLTF*>(matBase);
+                const auto geom = RayHitGeometryInfo(*hit);
+                const auto uv = geom.TexCoord0;
+                pixelColor = mat->GetBaseColor(uv);
             }
-            break;
-        }
-
-        // 2. Compute the bounce and energy loss
-        const auto& hit = hitOpt.value();
-        const auto& geomHit = RayHitGeometryInfo(hit);
-        const auto& material = hit.meshInstance->GetMesh().GetMaterial();
-        glm::vec3 direction = currentRay.direction;
-        glm::vec3 energyMultiplier(1.0f);
-        material->Reflect(geomHit, direction, energyMultiplier, rng);
-
-        // 3. For each light:
-        for (const auto& light : scene.GetLights())
-        {
-            // 3.1. Test shadow rays against the lights
-            const auto lightPos = light.GetPosition();
-            const auto newOrig = geomHit.worldPosition + geomHit.Normal * 0.001f;
-            const auto lightRay = lightPos - newOrig;
-            const auto lightDir = glm::normalize(lightRay);
-            Ray shadowRay(newOrig, lightDir);
-            const auto shadowHit = TraceScene(shadowRay, scene, true);
-            bool inShadow = shadowHit.has_value() && shadowHit->distance < glm::length(lightRay);
-
-            // 3.2. Compute the ligths' contributions
-            if (!inShadow)
+            else
             {
-                const float effectiveIntensity = light.GetPointLight().Intensity / 55.0f;
-                accumulatedColor +=
-                    material->ComputeLightContribution(geomHit, currentRay.direction, lightRay,
-                        light.GetPointLight().Color * effectiveIntensity) *
-                    energy;
+                pixelColor = glm::vec3{0.0f, 0.0f, 0.0f};
             }
-        }
 
-        // 4. Update the current ray and energy
-        currentRay = Ray(geomHit.worldPosition + geomHit.Normal * 0.001f, direction);
-        energy *= energyMultiplier;
+            imageBuffer_.SetPixel(x, y, pixelColor);
+        }
     }
-
-    accumulatedColor = glm::pow(accumulatedColor, glm::vec3(2.2f));
-    return glm::u8vec4(glm::u8vec4(glm::clamp(accumulatedColor * 255.0f, 0.0f, 255.0f), 255));
 }

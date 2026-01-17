@@ -1,12 +1,20 @@
 #pragma once
 
-#include "Camera.hpp"  // IWYU pragma: keep
-#include "Ray.hpp"
-#include "RayHit.hpp"  // IWYU pragma: keep
-#include "Scene.hpp"
+#include "Trace/Camera.hpp"
+#include "Trace/RenderBuffer.hpp"
+#include "Trace/Scene.hpp"
 
-namespace Trace
+class Trace
 {
-// TODO
-glm::u8vec4 TraceSample(const Ray& ray, const Scene& scene);
-};  // namespace Trace
+   private:
+    RenderBuffer& imageBuffer_;
+    const Camera& camera_;
+    const Scene& scene_;
+
+   public:
+    Trace(RenderBuffer& imageBuffer, const Camera& camera, const Scene& scene) noexcept
+        : imageBuffer_(imageBuffer), camera_(camera), scene_(scene) {};
+    ~Trace() = default;
+
+    void Render();
+};

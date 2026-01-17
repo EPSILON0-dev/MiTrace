@@ -7,7 +7,7 @@
 
 // For simplicity, we assume RGBA@8bpp with repeat wrap mode, no mipmaps and nearest/linear
 // filtering options.
-class Image
+class TextureImage
 {
     friend class GLTF_Loader;
 
@@ -25,7 +25,7 @@ class Image
     std::unique_ptr<glm::u8vec4[]> data_;
 
    public:
-    Image(const std::filesystem::path& filePath);
+    TextureImage(const std::filesystem::path& filePath);
 
     int GetWidth() const noexcept { return width_; }
     int GetHeight() const noexcept { return height_; }

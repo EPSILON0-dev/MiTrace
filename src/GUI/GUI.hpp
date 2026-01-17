@@ -9,7 +9,7 @@
 
 #include "Common/ThreadSafeVar.hpp"
 #include "GUI/GL_Texture.hpp"
-#include "Trace/ImageBuffer.hpp"
+#include "Trace/RenderBuffer.hpp"
 
 namespace GUI
 {
@@ -22,7 +22,7 @@ class GUI::Window
     GLFWwindow* window_ = nullptr;
     ThreadSafeVariable<std::string> statusMessage_;
     std::atomic<float> progressPercent_;
-    std::atomic<const Trace::ImageBuffer*> cpuTexture_; // TODO: potential ownership issue
+    std::atomic<const RenderBuffer*> cpuTexture_; // TODO: potential ownership issue
     std::atomic<float> textureRefreshInterval_{0.0f};
     std::atomic<bool> shouldRefreshTexture_{true};
     std::thread textureRefreshThread_;
@@ -37,7 +37,7 @@ class GUI::Window
 
     void SetProgress(float progress) { this->progressPercent_ = progress; }
     void SetStatusMessage(const char* message) { statusMessage_.Set(message); }
-    void SetTexture(Trace::ImageBuffer& texture) { cpuTexture_ = &texture; }
+    void SetTexture(RenderBuffer& texture) { cpuTexture_ = &texture; }
     void SetTextureRefreshInterval(float seconds) { textureRefreshInterval_ = seconds; }
 
    private:

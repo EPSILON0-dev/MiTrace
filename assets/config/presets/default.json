@@ -1,0 +1,12 @@
+{
+    "output": {
+        "width": 800,
+        "height": 600,
+        "samples": 16
+    },
+    "rendering": {
+        "max_bounces": 5,
+        "samples_per_bucket": 16,
+        "pixels_per_bucket": 8
+    }
+}

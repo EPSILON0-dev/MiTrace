@@ -23,7 +23,7 @@ GLTF_Loader::GLTF_Loader(const std::filesystem::path& filePath)
             std::format("Failed to load GLTF file '{}': {}", filePath_.string(), e.what()));
     }
 
-    SPDLOG_INFO("Loaded GLTF file \"{}\"", filePath_.filename().string());
+    spdlog::info("Loaded GLTF file \"{}\"", filePath_.filename().string());
 }
 
 const std::vector<uint8_t>& GLTF_Loader::GetBufferData(size_t bufferIndex)
@@ -180,14 +180,14 @@ Texture GLTF_Loader::LoadTexture(size_t textureIndex)
         if (texCoordSet != 0) throw std::runtime_error("Only TEXCOORD_0 is supported");
     }
 
-    Image::FilterMode filterMode = Image::FilterMode::Linear;
-    const static std::map<size_t, Image::FilterMode> filterModeMap = {
-        {9728, Image::FilterMode::Nearest},  // NEAREST
-        {9984, Image::FilterMode::Nearest},  // NEAREST
-        {9985, Image::FilterMode::Nearest},  // NEAREST
-        {9729, Image::FilterMode::Linear},   // LINEAR
-        {9986, Image::FilterMode::Linear},   // LINEAR
-        {9987, Image::FilterMode::Linear}};  // LINEAR
+    TextureImage::FilterMode filterMode = TextureImage::FilterMode::Linear;
+    const static std::map<size_t, TextureImage::FilterMode> filterModeMap = {
+        {9728, TextureImage::FilterMode::Nearest},  // NEAREST
+        {9984, TextureImage::FilterMode::Nearest},  // NEAREST
+        {9985, TextureImage::FilterMode::Nearest},  // NEAREST
+        {9729, TextureImage::FilterMode::Linear},   // LINEAR
+        {9986, TextureImage::FilterMode::Linear},   // LINEAR
+        {9987, TextureImage::FilterMode::Linear}};  // LINEAR
 
     if (textureData.contains("sampler"))
     {
@@ -367,7 +367,7 @@ std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIn
         mesh.SetMaterial(std::dynamic_pointer_cast<MaterialBase>(materialPtr));
     }
 
-    SPDLOG_DEBUG("Loaded new mesh \"{}\", triangles: {}, attributes: P-N{}{}{}{}-I", mesh.name_,
+    spdlog::debug("Loaded new mesh \"{}\", triangles: {}, attributes: P-N{}{}{}{}-I", mesh.name_,
         mesh.indices_.size() / 3, (mesh.tangents_.empty() ? "" : "-T"),
         (mesh.texCoord0_.empty() ? "" : "-U0"), (mesh.texCoord1_.empty() ? "" : "-U1"),
         (mesh.color0_.empty() ? "" : "-C0"));
@@ -377,7 +377,7 @@ std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIn
     return meshPtr;
 }
 
-std::shared_ptr<Image> GLTF_Loader::LoadImage(size_t imageIndex)
+std::shared_ptr<TextureImage> GLTF_Loader::LoadImage(size_t imageIndex)
 {
     // Return from cache if already loaded
     if (loadedImages_.find(imageIndex) != loadedImages_.end()) return loadedImages_.at(imageIndex);
@@ -385,10 +385,10 @@ std::shared_ptr<Image> GLTF_Loader::LoadImage(size_t imageIndex)
     // Load the image
     auto& imageData = gltfData_["images"][imageIndex];
     if (!imageData.contains("uri")) throw std::runtime_error("Only URI-based images are supported");
-    auto image = std::make_shared<Image>(basePath_ / imageData["uri"].get<std::string>());
+    auto image = std::make_shared<TextureImage>(basePath_ / imageData["uri"].get<std::string>());
     image->name_ = imageData.value("name", "Unnamed_Image");
 
-    SPDLOG_DEBUG("Loaded new image \"{}\" ({}x{}, {} channels)", image->name_, image->width_,
+    spdlog::debug("Loaded new image \"{}\" ({}x{}, {} channels)", image->name_, image->width_,
         image->height_, image->channels_);
 
     // Emplace in cache and return
@@ -455,7 +455,7 @@ std::shared_ptr<MaterialGLTF> GLTF_Loader::LoadMaterial(size_t materialIndex)
     material.alphaCutoff_ = materialData.value("alphaCutoff", 0.5f);
     material.doubleSided_ = materialData.value("doubleSided", false);
 
-    SPDLOG_DEBUG("Loaded new material \"{}\"", material.name_);
+    spdlog::debug("Loaded new material \"{}\"", material.name_);
 
     // Cache and return
     loadedMaterials_.emplace(materialIndex, std::make_shared<MaterialGLTF>(material));
@@ -599,7 +599,7 @@ std::vector<MeshInstance> GLTF_Loader::LoadNodeMeshes(size_t nodeIndex, const gl
                 auto meshPtr = LoadMesh(meshIndex, primitiveIndex);
                 instances.push_back(MeshInstance(std::move(meshPtr), worldTransform));
 
-                SPDLOG_DEBUG("Loaded mesh {} ({}:{}) on node {} ({})",
+                spdlog::debug("Loaded mesh {} ({}:{}) on node {} ({})",
                     instances.back().GetMesh().GetName(), meshIndex, primitiveIndex,
                     nodeData.value("name", "Unnamed_Node"), nodeIndex);
             }
@@ -608,7 +608,7 @@ std::vector<MeshInstance> GLTF_Loader::LoadNodeMeshes(size_t nodeIndex, const gl
         {
             const auto error =
                 std::format("Failed to load mesh on node {}: {}", nodeIndex, e.what());
-            SPDLOG_ERROR(error);
+            spdlog::error(error);
             throw std::runtime_error(error);
         }
     }
@@ -657,14 +657,14 @@ std::vector<Light> GLTF_Loader::LoadNodeLights(size_t nodeIndex, const glm::mat4
             auto lightIndex = nodeData["extensions"]["KHR_lights_punctual"]["light"].get<size_t>();
             lights.push_back(LoadLight(lightIndex, worldTransform));
 
-            SPDLOG_DEBUG("Loaded light {} on node {} ({})", lightIndex,
+            spdlog::debug("Loaded light {} on node {} ({})", lightIndex,
                 nodeData.value("name", "Unnamed_Node"), nodeIndex);
         }
         catch (const std::exception& e)
         {
             const auto error =
                 std::format("Failed to load light on node {}: {}", nodeIndex, e.what());
-            SPDLOG_ERROR(error);
+            spdlog::error(error);
             throw std::runtime_error(error);
         }
     }
@@ -713,14 +713,14 @@ std::vector<Camera> GLTF_Loader::LoadNodeCameras(size_t nodeIndex, const glm::ma
             camera.SetCameraToWorld(worldTransform);
             cameras.push_back(camera);
 
-            SPDLOG_DEBUG("Loaded camera {} on node {} ({})", cameraIndex,
+            spdlog::debug("Loaded camera {} on node {} ({})", cameraIndex,
                 nodeData.value("name", "Unnamed_Node"), nodeIndex);
         }
         catch (const std::exception& e)
         {
             const auto error =
                 std::format("Failed to load camera on node {}: {}", nodeIndex, e.what());
-            SPDLOG_ERROR(error);
+            spdlog::error(error);
             throw std::runtime_error(error);
         }
     }
@@ -762,7 +762,7 @@ Camera GLTF_Loader::LoadSceneCamera(size_t sceneIndex, const glm::mat4& transfor
     if (cameras.empty()) throw std::runtime_error("No camera found in the scene");
 
     if (cameras.size() > 1)
-        SPDLOG_WARN("Multiple cameras found in the scene, using the first one loaded");
+        spdlog::warn("Multiple cameras found in the scene, using the first one loaded");
 
     return cameras.front();
 }
@@ -804,10 +804,10 @@ Scene GLTF_Loader::LoadScene(size_t sceneIndex, const glm::mat4& transform)
     if (envTexture.has_value())
     {
         scene.SetEnvironmentTexture(envTexture.value());
-        SPDLOG_INFO("Loaded environment texture for the scene");
+        spdlog::info("Loaded environment texture for the scene");
     }
 
-    SPDLOG_INFO("Loaded scene {} with {} mesh instances and {} lights", sceneIndex,
+    spdlog::info("Loaded scene {} with {} mesh instances and {} lights", sceneIndex,
         scene.GetMeshInstances().size(), scene.GetLights().size());
 
     return scene;
@@ -828,7 +828,7 @@ void GLTF_Loader::Cleanup()
     CleanupMap(loadedImages_, usedCheck);
     CleanupMap(loadedMeshes_, usedCheck);
 
-    SPDLOG_INFO(
+    spdlog::info(
         "GLTF Loader cleaned up unused resources, dropped {} buffers, {} materials, {} images, and "
         "{} meshes",
         droppedBuffers, initialMaterialCount - loadedMaterials_.size(),

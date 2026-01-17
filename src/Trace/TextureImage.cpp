@@ -1,4 +1,4 @@
-#include "Image.hpp"
+#include "TextureImage.hpp"
 
 #include <stb/stb_image.h>
 #include <glm/gtc/constants.hpp>
@@ -7,7 +7,7 @@
 
 // TODO move to templates
 
-Image::Image(const std::filesystem::path& filePath)
+TextureImage::TextureImage(const std::filesystem::path& filePath)
     : width_(0), height_(0), channels_(0), filePath_(filePath), data_(nullptr)
 {
     // Load the image using stb_image
@@ -24,14 +24,14 @@ Image::Image(const std::filesystem::path& filePath)
     stbi_image_free(imgData);
 }
 
-glm::u8vec4 Image::SampleNearest(float& x, float& y) const noexcept
+glm::u8vec4 TextureImage::SampleNearest(float& x, float& y) const noexcept
 {
     int ix = static_cast<int>(std::round(x * width_)) % width_;
     int iy = static_cast<int>(std::round(y * height_)) % height_;
     return data_[iy * width_ + ix];
 }
 
-glm::u8vec4 Image::SampleLinear(float& x, float& y) const noexcept
+glm::u8vec4 TextureImage::SampleLinear(float& x, float& y) const noexcept
 {
     int x0 = static_cast<int>(std::floor(x * width_));
     int x1 = std::min(x0 + 1, width_ - 1);
@@ -51,7 +51,7 @@ glm::u8vec4 Image::SampleLinear(float& x, float& y) const noexcept
     return glm::mix(c0, c1, sy);
 }
 
-glm::u8vec4 Image::Sample(const glm::vec2& uv, const FilterMode filter) const noexcept
+glm::u8vec4 TextureImage::Sample(const glm::vec2& uv, const FilterMode filter) const noexcept
 {
     float u = uv.x - std::floor(uv.x);
     float v = uv.y - std::floor(uv.y);
@@ -68,7 +68,7 @@ glm::u8vec4 Image::Sample(const glm::vec2& uv, const FilterMode filter) const no
     }
 }
 
-glm::u8vec4 Image::SampleEquirectangular(
+glm::u8vec4 TextureImage::SampleEquirectangular(
     const glm::vec3& direction, const FilterMode filter) const noexcept
 {
     // Convert direction to spherical coordinates

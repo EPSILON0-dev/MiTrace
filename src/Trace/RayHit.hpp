@@ -2,7 +2,10 @@
 
 #include "Ray.hpp"
 
-class MeshInstance;  // Forward declaration
+// Forward declaration
+class MeshInstance;  
+class RayHit;
+class RayHitGeometryInfo;
 
 class RayHit : public Ray
 {
@@ -26,9 +29,9 @@ class RayHitGeometryInfo : public RayHit
 {
    public:
     struct Flags
-    { 
+    {
         // Always has normals
-        // bool HasNormal : 1;  
+        // bool HasNormal : 1;
         bool HasTangent : 1;
         bool HasTexCoord0 : 1;
         bool HasTexCoord1 : 1;
@@ -41,5 +44,5 @@ class RayHitGeometryInfo : public RayHit
     glm::vec2 TexCoord1;
     glm::vec3 Color0;
 
-    RayHitGeometryInfo(const RayHit &rayHit) noexcept;
+    RayHitGeometryInfo(const RayHit& rayHit) noexcept;
 };

@@ -3,20 +3,47 @@
 #include <spdlog/spdlog.h>
 
 #include <iostream>
-
-#include "Common/Logger.pch.hpp"  // IWYU pragma: keep
+#include <sstream>
+#include <fstream>
 
 static constexpr char helpMessage[] =
-    "Usage: {} [options]\n"
+    "Usage: RayTracing [options]\n"
     "Options:\n"
-    "  -f, --file        <file>     Specify the configuration file to load.\n"
-    "  -w, --width       <pixels>   Set the image width in pixels.\n"
-    "  -h, --height      <pixels>   Set the image height in pixels.\n"
-    "  -s, --samples     <number>   Set the number of samples per pixel.\n"
-    "  -b, --bounces     <number>   Set the maximum number of bounces per ray.\n"
-    "  -B, --block-size <pixels>    Set the size of each render block in pixels.\n"
-    "  -m, --mode        <mode>     Set the render mode (Render, FresnelPreview).\n"
-    "  -h, --help                   Display this help message.\n";
+    "  -f, --file        <file>     Specify the scene file to load.\n"
+    "  -c, --config      <config>   Specify the configuration file to load.\n";
+
+std::vector<std::string> Config::SplitPath(const std::string& path)
+{
+    std::vector<std::string> keys;
+    std::stringstream ss(path);
+    std::string item;
+
+    while (std::getline(ss, item, '.')) keys.push_back(item);
+
+    return keys;
+}
+
+template <typename T>
+void Config::LoadFromJson(const nlohmann::json& jsonObj, const std::string& path, T &prop)
+{
+    const auto* obj = &jsonObj;
+    const auto keys = SplitPath(path);
+
+    for (const auto& key : keys)
+    {
+        if (!obj->contains(key)) return;
+        obj = &(obj->at(key));
+    }
+
+    try
+    {
+        prop = obj->get<T>();
+    }
+    catch (const std::exception& e)
+    {
+        spdlog::warn("Failed to read arg {}: {}", path, e.what());
+    }
+}
 
 Config& Config::Instance()
 {
@@ -24,17 +51,30 @@ Config& Config::Instance()
     return instance;
 }
 
-void Config::LoadFromFile(const char* filepath)
+void Config::LoadFromFile(const std::string& filepath)
 {
-    // Implementation for loading configuration from a file
-    SPDLOG_INFO("Loading from a file currently not implemented.");
-    (void)filepath;
+    nlohmann::json json;
+    try
+    {
+        json = nlohmann::json::parse(std::ifstream(filepath));
+    }
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(
+            std::format("Failed to load config file '{}': {}", filepath, e.what()));
+    }
+
+    LoadFromJson(json, "output.width", options_.image.width);
+    LoadFromJson(json, "output.height", options_.image.height);
+    LoadFromJson(json, "output.samples", options_.image.samples);
+
+    LoadFromJson(json, "rendering.max_bounces", options_.render.bounces);
+    LoadFromJson(json, "rendering.pixels_per_bucket", options_.render.pixelsPerBucket);
+    LoadFromJson(json, "rendering.samples_per_bucket", options_.render.samplesPerBucket);
 }
 
-void Config::LoadFromArgs(int argc, char** argv)
+void Config::LoadConfig(int argc, char** argv)
 {
-    binaryName_ = argv[0];
-
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
@@ -42,60 +82,24 @@ void Config::LoadFromArgs(int argc, char** argv)
         {
             if (i + 1 < argc)
             {
-                inputFilePath_ = argv[++i];
+                options_.input.filename = argv[++i];
+            }
+            else
+            {
+                spdlog::critical("Expected filename after {}", arg);
+                exit(EXIT_FAILURE);
             }
         }
-        else if (arg == "-w" || arg == "--width")
+        else if (arg == "-c" || arg == "--config")
         {
             if (i + 1 < argc)
             {
-                imageWidth_ = static_cast<uint32_t>(std::stoi(argv[++i]));
+                options_.input.config = argv[++i];
             }
-        }
-        else if (arg == "-h" || arg == "--height")
-        {
-            if (i + 1 < argc)
+            else
             {
-                imageHeight_ = static_cast<uint32_t>(std::stoi(argv[++i]));
-            }
-        }
-        else if (arg == "-s" || arg == "--samples")
-        {
-            if (i + 1 < argc)
-            {
-                samplesPerPixel_ = static_cast<uint32_t>(std::stoi(argv[++i]));
-            }
-        }
-        else if (arg == "-b" || arg == "--bounces")
-        {
-            if (i + 1 < argc)
-            {
-                maxBounces_ = static_cast<uint32_t>(std::stoi(argv[++i]));
-            }
-        }
-        else if (arg == "-S" || arg == "--sector-size")
-        {
-            if (i + 1 < argc)
-            {
-                sectorSize_ = static_cast<uint32_t>(std::stoi(argv[++i]));
-            }
-        }
-        else if (arg == "-t" || arg == "--threads")
-        {
-            if (i + 1 < argc)
-            {
-                threadCount_ = static_cast<uint32_t>(std::stoi(argv[++i]));
-            }
-        }
-        else if (arg == "-m" || arg == "--mode")
-        {
-            if (i + 1 < argc)
-            {
-                std::string modeStr = argv[++i];
-                if (modeStr == "Render")
-                    renderMode_ = RenderMode::Render;
-                else if (modeStr == "FresnelPreview")
-                    renderMode_ = RenderMode::FresnelPreview;
+                spdlog::critical("Expected filename after {}", arg);
+                exit(EXIT_FAILURE);
             }
         }
         else if (arg == "-h" || arg == "--help")
@@ -104,17 +108,19 @@ void Config::LoadFromArgs(int argc, char** argv)
         }
         else
         {
-            SPDLOG_CRITICAL("Unknown argument: {}", arg);
+            spdlog::critical("Unknown argument: {}", arg);
             exit(EXIT_FAILURE);
         }
     }
+
+    if (!options_.input.config.empty()) LoadFromFile(options_.input.config);
 }
 
 bool Config::PrintHelpIfNeeded() const
 {
     if (printHelp_)
     {
-        std::cout << std::format(helpMessage, binaryName_);
+        std::cout << helpMessage;
         return true;
     }
     return false;

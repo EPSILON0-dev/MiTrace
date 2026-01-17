@@ -3,7 +3,6 @@
 #include <chrono>
 #include <stdexcept>
 
-#include "Trace/ImageBuffer.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -117,8 +116,9 @@ void GUI::Window::RefreshTextureIfNeeded()
     const auto& cpuTex = cpuTexture_.load();
     if (cpuTex)
     {
+        auto pixels = cpuTex->GetPixelsRGB8();
         texture_ = std::make_unique<GLTexture>(
-            cpuTex->GetWidth(), cpuTex->GetHeight(), cpuTex->GetPixels());
+            cpuTex->GetWidth(), cpuTex->GetHeight(), pixels.get());
     }
 }
 

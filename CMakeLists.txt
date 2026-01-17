@@ -59,8 +59,7 @@ set(SRC_FILES
     src/GUI/GL_Texture.cpp
     src/Loader/GLTF_Loader.cpp
     src/Trace/Camera.cpp
-    src/Trace/Dispatch.cpp
-    src/Trace/Image.cpp
+    src/Trace/TextureImage.cpp
     src/Trace/Mesh.cpp
     src/Trace/MeshInstance.cpp
     src/Trace/MaterialGLTF.cpp

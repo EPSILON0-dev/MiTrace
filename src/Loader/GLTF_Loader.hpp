@@ -7,7 +7,7 @@
 
 #include "Common/Json.pch.hpp"
 #include "Trace/Camera.hpp"
-#include "Trace/Image.hpp"
+#include "Trace/TextureImage.hpp"
 #include "Trace/Light.hpp"
 #include "Trace/MaterialGLTF.hpp"
 #include "Trace/Mesh.hpp"
@@ -57,7 +57,7 @@ class GLTF_Loader
     nlohmann::json gltfData_;
     std::map<size_t, std::vector<uint8_t>> loadedBuffers_;
     std::map<size_t, std::shared_ptr<MaterialGLTF>> loadedMaterials_;
-    std::map<size_t, std::shared_ptr<Image>> loadedImages_;
+    std::map<size_t, std::shared_ptr<TextureImage>> loadedImages_;
     std::map<std::pair<size_t, size_t>, std::shared_ptr<Mesh>> loadedMeshes_;
 
    private:  // Helper methods
@@ -84,7 +84,7 @@ class GLTF_Loader
 
    public:  // Loaders
     std::shared_ptr<Mesh> LoadMesh(size_t meshIndex, size_t primitiveIndex = 0);
-    std::shared_ptr<Image> LoadImage(size_t imageIndex);
+    std::shared_ptr<TextureImage> LoadImage(size_t imageIndex);
     Texture LoadTexture(size_t textureIndex);
     std::shared_ptr<MaterialGLTF> LoadMaterial(size_t materialIndex);
     Camera LoadCamera(size_t cameraIndex) const;

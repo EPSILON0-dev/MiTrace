@@ -1,28 +1,39 @@
 #pragma once
 
-#include <cstdint>
 #include <string>
+
+#include "Common/Logger.pch.hpp"  // IWYU pragma: keep
+#include "Common/Json.pch.hpp"  // IWYU pragma: keep
 
 class Config
 {
    public:
-    enum class RenderMode
+    struct ConfigOptions
     {
-        Render,
-        FresnelPreview,
+        struct
+        {
+            unsigned width = 640;
+            unsigned height = 480;
+            unsigned samples = 16;
+        } image;
+
+        struct
+        {
+            std::string filename = "";
+            std::string config = "";
+        } input;
+
+        struct
+        {
+            unsigned bounces = 5;
+            unsigned pixelsPerBucket = 16;
+            unsigned samplesPerBucket = 8;
+        } render;
     };
 
    private:
-    std::string inputFilePath_;
-    std::string binaryName_;
-    uint32_t imageWidth_ = 800;
-    uint32_t imageHeight_ = 600;
-    uint32_t samplesPerPixel_ = 8;
-    uint32_t maxBounces_ = 5;
-    std::optional<uint32_t> threadCount_ = std::nullopt;
-    uint32_t sectorSize_ = 64;
+    ConfigOptions options_;
     bool printHelp_ = false;
-    RenderMode renderMode_ = RenderMode::Render;
 
    private:
     Config() = default;
@@ -32,18 +43,16 @@ class Config
     Config(const Config&) = delete;
     Config& operator=(const Config&) = delete;
 
+   private:
+    static std::vector<std::string> SplitPath(const std::string& path);
+    template <typename T>
+    void LoadFromJson(const nlohmann::json& jsonObj, const std::string& path, T &prop);
+    void LoadFromFile(const std::string& filepath);
+
    public:
     static Config& Instance();
-    void LoadFromFile(const char* filepath);
-    void LoadFromArgs(int argc, char** argv);
+    void LoadConfig(int argc, char** argv);
     bool PrintHelpIfNeeded() const;
 
-    const std::string& InputFilePath() const { return inputFilePath_; }
-    uint32_t ImageWidth() const { return imageWidth_; }
-    uint32_t ImageHeight() const { return imageHeight_; }
-    uint32_t SamplesPerPixel() const { return samplesPerPixel_; }
-    uint32_t MaxBounces() const { return maxBounces_; }
-    uint32_t SectorSize() const { return sectorSize_; }
-    std::optional<uint32_t> GetThreadCount() const { return threadCount_; }
-    RenderMode GetRenderMode() const { return renderMode_; }
+    const ConfigOptions& GetConfig() const { return options_; }
 };

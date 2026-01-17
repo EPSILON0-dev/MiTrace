@@ -6,11 +6,12 @@
 #include "Config/Config.hpp"
 #include "GUI/GUI.hpp"
 #include "Loader/GLTF_Loader.hpp"
-#include "Trace/Dispatch.hpp"
+#include "Trace/Trace.hpp"
+#include "Common/ScopeTimer.hpp"
 
 bool terminateRender = false;
 
-void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture, const char* gltfFilePath)
+void RenderThread(GUI::Window& gui, RenderBuffer& texture, const char* gltfFilePath)
 {
     using std::chrono::duration_cast;
     using std::chrono::milliseconds;
@@ -21,30 +22,13 @@ void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture, const char* glt
     const auto camera = loader.LoadSceneCamera(0);
     const auto scene = loader.LoadScene(0);
 
-    steady_clock::time_point startTime = steady_clock::now();
-    Dispatch dispatcher(texture, camera, scene);
-    dispatcher.StartThreads();
-
-    gui.SetStatusMessage("Rendering...");
-    while (!dispatcher.IsRenderComplete())
+    float renderDuration = 0.0f;
     {
-        if (terminateRender)
-        {
-            dispatcher.KillThreads();
-            SPDLOG_INFO("Render terminated by user.");
-            break;
-        }
-
-        gui.SetProgress(dispatcher.GetProgress());
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        ScopeTimer<float> timer(renderDuration);
+        Trace(texture, camera, scene).Render();
     }
-    steady_clock::time_point endTime = steady_clock::now();
 
-    dispatcher.JoinThreads();
-
-    auto renderDuration =
-        static_cast<float>(duration_cast<milliseconds>(endTime - startTime).count() / 1000.0f);
-    SPDLOG_INFO("Render completed in {:.2f} seconds", renderDuration);
+    spdlog::info("Render completed in {:.2f} seconds", renderDuration);
     gui.SetStatusMessage(
         std::format("Render complete. Time taken: {:.2f} seconds.", renderDuration).c_str());
     gui.SetProgress(1.0f);
@@ -54,13 +38,13 @@ void RenderThread(GUI::Window& gui, Trace::ImageBuffer& texture, const char* glt
 
 int main(int argc, char** argv)
 {
-    Config::Instance().LoadFromArgs(argc, argv);
-    const auto& config = Config::Instance();
+    Config::Instance().LoadConfig(argc, argv);
+    const auto& config = Config::Instance().GetConfig();
 
     GUI::Window gui(800, 600, "Render View");
-    Trace::ImageBuffer tex(config.ImageWidth(), config.ImageHeight());
+    RenderBuffer tex(config.image.width, config.image.height);
 
-    const auto file = config.InputFilePath().c_str();
+    const auto file = config.input.filename.c_str();
     std::thread renderThread(RenderThread, std::ref(gui), std::ref(tex), file);
 
     gui.SetTexture(tex);
