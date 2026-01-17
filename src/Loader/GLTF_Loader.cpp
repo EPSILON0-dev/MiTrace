@@ -8,7 +8,6 @@
 #include <stdexcept>
 
 #include "Common/Logger.pch.hpp"  // IWYU pragma: keep
-#include "Trace/MaterialGLTF.hpp"
 
 GLTF_Loader::GLTF_Loader(const std::filesystem::path& filePath)
     : filePath_(filePath), basePath_(filePath.parent_path())
@@ -364,7 +363,7 @@ std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIn
     {
         size_t materialIndex = primitiveData["material"].get<size_t>();
         auto materialPtr = LoadMaterial(materialIndex);
-        mesh.SetMaterial(std::dynamic_pointer_cast<MaterialBase>(materialPtr));
+        mesh.SetMaterial(std::dynamic_pointer_cast<Material>(materialPtr));
     }
 
     spdlog::debug("Loaded new mesh \"{}\", triangles: {}, attributes: P-N{}{}{}{}-I", mesh.name_,
@@ -396,11 +395,11 @@ std::shared_ptr<TextureImage> GLTF_Loader::LoadImage(size_t imageIndex)
     return image;
 }
 
-std::shared_ptr<MaterialGLTF> GLTF_Loader::LoadMaterial(size_t materialIndex)
+std::shared_ptr<Material> GLTF_Loader::LoadMaterial(size_t materialIndex)
 {
     const auto& materialData = gltfData_["materials"][materialIndex];
     const auto& pbrData = materialData["pbrMetallicRoughness"];
-    MaterialGLTF material;
+    Material material;
 
     // Load emissive texture and factor
     if (pbrData.contains("emissiveTexture"))
@@ -439,10 +438,10 @@ std::shared_ptr<MaterialGLTF> GLTF_Loader::LoadMaterial(size_t materialIndex)
     material.occlusionStrength_ = materialData.value("occlusionStrength", 1.0f);
 
     // Load alpha properties
-    static const std::map<std::string, MaterialGLTF::TransparencyMode> alphaModeMap = {
-        {"OPAQUE", MaterialGLTF::TransparencyMode::OPAQUE},  // OPAQUE
-        {"MASK", MaterialGLTF::TransparencyMode::MASK},      // MASK
-        {"BLEND", MaterialGLTF::TransparencyMode::BLEND}};   // BLEND
+    static const std::map<std::string, Material::TransparencyMode> alphaModeMap = {
+        {"OPAQUE", Material::TransparencyMode::OPAQUE},  // OPAQUE
+        {"MASK", Material::TransparencyMode::MASK},      // MASK
+        {"BLEND", Material::TransparencyMode::BLEND}};   // BLEND
     std::string alphaMode = materialData.value("alphaMode", "OPAQUE");
     try
     {
@@ -458,7 +457,7 @@ std::shared_ptr<MaterialGLTF> GLTF_Loader::LoadMaterial(size_t materialIndex)
     spdlog::debug("Loaded new material \"{}\"", material.name_);
 
     // Cache and return
-    loadedMaterials_.emplace(materialIndex, std::make_shared<MaterialGLTF>(material));
+    loadedMaterials_.emplace(materialIndex, std::make_shared<Material>(material));
     return loadedMaterials_.at(materialIndex);
 }
 

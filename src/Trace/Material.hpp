@@ -3,12 +3,11 @@
 #include <glm/fwd.hpp>
 #include <string>
 
-#include "MaterialBase.hpp"
 #include "Trace/Texture.hpp"
 
 // TODO emission strength, ior and transmission extensions
 
-class MaterialGLTF : public MaterialBase
+class Material
 {
     friend class GLTF_Loader;
 
@@ -38,7 +37,7 @@ class MaterialGLTF : public MaterialBase
     bool doubleSided_;
 
    public:
-    MaterialGLTF()
+    Material()
         : name_("empty"),
           baseColorTexture_(nullptr),
           metallicRoughnessTexture_(nullptr),
@@ -95,10 +94,4 @@ class MaterialGLTF : public MaterialBase
                    ? glm::vec3(occlusionTexture_.Sample(texCoord)) / 255.0f * occlusionStrength_
                    : glm::vec3(1.0f);
     }
-
-    virtual void Reflect(const RayHitGeometryInfo& geomInfo, glm::vec3& viewVec,
-        glm::vec3& energyMultiplier, std::mt19937& rng) const noexcept override;
-    virtual glm::vec3 ComputeLightContribution(const RayHitGeometryInfo& geomInfo,
-        const glm::vec3& viewVec, const glm::vec3& lightVec,
-        const glm::vec3& lightColor) const noexcept override;
 };

@@ -23,6 +23,20 @@ class RenderBuffer
         pixels_[index] = color;
     }
 
+    void GetPixel(unsigned x, unsigned y, glm::vec3& color) const
+    {
+        if (x >= width_ || y >= height_) return;
+        unsigned int index = (y * width_ + x);
+        color = pixels_[index];
+    }
+
+    void AddColorAt(unsigned x, unsigned y, const glm::vec3& color)
+    {
+        if (x >= width_ || y >= height_) return;
+        unsigned int index = (y * width_ + x);
+        pixels_[index] += color;
+    }
+
     uint8_t FloatToU8(float v) const
     {
         return static_cast<uint8_t>(glm::clamp(v * 255.0f, 0.0f, 255.0f));

@@ -9,7 +9,7 @@
 #include "Trace/Camera.hpp"
 #include "Trace/TextureImage.hpp"
 #include "Trace/Light.hpp"
-#include "Trace/MaterialGLTF.hpp"
+#include "Trace/Material.hpp"
 #include "Trace/Mesh.hpp"
 #include "Trace/MeshInstance.hpp"
 #include "Trace/Scene.hpp"
@@ -56,7 +56,7 @@ class GLTF_Loader
     std::filesystem::path basePath_;
     nlohmann::json gltfData_;
     std::map<size_t, std::vector<uint8_t>> loadedBuffers_;
-    std::map<size_t, std::shared_ptr<MaterialGLTF>> loadedMaterials_;
+    std::map<size_t, std::shared_ptr<Material>> loadedMaterials_;
     std::map<size_t, std::shared_ptr<TextureImage>> loadedImages_;
     std::map<std::pair<size_t, size_t>, std::shared_ptr<Mesh>> loadedMeshes_;
 
@@ -86,7 +86,7 @@ class GLTF_Loader
     std::shared_ptr<Mesh> LoadMesh(size_t meshIndex, size_t primitiveIndex = 0);
     std::shared_ptr<TextureImage> LoadImage(size_t imageIndex);
     Texture LoadTexture(size_t textureIndex);
-    std::shared_ptr<MaterialGLTF> LoadMaterial(size_t materialIndex);
+    std::shared_ptr<Material> LoadMaterial(size_t materialIndex);
     Camera LoadCamera(size_t cameraIndex) const;
 
     Light LoadLight(size_t lightIndex, const glm::mat4& transform = glm::mat4(1.0f));

@@ -5,7 +5,7 @@
 
 #include "Ray.hpp"
 #include "RayHit.hpp"
-#include "Trace/MaterialBase.hpp"
+#include "Trace/Material.hpp"
 
 class Mesh
 {
@@ -20,7 +20,7 @@ class Mesh
     std::vector<glm::vec2> texCoord1_;  // OPTIONAL (Reserved for future use, e.g. lightmaps)
     std::vector<glm::vec4> color0_;     // OPTIONAL
     std::vector<uint32_t> indices_;     // REQUIRED
-    std::shared_ptr<MaterialBase> material_;
+    std::shared_ptr<Material> material_;
 
    public:
     Mesh() noexcept {}
@@ -34,13 +34,10 @@ class Mesh
     const std::vector<glm::vec2>& GetTexCoord1() const noexcept { return texCoord1_; }
     const std::vector<glm::vec4>& GetColor0() const noexcept { return color0_; }
     const std::vector<uint32_t>& GetIndices() const noexcept { return indices_; }
-    const std::shared_ptr<MaterialBase>& GetMaterial() const noexcept { return material_; }
+    const std::shared_ptr<Material>& GetMaterial() const noexcept { return material_; }
 
    public:
-    void SetMaterial(const std::shared_ptr<MaterialBase>& material) noexcept
-    {
-        material_ = material;
-    }
+    void SetMaterial(const std::shared_ptr<Material>& material) noexcept { material_ = material; }
 
    public:
     glm::vec3 GetAABBMin() const noexcept;

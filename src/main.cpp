@@ -21,11 +21,21 @@ void RenderThread(GUI::Window& gui, RenderBuffer& texture, const char* gltfFileP
     GLTF_Loader loader(gltfFilePath);
     const auto camera = loader.LoadSceneCamera(0);
     const auto scene = loader.LoadScene(0);
-
     float renderDuration = 0.0f;
+
     {
-        ScopeTimer<float> timer(renderDuration);
-        Trace(texture, camera, scene).Render();
+        ScopeTimerPrint timer("### Warmup Render ###");
+        Trace(texture, camera, scene).RenderNormal();
+    }
+
+    {
+        ScopeTimerPrint timer("### Render Bucketted ###");
+        Trace(texture, camera, scene).RenderBucketted();
+    }
+
+    {
+        ScopeTimerPrint timer("### Render Normal ###");
+        Trace(texture, camera, scene).RenderNormal();
     }
 
     spdlog::info("Render completed in {:.2f} seconds", renderDuration);

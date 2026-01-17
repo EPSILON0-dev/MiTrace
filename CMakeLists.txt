@@ -62,7 +62,6 @@ set(SRC_FILES
     src/Trace/TextureImage.cpp
     src/Trace/Mesh.cpp
     src/Trace/MeshInstance.cpp
-    src/Trace/MaterialGLTF.cpp
     src/Trace/Intersect.cpp
     src/Trace/RayHit.cpp
     src/Trace/Trace.cpp
