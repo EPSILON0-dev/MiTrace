@@ -2,6 +2,7 @@
 
 #include <glm/fwd.hpp>
 
+#include "Config/Config.hpp"
 #include "Trace/RayHit.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -35,7 +36,7 @@ glm::u8vec4 Trace::TraceSample(const Ray& ray, const Scene& scene)
     std::random_device rd;
     std::mt19937 rng(rd());
 
-    const int maxBounces = 3;
+    const int maxBounces = Config::Instance().MaxBounces();
     Ray currentRay = ray;
 
     glm::vec3 accumulatedColor(0.0f);
@@ -74,13 +75,17 @@ glm::u8vec4 Trace::TraceSample(const Ray& ray, const Scene& scene)
             const auto lightRay = lightPos - newOrig;
             const auto lightDir = glm::normalize(lightRay);
             Ray shadowRay(newOrig, lightDir);
-            bool inShadow = TraceScene(shadowRay, scene, true).has_value();
+            const auto shadowHit = TraceScene(shadowRay, scene, true);
+            bool inShadow = shadowHit.has_value() && shadowHit->distance < glm::length(lightRay);
 
             // 3.2. Compute the ligths' contributions
             if (!inShadow)
             {
-                accumulatedColor += material->ComputeLightContribution(
-                    geomHit, currentRay.direction, lightRay, light.GetPointLight().Color);
+                const float effectiveIntensity = light.GetPointLight().Intensity / 55.0f;
+                accumulatedColor +=
+                    material->ComputeLightContribution(geomHit, currentRay.direction, lightRay,
+                        light.GetPointLight().Color * effectiveIntensity) *
+                    energy;
             }
         }
 
@@ -89,7 +94,6 @@ glm::u8vec4 Trace::TraceSample(const Ray& ray, const Scene& scene)
         energy *= energyMultiplier;
     }
 
-    accumulatedColor += 0.25f;  // Simple ambient term
     accumulatedColor = glm::pow(accumulatedColor, glm::vec3(2.2f));
     return glm::u8vec4(glm::u8vec4(glm::clamp(accumulatedColor * 255.0f, 0.0f, 255.0f), 255));
 }

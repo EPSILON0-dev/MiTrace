@@ -59,6 +59,7 @@ set(SRC_FILES
     src/GUI/GL_Texture.cpp
     src/Loader/GLTF_Loader.cpp
     src/Trace/Camera.cpp
+    src/Trace/Dispatch.cpp
     src/Trace/Image.cpp
     src/Trace/Mesh.cpp
     src/Trace/MeshInstance.cpp
@@ -66,6 +67,7 @@ set(SRC_FILES
     src/Trace/Intersect.cpp
     src/Trace/RayHit.cpp
     src/Trace/Trace.cpp
+    src/Config/Config.cpp
     src/Common/STB_Impl.cpp
     ${IMGUI_BACKEND_FILES}
 )
