@@ -2,10 +2,10 @@
 
 #include <cstddef>
 #include <random>
+#include <spdlog/spdlog.h>
 
 #include "Config/Config.hpp"
 #include "Trace/RayHit.hpp"
-#include "Trace/RenderBuffer.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/intersect.hpp>
@@ -78,8 +78,8 @@ std::vector<Trace::BucketJob> Trace::GenerateJobs() noexcept
 void Trace::GenerateBucket(
     BucketRays& bucket, glm::ivec2 offset, glm::ivec2 size, int samples) noexcept
 {
-    const auto imageWidth = imageBuffer_.GetWidth();
-    const auto imageHeight = imageBuffer_.GetHeight();
+    const auto imageWidth = imageBuffer_->GetWidth();
+    const auto imageHeight = imageBuffer_->GetHeight();
     const auto pixelSize = glm::vec2(1.0f) / glm::vec2(imageWidth, imageHeight);
     const auto aspectRatio = static_cast<float>(imageWidth) / imageHeight;
 
@@ -137,7 +137,7 @@ void Trace::WriteBucketToImage(const BucketJob& job, const BucketResult& result)
             glm::vec3 accumulatedColor{0.0f, 0.0f, 0.0f};
             for (int s = 0; s < samples; ++s) accumulatedColor += result[colorIndex++];
             const glm::vec3 finalColor = accumulatedColor / static_cast<float>(samples);
-            imageBuffer_.AddColorAt(job.offset.x + x, job.offset.y + y, finalColor);
+            imageBuffer_->AddColorAt(job.offset.x + x, job.offset.y + y, finalColor);
         }
     }
 }
@@ -147,14 +147,14 @@ void Trace::NormalizeImage() noexcept
     const auto& config = Config::Instance().GetConfig();
     const auto totalSamples = static_cast<float>(config.image.samples);
 
-    for (unsigned y = 0; y < imageBuffer_.GetHeight(); ++y)
+    for (unsigned y = 0; y < imageBuffer_->GetHeight(); ++y)
     {
-        for (unsigned x = 0; x < imageBuffer_.GetWidth(); ++x)
+        for (unsigned x = 0; x < imageBuffer_->GetWidth(); ++x)
         {
             glm::vec3 color;
-            imageBuffer_.GetPixel(x, y, color);
+            imageBuffer_->GetPixel(x, y, color);
             color /= totalSamples;
-            imageBuffer_.SetPixel(x, y, color);
+            imageBuffer_->SetPixel(x, y, color);
         }
     }
 }
@@ -189,7 +189,7 @@ void Trace::RenderNormal()
                     const Ray ray = camera_.GenerateRay(u, v, aspectRatio);
                     color += ProcessRay(ray);
                 }
-                imageBuffer_.SetPixel(x, y, color);
+                imageBuffer_->SetPixel(x, y, color);
             }
         }
     }
@@ -206,9 +206,11 @@ void Trace::RenderBucketted()
 
     BucketRays bucketRays;
     bucketRays.reserve(totalRays);
+    spdlog::debug("Created a bucket for {} rays", totalRays);
 
     std::vector<BucketJob> bucketJobs = GenerateJobs();
     std::vector<BucketResult> bucketResults;
+    spdlog::debug("Generated {} bucket jobs", bucketJobs.size());
 
     bucketResults.reserve(bucketJobs.size());
     for (size_t i = 0; i < bucketJobs.size(); ++i)

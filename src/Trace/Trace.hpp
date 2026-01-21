@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include "Trace/Camera.hpp"
 #include "Trace/Ray.hpp"
 #include "Trace/RayHit.hpp"
@@ -20,7 +21,7 @@ class Trace
 
    private:
     // Scene components
-    RenderBuffer& imageBuffer_;
+    std::shared_ptr<RenderBuffer> imageBuffer_;
     const Camera& camera_;
     const Scene& scene_;
 
@@ -36,7 +37,7 @@ class Trace
     void NormalizeImage() noexcept;
 
    public:
-    Trace(RenderBuffer& imageBuffer, const Camera& camera, const Scene& scene) noexcept
+    Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Camera& camera, const Scene& scene) noexcept
         : imageBuffer_(imageBuffer), camera_(camera), scene_(scene) {};
     ~Trace() = default;
 

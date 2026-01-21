@@ -1,9 +1,7 @@
 #pragma once
 
 #include <string>
-
-#include "Common/Logger.pch.hpp"  // IWYU pragma: keep
-#include "Common/Json.pch.hpp"  // IWYU pragma: keep
+#include <nlohmann/json_fwd.hpp>
 
 class Config
 {
@@ -34,6 +32,7 @@ class Config
    private:
     ConfigOptions options_;
     bool printHelp_ = false;
+    bool verbose_ = false;
 
    private:
     Config() = default;
@@ -53,6 +52,7 @@ class Config
     static Config& Instance();
     void LoadConfig(int argc, char** argv);
     bool PrintHelpIfNeeded() const;
+    bool IsVerbose() const { return verbose_; }
 
     const ConfigOptions& GetConfig() const { return options_; }
 };

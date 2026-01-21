@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <memory>
+#include <optional>
 
 #include "Ray.hpp"
 #include "RayHit.hpp"

@@ -50,16 +50,6 @@ void GUI::Window::Init(int w, int h, const char* t)
     ImGui_ImplOpenGL3_Init("#version 330");
 
     texture_ = std::make_unique<GLTexture>(1, 1, nullptr);
-
-    textureRefreshThread_ = std::thread(
-        [this]()
-        {
-            while (!exitTextureRefreshThread_)
-            {
-                shouldRefreshTexture_ = true;
-                sleep_for(milliseconds(static_cast<int>(textureRefreshInterval_ * 1000)));
-            }
-        });
 }
 
 void GUI::Window::Shutdown()
@@ -80,12 +70,18 @@ void GUI::Window::Shutdown()
 
 void GUI::Window::Run()
 {
+    if (!cpuTexture_) throw std::runtime_error("No texture set for GUI window");
+    textureRefreshThread_ = std::thread(&Window::RefreshThreadFunc, this);
+
     while (!glfwWindowShouldClose(window_))
     {
         glfwPollEvents();
         Frame();
         glfwSwapBuffers(window_);
     }
+
+    exitTextureRefreshThread_ = true;
+    textureRefreshThread_.join();
 }
 
 void GUI::Window::Frame()
@@ -113,12 +109,12 @@ void GUI::Window::RefreshTextureIfNeeded()
     if (!shouldRefreshTexture_) return;
     shouldRefreshTexture_ = false;
 
-    const auto& cpuTex = cpuTexture_.load();
+    const auto& cpuTex = cpuTexture_.get();
     if (cpuTex)
     {
         auto pixels = cpuTex->GetPixelsRGB8();
-        texture_ = std::make_unique<GLTexture>(
-            cpuTex->GetWidth(), cpuTex->GetHeight(), pixels.get());
+        texture_ =
+            std::make_unique<GLTexture>(cpuTex->GetWidth(), cpuTex->GetHeight(), pixels.get());
     }
 }
 
@@ -135,20 +131,13 @@ void GUI::Window::MainWindow()
 
     ImGui::Begin("RootWindow", nullptr, flags);
 
-    // Optional: edge-to-edge layout
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-    float bottomHeight = 4.0f * ImGui::GetFontSize();
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    avail.y -= 10.0f;
 
-    // -----------------------------
-    // Top: main view (image area)
-    // -----------------------------
-    ImGui::BeginChild("MainView", ImVec2(avail.x, avail.y - bottomHeight - 1), false,
+    ImGui::BeginChild("MainView", ImVec2(avail.x, avail.y - 1), false,
         ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-    // Placeholder box for image
     ImVec2 region = ImGui::GetContentRegionAvail();
     ImVec2 boxSize(region.x * 0.95f, region.y * 0.95f);
 
@@ -162,22 +151,23 @@ void GUI::Window::MainWindow()
     ImGui::SetCursorPos(
         ImVec2(cursor.x + (region.x - boxSize.x) * 0.5f, cursor.y + (region.y - boxSize.y) * 0.5f));
 
-    // Draw image if texture is set
     auto texRef = (void*)(uintptr_t)(texture_->GetID());
     ImGui::Image(texRef, boxSize, ImVec2(0, 1), ImVec2(1, 0));
 
     ImGui::EndChild();
 
-    // -----------------------------
-    // Bottom: status / progress
-    // -----------------------------
-    ImGui::BeginChild("StatusBar", ImVec2(avail.x, bottomHeight), true);
-
-    ImGui::TextUnformatted(statusMessage_.Get().c_str());
-    ImGui::ProgressBar(progressPercent_, ImVec2(-1.0f, 0.0f));
-
-    ImGui::EndChild();
-
     ImGui::PopStyleVar();
     ImGui::End();
+}
+
+void GUI::Window::RefreshThreadFunc()
+{
+    using std::chrono::milliseconds;
+    using std::this_thread::sleep_for;
+
+    while (!exitTextureRefreshThread_)
+    {
+        shouldRefreshTexture_ = true;
+        sleep_for(milliseconds(static_cast<int>(textureRefreshInterval_ * 1000)));
+    }
 }

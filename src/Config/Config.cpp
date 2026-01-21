@@ -1,6 +1,7 @@
 #include "Config.hpp"
 
 #include <spdlog/spdlog.h>
+#include <nlohmann/json.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -10,7 +11,8 @@ static constexpr char helpMessage[] =
     "Usage: RayTracing [options]\n"
     "Options:\n"
     "  -f, --file        <file>     Specify the scene file to load.\n"
-    "  -c, --config      <config>   Specify the configuration file to load.\n";
+    "  -c, --config      <config>   Specify the configuration file to load.\n"
+    "  -v, --verbose                Enable verbose logging.\n";
 
 std::vector<std::string> Config::SplitPath(const std::string& path)
 {
@@ -105,6 +107,10 @@ void Config::LoadConfig(int argc, char** argv)
         else if (arg == "-h" || arg == "--help")
         {
             printHelp_ = true;
+        }
+        else if (arg == "-v" || arg == "--verbose")
+        {
+            verbose_ = true;
         }
         else
         {

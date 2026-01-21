@@ -2,12 +2,10 @@
 
 #include <GLFW/glfw3.h>
 
-#include <memory>
-#include <string>
-#include <thread>
 #include <atomic>
+#include <memory>
+#include <thread>
 
-#include "Common/ThreadSafeVar.hpp"
 #include "GUI/GL_Texture.hpp"
 #include "Trace/RenderBuffer.hpp"
 
@@ -20,9 +18,7 @@ class GUI::Window
 {
    private:
     GLFWwindow* window_ = nullptr;
-    ThreadSafeVariable<std::string> statusMessage_;
-    std::atomic<float> progressPercent_;
-    std::atomic<const RenderBuffer*> cpuTexture_; // TODO: potential ownership issue
+    std::shared_ptr<RenderBuffer> cpuTexture_;
     std::atomic<float> textureRefreshInterval_{0.0f};
     std::atomic<bool> shouldRefreshTexture_{true};
     std::thread textureRefreshThread_;
@@ -35,16 +31,16 @@ class GUI::Window
 
     void Run();
 
-    void SetProgress(float progress) { this->progressPercent_ = progress; }
-    void SetStatusMessage(const char* message) { statusMessage_.Set(message); }
-    void SetTexture(RenderBuffer& texture) { cpuTexture_ = &texture; }
+    void SetTexture(const std::shared_ptr<RenderBuffer>& texture) { cpuTexture_ = texture; }
     void SetTextureRefreshInterval(float seconds) { textureRefreshInterval_ = seconds; }
-
-   private:
+    
+    private:
     void Init(int w, int h, const char* t);
     void Shutdown();
     void Frame();
-
+    
     void RefreshTextureIfNeeded();
     void MainWindow();
+    
+    void RefreshThreadFunc();
 };

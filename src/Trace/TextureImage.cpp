@@ -4,6 +4,7 @@
 #include <glm/gtc/constants.hpp>
 
 #include <memory>
+#include <cstring>
 
 // TODO move to templates
 
@@ -20,6 +21,7 @@ TextureImage::TextureImage(const std::filesystem::path& filePath)
     channels_ = 4;  // We forced STBI_rgb_alpha
     size_t totalPixels = static_cast<size_t>(width_) * static_cast<size_t>(height_);
     data_ = std::make_unique<glm::u8vec4[]>(totalPixels);
+    // FIXME ???
     std::memcpy(data_.get(), imgData, totalPixels * sizeof(glm::u8vec4));
     stbi_image_free(imgData);
 }

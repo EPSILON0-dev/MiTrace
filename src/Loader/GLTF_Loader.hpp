@@ -3,11 +3,10 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <nlohmann/json_fwd.hpp>
 #include <vector>
 
-#include "Common/Json.pch.hpp"
 #include "Trace/Camera.hpp"
-#include "Trace/TextureImage.hpp"
 #include "Trace/Light.hpp"
 #include "Trace/Material.hpp"
 #include "Trace/Mesh.hpp"
@@ -54,7 +53,7 @@ class GLTF_Loader
    private:  // General GLTF fields
     std::filesystem::path filePath_;
     std::filesystem::path basePath_;
-    nlohmann::json gltfData_;
+    std::unique_ptr<nlohmann::json> gltfData_;
     std::map<size_t, std::vector<uint8_t>> loadedBuffers_;
     std::map<size_t, std::shared_ptr<Material>> loadedMaterials_;
     std::map<size_t, std::shared_ptr<TextureImage>> loadedImages_;
@@ -79,8 +78,14 @@ class GLTF_Loader
     Light::SpotLight LoadSpotLight(size_t lightIndex) const;
     Light::AreaLight LoadAreaLight(size_t lightIndex) const;
 
-   public:  // Rule of zero
+   public:  // Rule of five
     GLTF_Loader(const std::filesystem::path& filePath);
+    ~GLTF_Loader();
+
+    GLTF_Loader(const GLTF_Loader&) = delete;
+    GLTF_Loader& operator=(const GLTF_Loader&) = delete;
+    GLTF_Loader(GLTF_Loader&&) = delete;
+    GLTF_Loader& operator=(GLTF_Loader&&) = delete;
 
    public:  // Loaders
     std::shared_ptr<Mesh> LoadMesh(size_t meshIndex, size_t primitiveIndex = 0);

@@ -79,9 +79,6 @@ add_executable(RayTracing ${SRC_FILES})
 # Link imgui library
 target_link_libraries(RayTracing PUBLIC imgui glfw GL spdlog fmt)
 
-# Generate precompiled header
-target_precompile_headers(RayTracing PRIVATE src/Common/Logger.pch.hpp src/Common/Json.pch.hpp)
-
 # Include directories
 target_include_directories(RayTracing PRIVATE src)
 target_include_directories(RayTracing PRIVATE ${imgui_SOURCE_DIR}/backends)
@@ -92,13 +89,6 @@ target_compile_options(RayTracing PRIVATE
     $<$<CONFIG:RelWithDebInfo>:-O2 -march=native>
     $<$<CONFIG:Debug>:-O0 -g -fsanitize=address,undefined>
     -pthread -Wall -Wextra -Wpedantic
-)
-
-# Compile defines
-target_compile_definitions(RayTracing PRIVATE
-    $<$<CONFIG:Release>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_INFO>
-    $<$<CONFIG:Debug>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG>
-    $<$<CONFIG:RelWithDebInfo>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG>
 )
 
 # Link options

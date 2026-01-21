@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "Mesh.hpp"
 #include "Ray.hpp"
 #include "RayHit.hpp"
