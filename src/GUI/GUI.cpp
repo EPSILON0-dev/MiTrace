@@ -79,9 +79,6 @@ void GUI::Window::Run()
         Frame();
         glfwSwapBuffers(window_);
     }
-
-    exitTextureRefreshThread_ = true;
-    textureRefreshThread_.join();
 }
 
 void GUI::Window::Frame()
@@ -152,7 +149,7 @@ void GUI::Window::MainWindow()
         ImVec2(cursor.x + (region.x - boxSize.x) * 0.5f, cursor.y + (region.y - boxSize.y) * 0.5f));
 
     auto texRef = (void*)(uintptr_t)(texture_->GetID());
-    ImGui::Image(texRef, boxSize, ImVec2(0, 1), ImVec2(1, 0));
+    ImGui::Image(texRef, boxSize, ImVec2(0, 0), ImVec2(1, 1));
 
     ImGui::EndChild();
 

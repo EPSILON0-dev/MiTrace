@@ -12,7 +12,7 @@ def add_light_to_cornell_box(input_file: str, output_file: str) -> None:
         "type": "area",
         "area_size": [0.5, 0.5],
         "color": [1.0, 1.0, 1.0],
-        "intensity": 10.0,
+        "intensity": 543.0,
     }
 
     # Add to the extensions section

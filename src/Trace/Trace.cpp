@@ -1,14 +1,25 @@
 #include "Trace/Trace.hpp"
 
-#include <cstddef>
-#include <random>
 #include <spdlog/spdlog.h>
 
+#include <cmath>
+#include <glm/fwd.hpp>
+
 #include "Config/Config.hpp"
+#include "Trace/PBR.hpp"
 #include "Trace/RayHit.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtc/constants.hpp>
 #include <glm/gtx/intersect.hpp>
+
+static const float pulloutEpsilon = 0.001f;
+
+Trace::Trace(
+    std::shared_ptr<RenderBuffer> imageBuffer, const Camera& camera, const Scene& scene) noexcept
+    : imageBuffer_(imageBuffer), camera_(camera), scene_(scene), rd_(), rng_(rd_())
+{
+}
 
 std::optional<RayHit> Trace::TraceScene(const Ray& ray, const Scene& scene, bool anyHit) noexcept
 {
@@ -31,6 +42,176 @@ std::optional<RayHit> Trace::TraceScene(const Ray& ray, const Scene& scene, bool
     return bestHit;
 }
 
+glm::vec3 Trace::GenerateHemisphereDirection(const glm::vec3& normal) noexcept
+{
+    std::uniform_real_distribution<float> phi(0.0f, 2.0f * glm::pi<float>());
+    std::uniform_real_distribution<float> theta(-glm::half_pi<float>(), glm::half_pi<float>());
+
+    const float u = phi(rng_);
+    const float v = theta(rng_);
+
+    const glm::vec3 dir = glm::normalize(glm::vec3(cosf(u) * cosf(v), sinf(v), sinf(u) * cosf(v)));
+    return (glm::dot(dir, normal) > 0.0f) ? dir : -dir;
+}
+
+glm::vec3 Trace::ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept
+{
+    // FIXME currently broken
+    glm::vec3 tangent, bitangent;
+    glm::vec3 n = glm::normalize(surfNorm);
+    if (std::abs(n.x) > std::abs(n.z))
+        tangent = glm::normalize(glm::vec3(-n.y, n.x, 0.0f));
+    else
+        tangent = glm::normalize(glm::vec3(0.0f, -n.z, n.y));
+    bitangent = glm::cross(n, tangent);
+
+    glm::mat3 tbn = glm::mat3(tangent, bitangent, n);
+    glm::vec3 mappedNormal = texNorm * 2.0f - glm::vec3(1.0f);
+    return glm::normalize(tbn * mappedNormal);
+}
+
+Ray Trace::ReflectSpecular(const RayHit& hit, const glm::vec3& normal, float roughness) noexcept
+{
+    const auto dirDiffuse = glm::normalize(GenerateHemisphereDirection(normal));
+    const auto dirSpecular = glm::normalize(glm::reflect(hit.direction, normal));
+    const auto dir = glm::normalize(glm::mix(dirSpecular, dirDiffuse, roughness));
+    const auto pos = hit.origin + hit.direction * (hit.distance - pulloutEpsilon);
+    return Ray(pos, dir);
+}
+
+Ray Trace::ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept
+{
+    const auto dir = glm::normalize(GenerateHemisphereDirection(normal));
+    const auto pos = hit.origin + hit.direction * (hit.distance - pulloutEpsilon);
+    return Ray(pos, dir);
+}
+
+glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
+{
+    constexpr int maxBounces = 8;
+    std::uniform_real_distribution<float> randomFloat(0.0f, 1.0f);
+
+    Bounce bounces[maxBounces];
+    int bounceCount = 0;
+    Ray newRay, currentRay = ray;
+    glm::vec3 totalEnergy(1.0f);
+
+    for (bounceCount = 0; bounceCount < maxBounces; ++bounceCount)
+    {
+        const auto hit = TraceScene(currentRay, scene_);
+        if (!hit.has_value()) break;
+
+        const auto geom = RayHitGeometryInfo(*hit);
+        const auto& matRef = hit->meshInstance->GetMesh().GetMaterial();
+        const auto mat = matRef->SampleMaterial(geom.TexCoord0);
+
+        bounces[bounceCount].incomingRay = ray;
+        bounces[bounceCount].hitInfo = *hit;
+        bounces[bounceCount].materialPoint = mat;
+
+        const auto fresnel =
+            PBR::FresnelSchlick(glm::dot(-currentRay.direction, geom.Normal), mat.metallic);
+
+        const auto normal = geom.Normal;  // TODO ComputeNormal(geom.Normal, mat.normal);
+        glm::vec3 energyTransfer(0.0f);
+        if (randomFloat(rng_) > fresnel)
+        {
+            newRay = ReflectDiffuse(*hit, normal);
+            energyTransfer = mat.baseColor * glm::dot(newRay.direction, normal);
+        }
+        else
+        {
+            newRay = ReflectSpecular(*hit, normal, mat.roughness);
+            energyTransfer = mat.baseColor;
+        }
+
+        bounces[bounceCount].effectiveNormal = normal;
+        bounces[bounceCount].energyTransfer = glm::vec3(mat.baseColor) * energyTransfer;
+        bounces[bounceCount].outgoingRay = newRay;
+        currentRay = newRay;
+
+        // Terminate early
+        totalEnergy *= bounces[bounceCount].energyTransfer;
+        if (glm::length(totalEnergy) < 0.01f)
+        {
+            ++bounceCount;
+            break;
+        }
+    }
+
+    // Accumulate color from bounces
+    glm::vec3 totalLight(0.0f), currentEnergy(1.0f);
+    for (int i = 0; i < bounceCount; i++)
+    {
+        const auto& bounce = bounces[i];
+
+        for (const auto& light : scene_.GetLights())
+        {
+            // For now we assume that all lights are point lights
+            const auto pointLight = light.GetPointLight();
+            const glm::vec3 lightDir = light.GetPosition() - bounce.hitInfo.worldPosition;
+            const Ray shadowRay(bounce.hitInfo.worldPosition + lightDir * pulloutEpsilon, lightDir);
+            const auto shadowHit = TraceScene(shadowRay, scene_);
+
+            float frenelFactor = bounce.materialPoint.metallic;
+            float lightDivisor = 500.0f;
+            float lightDot =
+                glm::max(glm::dot(bounce.effectiveNormal, glm::normalize(lightDir)), 0.0f);
+            float lightDiffuse = lightDot * (1.0f - frenelFactor);
+            float lightSpecular =
+                std::powf(lightDot, 250.0f * (1.0f - bounce.materialPoint.roughness) + 10.0f) *
+                frenelFactor;
+            float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir));
+            float lightEnergy = (lightDiffuse * distanceFalloff + lightSpecular) / lightDivisor;
+
+            if (!shadowHit.has_value() || shadowHit->distance > glm::length(lightDir))
+            {
+                totalLight += currentEnergy * lightEnergy *
+                              glm::vec3(bounce.materialPoint.baseColor) * pointLight.Color *
+                              pointLight.Intensity;
+            }
+        }
+
+        currentEnergy *= bounce.energyTransfer;
+    }
+
+    return totalLight;
+}
+
+void Trace::RenderNormal()
+{
+    const auto& config = Config::Instance().GetConfig();
+    const auto imageWidth = config.image.width;
+    const auto imageHeight = config.image.height;
+    const auto imageSamples = config.image.samples;
+    const auto aspectRatio = static_cast<float>(imageWidth) / imageHeight;
+    const auto pixelSize = glm::vec2(1.0f) / glm::vec2(imageWidth, imageHeight);
+
+    std::uniform_real_distribution<float> xDist(0.0f, pixelSize.x);
+    std::uniform_real_distribution<float> yDist(0.0f, pixelSize.y);
+
+    for (unsigned y = 0; y < imageHeight; ++y)
+    {
+        for (unsigned x = 0; x < imageWidth; ++x)
+        {
+            const auto baseU = (static_cast<float>(x) + 0.5f) * pixelSize.x;
+            const auto baseV = (static_cast<float>(y) + 0.5f) * pixelSize.y;
+            glm::vec3 color(0.0f);
+
+            for (unsigned s = 0; s < imageSamples; ++s)
+            {
+                const auto u = baseU + xDist(rng_);
+                const auto v = baseV + yDist(rng_);
+                const Ray ray = camera_.GenerateRay(u, v, aspectRatio);
+                color += ProcessRay(ray);
+            }
+            color /= static_cast<float>(imageSamples);
+            imageBuffer_->SetPixel(x, y, color);
+        }
+    }
+}
+
+/*
 std::vector<Trace::BucketJob> Trace::GenerateJobs() noexcept
 {
     const auto& config = Config::Instance().GetConfig();
@@ -104,22 +285,6 @@ void Trace::GenerateBucket(
     }
 }
 
-glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
-{
-    const auto hit = TraceScene(ray, scene_);
-    if (hit.has_value())
-    {
-        const auto& mat = hit->meshInstance->GetMesh().GetMaterial().get();
-        const auto geom = RayHitGeometryInfo(*hit);
-        const auto uv = geom.TexCoord0;
-        return mat->GetBaseColor(uv);
-    }
-    else
-    {
-        return glm::vec3{0.0f, 0.0f, 0.0f};
-    }
-}
-
 void Trace::ProcessBucket(const BucketRays& rays, BucketResult& result) noexcept
 {
     for (const auto& ray : rays) result.push_back(ProcessRay(ray));
@@ -159,43 +324,6 @@ void Trace::NormalizeImage() noexcept
     }
 }
 
-void Trace::RenderNormal()
-{
-    const auto& config = Config::Instance().GetConfig();
-    const auto imageWidth = config.image.width;
-    const auto imageHeight = config.image.height;
-    const auto imageSamples = config.image.samples;
-    const auto aspectRatio = static_cast<float>(imageWidth) / imageHeight;
-    const auto pixelSize = glm::vec2(1.0f) / glm::vec2(imageWidth, imageHeight);
-
-    std::random_device rd;
-    std::mt19937 rng(rd());
-    std::uniform_real_distribution<float> xDist(0.0f, pixelSize.x);
-    std::uniform_real_distribution<float> yDist(0.0f, pixelSize.y);
-
-    {
-        for (unsigned y = 0; y < imageHeight; ++y)
-        {
-            for (unsigned x = 0; x < imageWidth; ++x)
-            {
-                const auto baseU = (static_cast<float>(x) + 0.5f) * pixelSize.x;
-                const auto baseV = (static_cast<float>(y) + 0.5f) * pixelSize.y;
-                glm::vec3 color(0.0f);
-
-                for (unsigned s = 0; s < imageSamples; ++s)
-                {
-                    const auto u = baseU + xDist(rng);
-                    const auto v = baseV + yDist(rng);
-                    const Ray ray = camera_.GenerateRay(u, v, aspectRatio);
-                    color += ProcessRay(ray);
-                }
-                imageBuffer_->SetPixel(x, y, color);
-            }
-        }
-    }
-
-    NormalizeImage();
-}
 
 void Trace::RenderBucketted()
 {
@@ -235,3 +363,4 @@ void Trace::RenderBucketted()
 
     NormalizeImage();
 }
+*/

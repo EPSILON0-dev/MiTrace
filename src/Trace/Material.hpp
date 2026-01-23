@@ -19,6 +19,17 @@ class Material
         BLEND
     };
 
+    public:
+    struct MaterialPoint
+    {
+        glm::vec4 baseColor;
+        float metallic;
+        float roughness;
+        glm::vec3 normal;
+        glm::vec3 emissive;
+        glm::vec3 occlusion;
+    };
+
    private:
     std::string name_;
     Texture baseColorTexture_;
@@ -93,5 +104,17 @@ class Material
         return occlusionTexture_.IsValid()
                    ? glm::vec3(occlusionTexture_.Sample(texCoord)) / 255.0f * occlusionStrength_
                    : glm::vec3(1.0f);
+    }
+
+    MaterialPoint SampleMaterial(const glm::vec2& texCoord) const noexcept
+    {
+        MaterialPoint point;
+        point.baseColor = GetBaseColor(texCoord);
+        point.metallic = GetMetallic(texCoord);
+        point.roughness = GetRoughness(texCoord);
+        point.normal = GetNormal(texCoord);
+        point.emissive = GetEmissive(texCoord);
+        point.occlusion = GetOcclusion(texCoord);
+        return point;
     }
 };

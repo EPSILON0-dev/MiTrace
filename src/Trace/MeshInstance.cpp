@@ -42,6 +42,8 @@ std::optional<RayHit> MeshInstance::IntersectRay(const Ray& ray) const
     auto hit = mesh_->Intersect(ray, transform_);
     if (hit.has_value())
     {
+        hit->origin = ray.origin;
+        hit->direction = ray.direction;
         hit->meshInstance = this;
         return hit;
     }

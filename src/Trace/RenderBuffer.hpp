@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stb/stb_image_write.h>
 #include <glm/glm.hpp>
 #include <memory>
 
@@ -62,4 +63,12 @@ class RenderBuffer
 
     unsigned int GetWidth() const { return width_; }
     unsigned int GetHeight() const { return height_; }
+
+    void SaveToFile(const std::string &filename) const
+    {
+        auto rgbPixels = GetPixelsRGB8();
+        // 1 means success, there's no define for it
+        if (stbi_write_png(filename.c_str(), width_, height_, 3, rgbPixels.get(), width_ * 3) != 1)
+            throw std::runtime_error("Failed to save image to file");
+    }
 };

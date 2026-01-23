@@ -3,6 +3,9 @@
 #include <chrono>
 #include <memory>
 #include <thread>
+#include <iostream>
+#include <format>
+#include <filesystem>
 
 #include "Common/ScopeTimer.hpp"
 #include "Config/Config.hpp"
@@ -18,29 +21,25 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
     using std::chrono::duration_cast;
     using std::chrono::milliseconds;
     using std::chrono::steady_clock;
+    using std::chrono::system_clock;
 
     GLTF_Loader loader(gltfFilePath);
     const auto camera = loader.LoadSceneCamera(0);
     const auto scene = loader.LoadScene(0);
     float renderDuration = 0.0f;
-
+    std::cout << scene.GetLights().size() << " lights loaded.\n";
+    
+    spdlog::info("Starting render...");
     {
-        ScopeTimerPrint timer("### Warmup Render ###");
+        ScopeTimer timer(renderDuration);
         Trace(texture, camera, scene).RenderNormal();
     }
-
-    {
-        ScopeTimerPrint timer("### Render Bucketted ###");
-        Trace(texture, camera, scene).RenderBucketted();
-    }
-
-    {
-        ScopeTimerPrint timer("### Render Normal ###");
-        Trace(texture, camera, scene).RenderNormal();
-    }
-
     spdlog::info("Render completed in {:.2f} seconds", renderDuration);
-    loader.Cleanup();
+
+    auto now = std::chrono::system_clock::now();
+    auto filename = std::format("outputs/render_{:%d%m%Y_%H%M}.png", now);
+    texture->SaveToFile(filename);
+    spdlog::info("Saved rendered image to '{}'", filename);
 }
 
 int main(int argc, char** argv)
@@ -49,6 +48,20 @@ int main(int argc, char** argv)
     const auto& config = Config::Instance().GetConfig();
     const auto verbose = Config::Instance().IsVerbose();
     spdlog::set_level(verbose ? spdlog::level::debug : spdlog::level::info);
+
+    if (std::filesystem::exists("outputs"))
+    {
+        if (!std::filesystem::is_directory("outputs"))
+        {
+            spdlog::critical("'outputs' exists but is not a directory.");
+            return EXIT_FAILURE;
+        }
+    }
+    else
+    {
+        std::filesystem::create_directory("outputs");
+        spdlog::info("Created 'outputs' directory.");
+    }
 
     GUI::Window gui(800, 600, "Render View");
     std::shared_ptr<RenderBuffer> tex =
