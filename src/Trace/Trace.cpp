@@ -6,14 +6,14 @@
 #include <glm/fwd.hpp>
 
 #include "Config/Config.hpp"
-#include "Trace/PBR.hpp"
+#include "Trace/BRDF.hpp"
 #include "Trace/RayHit.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/intersect.hpp>
 
-static const float pulloutEpsilon = 0.001f;
+static const float pulloutEpsilon = 0.0001f;
 
 Trace::Trace(
     std::shared_ptr<RenderBuffer> imageBuffer, const Camera& camera, const Scene& scene) noexcept
@@ -75,20 +75,20 @@ Ray Trace::ReflectSpecular(const RayHit& hit, const glm::vec3& normal, float rou
     const auto dirDiffuse = glm::normalize(GenerateHemisphereDirection(normal));
     const auto dirSpecular = glm::normalize(glm::reflect(hit.direction, normal));
     const auto dir = glm::normalize(glm::mix(dirSpecular, dirDiffuse, roughness));
-    const auto pos = hit.origin + hit.direction * (hit.distance - pulloutEpsilon);
+    const auto pos = hit.origin + hit.direction * hit.distance + pulloutEpsilon * normal;
     return Ray(pos, dir);
 }
 
 Ray Trace::ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept
 {
     const auto dir = glm::normalize(GenerateHemisphereDirection(normal));
-    const auto pos = hit.origin + hit.direction * (hit.distance - pulloutEpsilon);
+    const auto pos = hit.origin + hit.direction * hit.distance + pulloutEpsilon * normal;
     return Ray(pos, dir);
 }
 
 glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
 {
-    constexpr int maxBounces = 8;
+    constexpr int maxBounces = 4;
     std::uniform_real_distribution<float> randomFloat(0.0f, 1.0f);
 
     Bounce bounces[maxBounces];
@@ -109,20 +109,20 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
         bounces[bounceCount].hitInfo = *hit;
         bounces[bounceCount].materialPoint = mat;
 
-        const auto fresnel =
-            PBR::FresnelSchlick(glm::dot(-currentRay.direction, geom.Normal), mat.metallic);
+        const auto fresnel = BRDF::FresnelSchlick(
+            glm::max(glm::dot(-currentRay.direction, geom.Normal), 0.0f), mat.metallic);
 
         const auto normal = geom.Normal;  // TODO ComputeNormal(geom.Normal, mat.normal);
-        glm::vec3 energyTransfer(0.0f);
+        float energyTransfer = 1.0f;
         if (randomFloat(rng_) > fresnel)
         {
             newRay = ReflectDiffuse(*hit, normal);
-            energyTransfer = mat.baseColor * glm::dot(newRay.direction, normal);
+            energyTransfer = BRDF::BRDF(
+                newRay.direction, -currentRay.direction, normal, mat.roughness, mat.metallic);
         }
         else
         {
             newRay = ReflectSpecular(*hit, normal, mat.roughness);
-            energyTransfer = mat.baseColor;
         }
 
         bounces[bounceCount].effectiveNormal = normal;
@@ -153,6 +153,7 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
             const Ray shadowRay(bounce.hitInfo.worldPosition + lightDir * pulloutEpsilon, lightDir);
             const auto shadowHit = TraceScene(shadowRay, scene_);
 
+            /*
             float frenelFactor = bounce.materialPoint.metallic;
             float lightDivisor = 500.0f;
             float lightDot =
@@ -163,6 +164,15 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
                 frenelFactor;
             float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir));
             float lightEnergy = (lightDiffuse * distanceFalloff + lightSpecular) / lightDivisor;
+            */
+
+            float metalness = bounce.materialPoint.metallic;
+            float roughness = bounce.materialPoint.roughness;
+            float lightDivisor = 500.0f;
+            float brdf = BRDF::BRDF(glm::normalize(lightDir), -bounce.incomingRay.direction,
+                bounce.effectiveNormal, roughness, metalness);
+            float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir));
+            float lightEnergy = brdf * distanceFalloff / lightDivisor;
 
             if (!shadowHit.has_value() || shadowHit->distance > glm::length(lightDir))
             {
@@ -175,7 +185,8 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
         currentEnergy *= bounce.energyTransfer;
     }
 
-    return totalLight;
+    // Hopefully will reduce fireflies
+    return glm::clamp(totalLight, glm::vec3(0.0f), glm::vec3(5.0f));
 }
 
 void Trace::RenderNormal()

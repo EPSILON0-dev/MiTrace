@@ -1,8 +1,8 @@
 {
     "output": {
-        "width": 1024,
-        "height": 768,
-        "samples": 128
+        "width": 320,
+        "height": 240,
+        "samples": 16
     },
     "rendering": {
         "max_bounces": 5,

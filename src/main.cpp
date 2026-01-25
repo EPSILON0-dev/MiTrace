@@ -3,7 +3,6 @@
 #include <chrono>
 #include <memory>
 #include <thread>
-#include <iostream>
 #include <format>
 #include <filesystem>
 
@@ -27,7 +26,6 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
     const auto camera = loader.LoadSceneCamera(0);
     const auto scene = loader.LoadScene(0);
     float renderDuration = 0.0f;
-    std::cout << scene.GetLights().size() << " lights loaded.\n";
     
     spdlog::info("Starting render...");
     {

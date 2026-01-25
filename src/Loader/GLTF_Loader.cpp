@@ -770,10 +770,10 @@ Camera GLTF_Loader::LoadSceneCamera(size_t sceneIndex, const glm::mat4& transfor
     return cameras.front();
 }
 
-template <typename Tm, typename Tl>
-static auto CleanupMap(Tm& map, Tl check)
+template <typename Tmap, typename Tlambda>
+static auto CleanupMap(Tmap& map, Tlambda check)
 {
-    Tm cleanedMap;
+    Tmap cleanedMap;
     std::copy_if(map.begin(), map.end(), std::inserter(cleanedMap, cleanedMap.end()), check);
     map = std::move(cleanedMap);
 }

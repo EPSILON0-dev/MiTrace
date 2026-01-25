@@ -5,6 +5,8 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.16)
 
 project(RayTracing)
 
+# set(TARGET_ARCH "haswell")  # Temporary fix for callgrind compatibility
+set(TARGET_ARCH "native")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -84,9 +86,10 @@ target_include_directories(RayTracing PRIVATE src)
 target_include_directories(RayTracing PRIVATE ${imgui_SOURCE_DIR}/backends)
 
 # Compiler options
+# Arch temporarily set to x86-64 for callgrind compatibility
 target_compile_options(RayTracing PRIVATE
-    $<$<CONFIG:Release>:-O2 -march=native>
-    $<$<CONFIG:RelWithDebInfo>:-O2 -march=native>
+    $<$<CONFIG:Release>:-Ofast -march=${TARGET_ARCH}>
+    $<$<CONFIG:RelWithDebInfo>:-Ofast -g -march=${TARGET_ARCH}>
     $<$<CONFIG:Debug>:-O0 -g -fsanitize=address,undefined>
     -pthread -Wall -Wextra -Wpedantic
 )
