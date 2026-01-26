@@ -5,3 +5,9 @@ tmp/
 compile_commands.json
 
 outputs/
+
+.venv
+
+*.ini
+
+__pycache__/

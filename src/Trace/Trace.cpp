@@ -99,7 +99,11 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
     for (bounceCount = 0; bounceCount < maxBounces; ++bounceCount)
     {
         const auto hit = TraceScene(currentRay, scene_);
-        if (!hit.has_value()) break;
+        if (!hit.has_value()) 
+        {
+            ++bounceCount;
+            break;
+        }
 
         const auto geom = RayHitGeometryInfo(*hit);
         const auto& matRef = hit->meshInstance->GetMesh().GetMaterial();
@@ -168,10 +172,10 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
 
             float metalness = bounce.materialPoint.metallic;
             float roughness = bounce.materialPoint.roughness;
-            float lightDivisor = 500.0f;
+            float lightDivisor = 350.0f;
             float brdf = BRDF::BRDF(glm::normalize(lightDir), -bounce.incomingRay.direction,
                 bounce.effectiveNormal, roughness, metalness);
-            float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir));
+            float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir) + 1.0f);
             float lightEnergy = brdf * distanceFalloff / lightDivisor;
 
             if (!shadowHit.has_value() || shadowHit->distance > glm::length(lightDir))
