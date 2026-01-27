@@ -4,8 +4,9 @@
 
 #include "Intersect.hpp"
 
-MeshInstance::MeshInstance(std::shared_ptr<Mesh> mesh, const glm::mat4& transform)
-    : mesh_(std::move(mesh)), transform_(transform)
+MeshInstance::MeshInstance(
+    std::shared_ptr<Mesh> mesh, const Material& material, const glm::mat4& transform)
+    : mesh_(std::move(mesh)), transform_(transform), material_(material)
 {
     // Compute world AABB
     glm::vec3 localMin = mesh_->GetAABBMin();

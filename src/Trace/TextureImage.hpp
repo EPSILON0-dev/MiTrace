@@ -16,7 +16,7 @@
 // filtering options.
 class TextureImage
 {
-    friend class GLTF_Loader;
+    friend class GLTF;
 
    public:
     enum class FilterMode : uint8_t

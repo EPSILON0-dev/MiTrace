@@ -1,15 +1,15 @@
 #include <spdlog/spdlog.h>
 
 #include <chrono>
+#include <filesystem>
+#include <format>
 #include <memory>
 #include <thread>
-#include <format>
-#include <filesystem>
 
 #include "Common/ScopeTimer.hpp"
-#include "Config/Config.hpp"
 #include "GUI/GUI.hpp"
-#include "Loader/GLTF_Loader.hpp"
+#include "Loader/Config.hpp"
+#include "Loader/GLTF.hpp"
 #include "Trace/RenderBuffer.hpp"
 #include "Trace/Trace.hpp"
 
@@ -22,11 +22,11 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
     using std::chrono::steady_clock;
     using std::chrono::system_clock;
 
-    GLTF_Loader loader(gltfFilePath);
+    GLTF loader(gltfFilePath);
     const auto camera = loader.LoadSceneCamera(0);
     const auto scene = loader.LoadScene(0);
     float renderDuration = 0.0f;
-    
+
     spdlog::info("Starting render...");
     {
         ScopeTimer timer(renderDuration);

@@ -1,6 +1,6 @@
 /**
  * @file Scene.hpp
- * 
+ *
  * Scene representation containing mesh instances, lights, and environment
  * texture (skybox).
  */
@@ -19,6 +19,9 @@ class Scene
     std::vector<MeshInstance> meshInstances_;
     std::vector<Light> lights_;
     std::optional<Texture> environmentTexture_;
+
+   private:
+    void MergeEquivalentMeshes();
 
    public:
     Scene() noexcept {}
@@ -40,10 +43,7 @@ class Scene
         lights_.insert(lights_.end(), lights.begin(), lights.end());
     }
 
-    void SetEnvironmentTexture(const Texture& texture) noexcept
-    {
-        environmentTexture_ = texture;
-    }
+    void SetEnvironmentTexture(const Texture& texture) noexcept { environmentTexture_ = texture; }
 
     const std::vector<MeshInstance>& GetMeshInstances() const noexcept { return meshInstances_; }
     const std::vector<Light>& GetLights() const noexcept { return lights_; }
@@ -51,4 +51,6 @@ class Scene
     {
         return environmentTexture_;
     }
+
+    void Optimize();
 };

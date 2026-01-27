@@ -33,6 +33,7 @@ class Config
     ConfigOptions options_;
     bool printHelp_ = false;
     bool verbose_ = false;
+    bool veryVerbose_ = false;
 
    private:
     Config() = default;

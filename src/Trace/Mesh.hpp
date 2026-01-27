@@ -1,26 +1,20 @@
 /**
  * @file Mesh.hpp
- * 
+ *
  * Mesh representation containing vertex attributes, indices, and material.
  */
 #pragma once
 
-// TODO Seprate the mesh data and the material data, they're tightly coupled
-//      in the GLTF files, but multiple meshes can point to the same accessors
-//      and thus effectively be the same mesh. Some optimization can be done
-//      to share the mesh data for better cache locality.
-
 #include <glm/glm.hpp>
-#include <memory>
 #include <optional>
+#include <string>
 
 #include "Ray.hpp"
 #include "RayHit.hpp"
-#include "Trace/Material.hpp"
 
 class Mesh
 {
-    friend class GLTF_Loader;
+    friend class GLTF;
 
    private:
     std::string name_;
@@ -31,7 +25,6 @@ class Mesh
     std::vector<glm::vec2> texCoord1_;  // OPTIONAL (Reserved for future use, e.g. lightmaps)
     std::vector<glm::vec4> color0_;     // OPTIONAL
     std::vector<uint32_t> indices_;     // REQUIRED
-    std::shared_ptr<Material> material_;
 
    public:
     Mesh() noexcept {}
@@ -45,10 +38,6 @@ class Mesh
     const std::vector<glm::vec2>& GetTexCoord1() const noexcept { return texCoord1_; }
     const std::vector<glm::vec4>& GetColor0() const noexcept { return color0_; }
     const std::vector<uint32_t>& GetIndices() const noexcept { return indices_; }
-    const std::shared_ptr<Material>& GetMaterial() const noexcept { return material_; }
-
-   public:
-    void SetMaterial(const std::shared_ptr<Material>& material) noexcept { material_ = material; }
 
    public:
     glm::vec3 GetAABBMin() const noexcept;

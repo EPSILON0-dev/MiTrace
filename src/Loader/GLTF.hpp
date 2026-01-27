@@ -14,7 +14,7 @@
 #include "Trace/Scene.hpp"
 #include "Trace/TextureImage.hpp"
 
-class GLTF_Loader
+class GLTF
 {
    private:  // Mesh related types
     enum class ComponentType : uint16_t
@@ -80,18 +80,17 @@ class GLTF_Loader
     Light::AreaLight LoadAreaLight(size_t lightIndex) const;
 
    public:  // Rule of five
-    GLTF_Loader(const std::filesystem::path& filePath);
-    ~GLTF_Loader();
+    GLTF(const std::filesystem::path& filePath);
+    ~GLTF();
 
-    GLTF_Loader(const GLTF_Loader&) = delete;
-    GLTF_Loader& operator=(const GLTF_Loader&) = delete;
-    GLTF_Loader(GLTF_Loader&&) = delete;
-    GLTF_Loader& operator=(GLTF_Loader&&) = delete;
+    GLTF(const GLTF&) = delete;
+    GLTF& operator=(const GLTF&) = delete;
+    GLTF(GLTF&&) = delete;
+    GLTF& operator=(GLTF&&) = delete;
 
    public:  // Loaders
     using Mesh_sptr = std::shared_ptr<Mesh>;
     using TexImage_sptr = std::shared_ptr<TextureImage>;
-    using Material_sptr = std::shared_ptr<Material>;
     using MeshInstance_vec = std::vector<MeshInstance>;
     using Light_vec = std::vector<Light>;
     using Camera_vec = std::vector<Camera>;
@@ -99,8 +98,9 @@ class GLTF_Loader
     static constexpr glm::mat4 ident = glm::mat4(1.0f);
 
     Mesh_sptr LoadMesh(size_t meshIndex, size_t primitiveIndex = 0);
+    Material LoadMeshMaterial(size_t meshIndex, size_t primitiveIndex = 0);
     TexImage_sptr LoadImage(size_t imageIndex);
-    Material_sptr LoadMaterial(size_t materialIndex);
+    Material LoadMaterial(size_t materialIndex);
     Texture LoadTexture(size_t textureIndex);
     Camera LoadCamera(size_t cameraIndex) const;
     Light LoadLight(size_t lightIndex, Mat4_cref transform = ident);

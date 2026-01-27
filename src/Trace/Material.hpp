@@ -15,7 +15,7 @@
 
 class Material
 {
-    friend class GLTF_Loader;
+    friend class GLTF;
 
    public:
     enum class TransparencyMode : uint8_t

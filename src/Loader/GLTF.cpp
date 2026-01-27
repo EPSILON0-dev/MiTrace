@@ -1,4 +1,4 @@
-#include "GLTF_Loader.hpp"
+#include "GLTF.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -10,7 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 
-GLTF_Loader::GLTF_Loader(const std::filesystem::path& filePath)
+GLTF::GLTF(const std::filesystem::path& filePath)
     : filePath_(filePath), basePath_(filePath.parent_path())
 {
     try
@@ -27,9 +27,9 @@ GLTF_Loader::GLTF_Loader(const std::filesystem::path& filePath)
     spdlog::info("Loaded GLTF file \"{}\"", filePath_.filename().string());
 }
 
-GLTF_Loader::~GLTF_Loader() = default;
+GLTF::~GLTF() = default;
 
-const std::vector<uint8_t>& GLTF_Loader::GetBufferData(size_t bufferIndex)
+const std::vector<uint8_t>& GLTF::GetBufferData(size_t bufferIndex)
 {
     // If we found it in the cache, return it
     if (loadedBuffers_.find(bufferIndex) != loadedBuffers_.end())
@@ -60,7 +60,7 @@ const std::vector<uint8_t>& GLTF_Loader::GetBufferData(size_t bufferIndex)
     return loadedBuffers_.at(bufferIndex);
 }
 
-GLTF_Loader::Accessor GLTF_Loader::ParseAccessor(size_t accessorIndex)
+GLTF::Accessor GLTF::ParseAccessor(size_t accessorIndex)
 {
     const auto& accessorData = (*gltfData_)["accessors"][accessorIndex];
 
@@ -114,7 +114,7 @@ GLTF_Loader::Accessor GLTF_Loader::ParseAccessor(size_t accessorIndex)
     return accessor;
 }
 
-GLTF_Loader::BufferView GLTF_Loader::ParseBufferView(size_t bufferViewIndex)
+GLTF::BufferView GLTF::ParseBufferView(size_t bufferViewIndex)
 {
     const auto& bufferViewData = (*gltfData_)["bufferViews"][bufferViewIndex];
 
@@ -128,7 +128,7 @@ GLTF_Loader::BufferView GLTF_Loader::ParseBufferView(size_t bufferViewIndex)
 }
 
 template <typename T>
-std::vector<T> GLTF_Loader::LoadMeshAttributeData(const BufferView& bufferView,
+std::vector<T> GLTF::LoadMeshAttributeData(const BufferView& bufferView,
     const Accessor& accessor, AttributeType expectedType, ComponentType expectedComponentType)
 {
     if (accessor.attributeType != expectedType || accessor.componentType != expectedComponentType)
@@ -152,7 +152,7 @@ std::vector<T> GLTF_Loader::LoadMeshAttributeData(const BufferView& bufferView,
     return data;
 }
 
-bool GLTF_Loader::IsAccessorCorrect(
+bool GLTF::IsAccessorCorrect(
     size_t accessorIndex, AttributeType expectedType, ComponentType expectedComponentType)
 {
     Accessor accessor = ParseAccessor(accessorIndex);
@@ -161,7 +161,7 @@ bool GLTF_Loader::IsAccessorCorrect(
 }
 
 template <typename T>
-std::vector<T> GLTF_Loader::LoadMeshAttribute(
+std::vector<T> GLTF::LoadMeshAttribute(
     size_t accessorIndex, AttributeType expectedType, ComponentType expectedComponentType)
 {
     Accessor accessor = ParseAccessor(accessorIndex);
@@ -170,7 +170,7 @@ std::vector<T> GLTF_Loader::LoadMeshAttribute(
     return LoadMeshAttributeData<T>(bufferView, accessor, expectedType, expectedComponentType);
 }
 
-Texture GLTF_Loader::LoadTexture(size_t textureIndex)
+Texture GLTF::LoadTexture(size_t textureIndex)
 {
     const auto& textureData = (*gltfData_)["textures"][textureIndex];
     size_t imageIndex = textureData["source"].get<size_t>();
@@ -209,7 +209,7 @@ Texture GLTF_Loader::LoadTexture(size_t textureIndex)
     return Texture(imagePtr, filterMode);
 }
 
-glm::mat4 GLTF_Loader::ComputeNodeTransform(size_t nodeIndex) const
+glm::mat4 GLTF::ComputeNodeTransform(size_t nodeIndex) const
 {
     const auto& nodeData = (*gltfData_)["nodes"][nodeIndex];
 
@@ -242,7 +242,7 @@ glm::mat4 GLTF_Loader::ComputeNodeTransform(size_t nodeIndex) const
     return transform;
 }
 
-std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIndex)
+std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
 {
     // If we found it in the cache, return it
     if (loadedMeshes_.find(std::pair(meshIndex, primitiveIndex)) != loadedMeshes_.end())
@@ -362,14 +362,6 @@ std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIn
         }
     }
 
-    // Load the material if present
-    if (primitiveData.contains("material"))
-    {
-        size_t materialIndex = primitiveData["material"].get<size_t>();
-        auto materialPtr = LoadMaterial(materialIndex);
-        mesh.SetMaterial(std::dynamic_pointer_cast<Material>(materialPtr));
-    }
-
     spdlog::debug("Loaded new mesh \"{}\", triangles: {}, attributes: P-N{}{}{}{}-I", mesh.name_,
         mesh.indices_.size() / 3, (mesh.tangents_.empty() ? "" : "-T"),
         (mesh.texCoord0_.empty() ? "" : "-U0"), (mesh.texCoord1_.empty() ? "" : "-U1"),
@@ -380,7 +372,18 @@ std::shared_ptr<Mesh> GLTF_Loader::LoadMesh(size_t meshIndex, size_t primitiveIn
     return meshPtr;
 }
 
-std::shared_ptr<TextureImage> GLTF_Loader::LoadImage(size_t imageIndex)
+Material GLTF::LoadMeshMaterial(size_t meshIndex, size_t primitiveIndex)
+{
+    const auto& primitiveData = (*gltfData_)["meshes"][meshIndex]["primitives"][primitiveIndex];
+
+    // If no material is specified, return a default material
+    if (!primitiveData.contains("material")) return Material();
+
+    size_t materialIndex = primitiveData["material"].get<size_t>();
+    return LoadMaterial(materialIndex);
+}
+
+std::shared_ptr<TextureImage> GLTF::LoadImage(size_t imageIndex)
 {
     // Return from cache if already loaded
     if (loadedImages_.find(imageIndex) != loadedImages_.end()) return loadedImages_.at(imageIndex);
@@ -399,7 +402,7 @@ std::shared_ptr<TextureImage> GLTF_Loader::LoadImage(size_t imageIndex)
     return image;
 }
 
-std::shared_ptr<Material> GLTF_Loader::LoadMaterial(size_t materialIndex)
+Material GLTF::LoadMaterial(size_t materialIndex)
 {
     const auto& materialData = (*gltfData_)["materials"][materialIndex];
     const auto& pbrData = materialData["pbrMetallicRoughness"];
@@ -460,12 +463,10 @@ std::shared_ptr<Material> GLTF_Loader::LoadMaterial(size_t materialIndex)
 
     spdlog::debug("Loaded new material \"{}\"", material.name_);
 
-    // Cache and return
-    loadedMaterials_.emplace(materialIndex, std::make_shared<Material>(material));
-    return loadedMaterials_.at(materialIndex);
+    return material;
 }
 
-Camera GLTF_Loader::LoadCamera(size_t cameraIndex) const
+Camera GLTF::LoadCamera(size_t cameraIndex) const
 {
     const auto& cameraData = (*gltfData_)["cameras"][cameraIndex];
 
@@ -484,7 +485,7 @@ Camera GLTF_Loader::LoadCamera(size_t cameraIndex) const
     return Camera(yfov);
 }
 
-Light::PointLight GLTF_Loader::LoadPointLight(size_t lightIndex) const
+Light::PointLight GLTF::LoadPointLight(size_t lightIndex) const
 {
     const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
 
@@ -499,7 +500,7 @@ Light::PointLight GLTF_Loader::LoadPointLight(size_t lightIndex) const
     return pointLight;
 }
 
-Light::DirectionalLight GLTF_Loader::LoadDirectionalLight(size_t lightIndex) const
+Light::DirectionalLight GLTF::LoadDirectionalLight(size_t lightIndex) const
 {
     const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
 
@@ -514,7 +515,7 @@ Light::DirectionalLight GLTF_Loader::LoadDirectionalLight(size_t lightIndex) con
     return directionalLight;
 }
 
-Light::SpotLight GLTF_Loader::LoadSpotLight(size_t lightIndex) const
+Light::SpotLight GLTF::LoadSpotLight(size_t lightIndex) const
 {
     const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
 
@@ -531,7 +532,7 @@ Light::SpotLight GLTF_Loader::LoadSpotLight(size_t lightIndex) const
     return spotLight;
 }
 
-Light::AreaLight GLTF_Loader::LoadAreaLight(size_t lightIndex) const
+Light::AreaLight GLTF::LoadAreaLight(size_t lightIndex) const
 {
     const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
 
@@ -549,7 +550,7 @@ Light::AreaLight GLTF_Loader::LoadAreaLight(size_t lightIndex) const
     return areaLight;
 }
 
-Light GLTF_Loader::LoadLight(size_t lightIndex, const glm::mat4& transform)
+Light GLTF::LoadLight(size_t lightIndex, const glm::mat4& transform)
 {
     const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
 
@@ -583,7 +584,7 @@ Light GLTF_Loader::LoadLight(size_t lightIndex, const glm::mat4& transform)
     }
 }
 
-std::vector<MeshInstance> GLTF_Loader::LoadNodeMeshes(size_t nodeIndex, const glm::mat4& transform)
+std::vector<MeshInstance> GLTF::LoadNodeMeshes(size_t nodeIndex, const glm::mat4& transform)
 {
     std::vector<MeshInstance> instances;
     const auto& nodeData = (*gltfData_)["nodes"][nodeIndex];
@@ -600,7 +601,8 @@ std::vector<MeshInstance> GLTF_Loader::LoadNodeMeshes(size_t nodeIndex, const gl
             {
                 auto meshIndex = nodeData["mesh"].get<size_t>();
                 auto meshPtr = LoadMesh(meshIndex, primitiveIndex);
-                instances.push_back(MeshInstance(std::move(meshPtr), worldTransform));
+                auto material = LoadMeshMaterial(meshIndex, primitiveIndex);
+                instances.push_back(MeshInstance(std::move(meshPtr), material, worldTransform));
 
                 spdlog::debug("Loaded mesh {} ({}:{}) on node {} ({})",
                     instances.back().GetMesh().GetName(), meshIndex, primitiveIndex,
@@ -630,7 +632,7 @@ std::vector<MeshInstance> GLTF_Loader::LoadNodeMeshes(size_t nodeIndex, const gl
     return instances;
 }
 
-std::vector<MeshInstance> GLTF_Loader::LoadSceneMeshes(
+std::vector<MeshInstance> GLTF::LoadSceneMeshes(
     size_t sceneIndex, const glm::mat4& transform)
 {
     const auto& sceneData = (*gltfData_)["scenes"][sceneIndex];
@@ -646,7 +648,7 @@ std::vector<MeshInstance> GLTF_Loader::LoadSceneMeshes(
     return instances;
 }
 
-std::vector<Light> GLTF_Loader::LoadNodeLights(size_t nodeIndex, const glm::mat4& transform)
+std::vector<Light> GLTF::LoadNodeLights(size_t nodeIndex, const glm::mat4& transform)
 {
     std::vector<Light> lights;
     const auto& nodeData = (*gltfData_)["nodes"][nodeIndex];
@@ -686,7 +688,7 @@ std::vector<Light> GLTF_Loader::LoadNodeLights(size_t nodeIndex, const glm::mat4
     return lights;
 }
 
-std::vector<Light> GLTF_Loader::LoadSceneLights(size_t sceneIndex, const glm::mat4& transform)
+std::vector<Light> GLTF::LoadSceneLights(size_t sceneIndex, const glm::mat4& transform)
 {
     const auto& sceneData = (*gltfData_)["scenes"][sceneIndex];
 
@@ -701,7 +703,7 @@ std::vector<Light> GLTF_Loader::LoadSceneLights(size_t sceneIndex, const glm::ma
     return lights;
 }
 
-std::vector<Camera> GLTF_Loader::LoadNodeCameras(size_t nodeIndex, const glm::mat4& transform) const
+std::vector<Camera> GLTF::LoadNodeCameras(size_t nodeIndex, const glm::mat4& transform) const
 {
     std::vector<Camera> cameras;
     const auto& nodeData = (*gltfData_)["nodes"][nodeIndex];
@@ -742,7 +744,7 @@ std::vector<Camera> GLTF_Loader::LoadNodeCameras(size_t nodeIndex, const glm::ma
     return cameras;
 }
 
-std::vector<Camera> GLTF_Loader::LoadSceneCameras(
+std::vector<Camera> GLTF::LoadSceneCameras(
     size_t sceneIndex, const glm::mat4& transform) const
 {
     std::vector<Camera> cameras;
@@ -758,7 +760,7 @@ std::vector<Camera> GLTF_Loader::LoadSceneCameras(
     return cameras;
 }
 
-Camera GLTF_Loader::LoadSceneCamera(size_t sceneIndex, const glm::mat4& transform) const
+Camera GLTF::LoadSceneCamera(size_t sceneIndex, const glm::mat4& transform) const
 {
     const auto cameras = LoadSceneCameras(sceneIndex, transform);
 
@@ -778,19 +780,20 @@ static auto CleanupMap(Tmap& map, Tlambda check)
     map = std::move(cleanedMap);
 }
 
-std::optional<Texture> GLTF_Loader::LoadSceneEnvironmentTexture()
+std::optional<Texture> GLTF::LoadSceneEnvironmentTexture()
 {
     if ((*gltfData_).contains("extensions") && (*gltfData_)["extensions"].contains("EXT_sky") &&
         (*gltfData_)["extensions"]["EXT_sky"].contains("sky_texture"))
     {
-        const auto textureIndex = (*gltfData_)["extensions"]["EXT_sky"]["sky_texture"].get<size_t>();
+        const auto textureIndex =
+            (*gltfData_)["extensions"]["EXT_sky"]["sky_texture"].get<size_t>();
         return LoadTexture(textureIndex);
     }
 
     return std::nullopt;
 }
 
-Scene GLTF_Loader::LoadScene(size_t sceneIndex, const glm::mat4& transform)
+Scene GLTF::LoadScene(size_t sceneIndex, const glm::mat4& transform)
 {
     Scene scene;
 
@@ -816,7 +819,7 @@ Scene GLTF_Loader::LoadScene(size_t sceneIndex, const glm::mat4& transform)
     return scene;
 }
 
-void GLTF_Loader::Cleanup()
+void GLTF::Cleanup()
 {
     size_t droppedBuffers = loadedBuffers_.size();
     [[maybe_unused]] size_t initialMaterialCount = loadedMaterials_.size();

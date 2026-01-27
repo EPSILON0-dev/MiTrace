@@ -5,7 +5,7 @@
 #include <cmath>
 #include <glm/fwd.hpp>
 
-#include "Config/Config.hpp"
+#include "Loader/Config.hpp"
 #include "Trace/BRDF.hpp"
 #include "Trace/RayHit.hpp"
 
@@ -99,15 +99,15 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
     for (bounceCount = 0; bounceCount < maxBounces; ++bounceCount)
     {
         const auto hit = TraceScene(currentRay, scene_);
-        if (!hit.has_value()) 
+        if (!hit.has_value())
         {
             ++bounceCount;
             break;
         }
 
         const auto geom = RayHitGeometryInfo(*hit);
-        const auto& matRef = hit->meshInstance->GetMesh().GetMaterial();
-        const auto mat = matRef->SampleMaterial(geom.TexCoord0);
+        const auto& matRef = hit->meshInstance->GetMaterial();
+        const auto mat = matRef.SampleMaterial(geom.TexCoord0);
 
         bounces[bounceCount].incomingRay = ray;
         bounces[bounceCount].hitInfo = *hit;
@@ -128,6 +128,7 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
         {
             newRay = ReflectSpecular(*hit, normal, mat.roughness);
         }
+        // TODO Divide the sample by the PDF
 
         bounces[bounceCount].effectiveNormal = normal;
         bounces[bounceCount].energyTransfer = glm::vec3(mat.baseColor) * energyTransfer;
