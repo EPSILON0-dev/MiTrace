@@ -1,3 +1,9 @@
+/**
+ * @file Scene.hpp
+ * 
+ * Scene representation containing mesh instances, lights, and environment
+ * texture (skybox).
+ */
 #pragma once
 
 #include <glm/glm.hpp>

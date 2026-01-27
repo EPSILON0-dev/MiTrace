@@ -1,3 +1,8 @@
+/**
+ * @file RayHit.hpp
+ * 
+ * Representation of ray intersection results with scene geometry.
+ */
 #pragma once
 
 #include "Ray.hpp"

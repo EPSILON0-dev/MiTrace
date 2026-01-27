@@ -1,3 +1,13 @@
+/**
+ * @file Trace.hpp
+ * 
+ * The tracer entry point, responsible for rendering a scene from a camera's
+ * perspective into a render buffer. 
+ *
+ * Interface:
+ *  - Trace(imageBuffer, camera, scene) : Creates the tracer instance.
+ *  - RenderNormal() : Renders the scene using normal path tracing.
+ */
 #pragma once
 
 #include <memory>

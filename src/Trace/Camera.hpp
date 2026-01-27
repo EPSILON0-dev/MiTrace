@@ -1,3 +1,8 @@
+/**
+ * @file Camera.hpp
+ * 
+ * Camera representation for generating rays based on camera parameters.
+ */
 #pragma once
 
 #include <glm/fwd.hpp>

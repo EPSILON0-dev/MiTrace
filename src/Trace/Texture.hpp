@@ -1,3 +1,9 @@
+/**
+ * @file Texture.hpp
+ * 
+ * Texture combines a texture image with sampling parameters to provide a
+ * convenient interface for sampling texture data.
+ */
 #pragma once
 
 #include <memory>

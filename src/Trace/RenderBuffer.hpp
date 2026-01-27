@@ -1,3 +1,8 @@
+/**
+ * @file RenderBuffer.hpp
+ *
+ * Render buffer for storing pixel color data during rendering. 
+ */
 #pragma once
 
 #include <stb/stb_image_write.h>

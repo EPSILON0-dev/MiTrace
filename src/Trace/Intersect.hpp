@@ -1,3 +1,8 @@
+/**
+ * @file Intersect.hpp
+ * 
+ * Ray-scene intersection utilities.
+ */
 #pragma once
 
 #include "Ray.hpp"

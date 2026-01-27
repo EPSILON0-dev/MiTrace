@@ -1,3 +1,9 @@
+/**
+ * @file MeshInstance.hpp
+ * 
+ * Represents an instance of a mesh in the scene with its own transformation
+ * and bounding box
+ */
 #pragma once
 
 #include <optional>

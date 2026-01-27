@@ -1,7 +1,13 @@
-// TODO Come up with an interface for the lights, for now just a placeholder for the GLTF loader
+/**
+ * @file Light.hpp
+ * 
+ * Light representation for different light types in the scene.
+ */
 #pragma once
 
 #include <glm/glm.hpp>
+
+// TODO Come up with an interface for the lights, for now just a placeholder for the GLTF loader
 
 class Light
 {

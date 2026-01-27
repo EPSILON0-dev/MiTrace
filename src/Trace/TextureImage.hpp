@@ -1,3 +1,10 @@
+/**
+ * @file TextureImage.hpp
+ * 
+ * Texture image handling for loading and sampling texture data. It is 
+ * separated from texture definitions as there can be multiple textures 
+ * referencing the same image with different samplers.
+ */
 #pragma once
 
 #include <filesystem>

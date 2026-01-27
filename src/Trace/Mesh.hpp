@@ -1,4 +1,14 @@
+/**
+ * @file Mesh.hpp
+ * 
+ * Mesh representation containing vertex attributes, indices, and material.
+ */
 #pragma once
+
+// TODO Seprate the mesh data and the material data, they're tightly coupled
+//      in the GLTF files, but multiple meshes can point to the same accessors
+//      and thus effectively be the same mesh. Some optimization can be done
+//      to share the mesh data for better cache locality.
 
 #include <glm/glm.hpp>
 #include <memory>

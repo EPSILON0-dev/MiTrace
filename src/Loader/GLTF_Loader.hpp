@@ -12,6 +12,7 @@
 #include "Trace/Mesh.hpp"
 #include "Trace/MeshInstance.hpp"
 #include "Trace/Scene.hpp"
+#include "Trace/TextureImage.hpp"
 
 class GLTF_Loader
 {
@@ -88,33 +89,34 @@ class GLTF_Loader
     GLTF_Loader& operator=(GLTF_Loader&&) = delete;
 
    public:  // Loaders
-    std::shared_ptr<Mesh> LoadMesh(size_t meshIndex, size_t primitiveIndex = 0);
-    std::shared_ptr<TextureImage> LoadImage(size_t imageIndex);
+    using Mesh_sptr = std::shared_ptr<Mesh>;
+    using TexImage_sptr = std::shared_ptr<TextureImage>;
+    using Material_sptr = std::shared_ptr<Material>;
+    using MeshInstance_vec = std::vector<MeshInstance>;
+    using Light_vec = std::vector<Light>;
+    using Camera_vec = std::vector<Camera>;
+    using Mat4_cref = const glm::mat4&;
+    static constexpr glm::mat4 ident = glm::mat4(1.0f);
+
+    Mesh_sptr LoadMesh(size_t meshIndex, size_t primitiveIndex = 0);
+    TexImage_sptr LoadImage(size_t imageIndex);
+    Material_sptr LoadMaterial(size_t materialIndex);
     Texture LoadTexture(size_t textureIndex);
-    std::shared_ptr<Material> LoadMaterial(size_t materialIndex);
     Camera LoadCamera(size_t cameraIndex) const;
+    Light LoadLight(size_t lightIndex, Mat4_cref transform = ident);
 
-    Light LoadLight(size_t lightIndex, const glm::mat4& transform = glm::mat4(1.0f));
+    MeshInstance_vec LoadNodeMeshes(size_t nodeIndex, Mat4_cref transform = ident);
+    MeshInstance_vec LoadSceneMeshes(size_t sceneIndex, Mat4_cref transform = ident);
+    Light_vec LoadNodeLights(size_t nodeIndex, Mat4_cref transform = ident);
+    Light_vec LoadSceneLights(size_t sceneIndex, Mat4_cref transform = ident);
 
-    std::vector<MeshInstance> LoadNodeMeshes(
-        size_t nodeIndex, const glm::mat4& transform = glm::mat4(1.0f));
-    std::vector<MeshInstance> LoadSceneMeshes(
-        size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f));
-
-    std::vector<Light> LoadNodeLights(
-        size_t nodeIndex, const glm::mat4& transform = glm::mat4(1.0f));
-    std::vector<Light> LoadSceneLights(
-        size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f));
-
-    std::vector<Camera> LoadNodeCameras(
-        size_t nodeIndex, const glm::mat4& transform = glm::mat4(1.0f)) const;
-    std::vector<Camera> LoadSceneCameras(
-        size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f)) const;
-    Camera LoadSceneCamera(size_t sceneIndex, const glm::mat4& transform = glm::mat4(1.0f)) const;
+    Camera_vec LoadNodeCameras(size_t nodeIndex, Mat4_cref transform = ident) const;
+    Camera_vec LoadSceneCameras(size_t sceneIndex, Mat4_cref transform = ident) const;
+    Camera LoadSceneCamera(size_t sceneIndex, Mat4_cref transform = ident) const;
 
     std::optional<Texture> LoadSceneEnvironmentTexture();
 
-    Scene LoadScene(size_t sceneIndex = 0, const glm::mat4& transform = glm::mat4(1.0f));
+    Scene LoadScene(size_t sceneIndex = 0, Mat4_cref transform = ident);
 
    public:  // Other methods
     void Cleanup();

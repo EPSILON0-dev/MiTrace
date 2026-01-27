@@ -1,3 +1,9 @@
+/**
+ * @file Material.hpp
+ * 
+ * Material representation including textures (with image references) and 
+ * factors for rendering.
+ */
 #pragma once
 
 #include <glm/fwd.hpp>
