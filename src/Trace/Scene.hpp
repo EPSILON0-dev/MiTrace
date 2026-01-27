@@ -26,31 +26,20 @@ class Scene
    public:
     Scene() noexcept {}
 
-    void AddMeshInstance(const MeshInstance& meshInstance) noexcept
-    {
-        meshInstances_.push_back(meshInstance);
-    }
-
-    void AddMeshInstances(const std::vector<MeshInstance>& meshInstances) noexcept
-    {
-        meshInstances_.insert(meshInstances_.end(), meshInstances.begin(), meshInstances.end());
-    }
-
-    void AddLight(const Light& light) noexcept { lights_.push_back(light); }
-
-    void AddLights(const std::vector<Light>& lights) noexcept
-    {
-        lights_.insert(lights_.end(), lights.begin(), lights.end());
-    }
+    void AddMeshInstance(const MeshInstance& meshInstance) noexcept;
+    void AddMeshInstances(const std::vector<MeshInstance>& meshInstances) noexcept;
+    void AddLight(const Light& light) noexcept;
+    void AddLights(const std::vector<Light>& lights) noexcept;
 
     void SetEnvironmentTexture(const Texture& texture) noexcept { environmentTexture_ = texture; }
 
-    const std::vector<MeshInstance>& GetMeshInstances() const noexcept { return meshInstances_; }
-    const std::vector<Light>& GetLights() const noexcept { return lights_; }
-    const std::optional<Texture>& GetEnvironmentTexture() const noexcept
-    {
-        return environmentTexture_;
-    }
+    using MeshInstance_vec_cr = const std::vector<MeshInstance>&;
+    using Light_vec_cr = const std::vector<Light>&;
+    using Texture_opt_cr = const std::optional<Texture>&;
+
+    MeshInstance_vec_cr GetMeshInstances() const noexcept { return meshInstances_; }
+    Light_vec_cr GetLights() const noexcept { return lights_; }
+    Texture_opt_cr GetEnvironmentTexture() const noexcept { return environmentTexture_; }
 
     void Optimize();
 };

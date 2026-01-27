@@ -4,13 +4,11 @@
 
 #include "Intersect.hpp"
 
-MeshInstance::MeshInstance(
-    std::shared_ptr<Mesh> mesh, const Material& material, const glm::mat4& transform)
-    : mesh_(std::move(mesh)), transform_(transform), material_(material)
+void MeshInstance::CalculateWorldAABB()
 {
     // Compute world AABB
-    glm::vec3 localMin = mesh_->GetAABBMin();
-    glm::vec3 localMax = mesh_->GetAABBMax();
+    glm::vec3 localMin = mesh_->CalculateAABBMin();
+    glm::vec3 localMax = mesh_->CalculateAABBMax();
 
     glm::vec3 corners[8] = {
         {localMin.x, localMin.y, localMin.z},
@@ -34,6 +32,13 @@ MeshInstance::MeshInstance(
     }
 }
 
+MeshInstance::MeshInstance(
+    std::shared_ptr<Mesh> mesh, const Material& material, const glm::mat4& transform)
+    : mesh_(std::move(mesh)), transform_(transform), material_(material)
+{
+    CalculateWorldAABB();
+}
+
 std::optional<RayHit> MeshInstance::IntersectRay(const Ray& ray) const
 {
     // First, check intersection with world AABB
@@ -52,4 +57,16 @@ std::optional<RayHit> MeshInstance::IntersectRay(const Ray& ray) const
     {
         return std::nullopt;
     }
+}
+
+void MeshInstance::SetTransform(const glm::mat4& transform)
+{
+    transform_ = transform;
+    CalculateWorldAABB();
+}
+
+void MeshInstance::SetMesh(const std::shared_ptr<Mesh>& mesh)
+{
+    mesh_ = mesh;
+    CalculateWorldAABB();
 }

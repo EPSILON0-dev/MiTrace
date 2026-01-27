@@ -67,6 +67,7 @@ set(SRC_FILES
     src/Trace/Intersect.cpp
     src/Trace/RayHit.cpp
     src/Trace/Trace.cpp
+    src/Trace/Scene.cpp
     src/Loader/Config.cpp
     src/Common/STB_Impl.cpp
     ${IMGUI_BACKEND_FILES}

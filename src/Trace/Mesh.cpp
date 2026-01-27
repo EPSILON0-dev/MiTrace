@@ -1,18 +1,25 @@
 #include "Mesh.hpp"
 
+#include <cstddef>
 #include <numeric>
+#include <spdlog/spdlog.h>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/intersect.hpp>
 
-glm::vec3 Mesh::GetAABBMin() const noexcept
+Mesh::~Mesh()
+{
+    spdlog::trace("Destroying Mesh '{}'", name_);
+}
+
+glm::vec3 Mesh::CalculateAABBMin() const noexcept
 {
     return std::accumulate(positions_.begin(), positions_.end(),
         glm::vec3(std::numeric_limits<float>::max()),
         [](const auto& a, const auto& b) { return glm::min(a, b); });
 }
 
-glm::vec3 Mesh::GetAABBMax() const noexcept
+glm::vec3 Mesh::CalculateAABBMax() const noexcept
 {
     return std::accumulate(positions_.begin(), positions_.end(),
         glm::vec3(std::numeric_limits<float>::lowest()),
@@ -68,4 +75,40 @@ std::optional<RayHit> Mesh::Intersect(const Ray& ray, const glm::mat4& modelToWo
     {
         return std::nullopt;
     }
+}
+
+uint32_t Mesh::GetMeshHash() const noexcept
+{
+    if (meshHash_.has_value()) return meshHash_.value();
+
+    uint32_t hash = 0;
+
+    auto hashCombine = [&hash](uint32_t value)
+    { hash ^= value + 0x9e3779b9 + (hash << 6) + (hash >> 2); };
+
+    auto hashCombineVec = [&hashCombine](const auto& vec)
+    {
+        for (size_t i = 0; i < sizeof(vec) / sizeof(vec[0]); ++i)
+            hashCombine(std::hash<float>()(vec[0]));
+    };
+
+    for (const auto& item : positions_) hashCombineVec(item);
+    for (const auto& item : normals_) hashCombineVec(item);
+    for (const auto& item : tangents_) hashCombineVec(item);
+    for (const auto& item : texCoord0_) hashCombineVec(item);
+    for (const auto& item : texCoord1_) hashCombineVec(item);
+    for (const auto& item : color0_) hashCombineVec(item);
+    for (const auto& item : indices_) hashCombine(item);
+
+    meshHash_ = hash;
+    return hash;
+}
+
+bool Mesh::operator==(const Mesh& other) const noexcept
+{
+    // Compare everything except the name
+    return other.positions_ == this->positions_ && other.normals_ == this->normals_ &&
+           other.tangents_ == this->tangents_ && other.texCoord0_ == this->texCoord0_ &&
+           other.texCoord1_ == this->texCoord1_ && other.color0_ == this->color0_ &&
+           other.indices_ == this->indices_;
 }

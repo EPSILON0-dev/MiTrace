@@ -362,7 +362,7 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
         }
     }
 
-    spdlog::debug("Loaded new mesh \"{}\", triangles: {}, attributes: P-N{}{}{}{}-I", mesh.name_,
+    spdlog::trace("Loaded new mesh \"{}\", triangles: {}, attributes: P-N{}{}{}{}-I", mesh.name_,
         mesh.indices_.size() / 3, (mesh.tangents_.empty() ? "" : "-T"),
         (mesh.texCoord0_.empty() ? "" : "-U0"), (mesh.texCoord1_.empty() ? "" : "-U1"),
         (mesh.color0_.empty() ? "" : "-C0"));
@@ -394,7 +394,7 @@ std::shared_ptr<TextureImage> GLTF::LoadImage(size_t imageIndex)
     auto image = std::make_shared<TextureImage>(basePath_ / imageData["uri"].get<std::string>());
     image->name_ = imageData.value("name", "Unnamed_Image");
 
-    spdlog::debug("Loaded new image \"{}\" ({}x{}, {} channels)", image->name_, image->width_,
+    spdlog::trace("Loaded new image \"{}\" ({}x{}, {} channels)", image->name_, image->width_,
         image->height_, image->channels_);
 
     // Emplace in cache and return
@@ -461,7 +461,7 @@ Material GLTF::LoadMaterial(size_t materialIndex)
     material.alphaCutoff_ = materialData.value("alphaCutoff", 0.5f);
     material.doubleSided_ = materialData.value("doubleSided", false);
 
-    spdlog::debug("Loaded new material \"{}\"", material.name_);
+    spdlog::trace("Loaded new material \"{}\"", material.name_);
 
     return material;
 }
@@ -603,10 +603,6 @@ std::vector<MeshInstance> GLTF::LoadNodeMeshes(size_t nodeIndex, const glm::mat4
                 auto meshPtr = LoadMesh(meshIndex, primitiveIndex);
                 auto material = LoadMeshMaterial(meshIndex, primitiveIndex);
                 instances.push_back(MeshInstance(std::move(meshPtr), material, worldTransform));
-
-                spdlog::debug("Loaded mesh {} ({}:{}) on node {} ({})",
-                    instances.back().GetMesh().GetName(), meshIndex, primitiveIndex,
-                    nodeData.value("name", "Unnamed_Node"), nodeIndex);
             }
         }
         catch (const std::exception& e)
@@ -662,7 +658,7 @@ std::vector<Light> GLTF::LoadNodeLights(size_t nodeIndex, const glm::mat4& trans
             auto lightIndex = nodeData["extensions"]["KHR_lights_punctual"]["light"].get<size_t>();
             lights.push_back(LoadLight(lightIndex, worldTransform));
 
-            spdlog::debug("Loaded light {} on node {} ({})", lightIndex,
+            spdlog::trace("Loaded light {} on node {} ({})", lightIndex,
                 nodeData.value("name", "Unnamed_Node"), nodeIndex);
         }
         catch (const std::exception& e)
@@ -718,7 +714,7 @@ std::vector<Camera> GLTF::LoadNodeCameras(size_t nodeIndex, const glm::mat4& tra
             camera.SetCameraToWorld(worldTransform);
             cameras.push_back(camera);
 
-            spdlog::debug("Loaded camera {} on node {} ({})", cameraIndex,
+            spdlog::trace("Loaded camera {} on node {} ({})", cameraIndex,
                 nodeData.value("name", "Unnamed_Node"), nodeIndex);
         }
         catch (const std::exception& e)
@@ -834,7 +830,7 @@ void GLTF::Cleanup()
     CleanupMap(loadedImages_, usedCheck);
     CleanupMap(loadedMeshes_, usedCheck);
 
-    spdlog::info(
+    spdlog::debug(
         "GLTF Loader cleaned up unused resources, dropped {} buffers, {} materials, {} images, and "
         "{} meshes",
         droppedBuffers, initialMaterialCount - loadedMaterials_.size(),

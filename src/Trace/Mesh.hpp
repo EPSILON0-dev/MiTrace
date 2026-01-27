@@ -15,6 +15,7 @@
 class Mesh
 {
     friend class GLTF;
+    using MeshHash = uint32_t;
 
    private:
     std::string name_;
@@ -25,9 +26,11 @@ class Mesh
     std::vector<glm::vec2> texCoord1_;  // OPTIONAL (Reserved for future use, e.g. lightmaps)
     std::vector<glm::vec4> color0_;     // OPTIONAL
     std::vector<uint32_t> indices_;     // REQUIRED
+    mutable std::optional<MeshHash> meshHash_ = std::nullopt;
 
    public:
     Mesh() noexcept {}
+    virtual ~Mesh();
 
    public:
     const std::string& GetName() const noexcept { return name_; }
@@ -40,8 +43,11 @@ class Mesh
     const std::vector<uint32_t>& GetIndices() const noexcept { return indices_; }
 
    public:
-    glm::vec3 GetAABBMin() const noexcept;
-    glm::vec3 GetAABBMax() const noexcept;
+    MeshHash GetMeshHash() const noexcept;
+    bool operator==(const Mesh& other) const noexcept;
+
+    glm::vec3 CalculateAABBMin() const noexcept;
+    glm::vec3 CalculateAABBMax() const noexcept;
 
     std::optional<RayHit> Intersect(const Ray& ray, const glm::mat4& modelToWorld) const noexcept;
 };

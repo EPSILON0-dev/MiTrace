@@ -3,11 +3,10 @@
 Ray Camera::GenerateRay(float u, float v, float aspectRatio) const noexcept
 {
     float fovScale = tanf(yfovRadians_ * 0.5f);
-    float px = (2.0f * u - 1.0f) * fovScale;
-    float py = (2.0f * v - 1.0f) * fovScale / aspectRatio;
+    float px = (2.0f * u - 1.0f) * fovScale * aspectRatio;
+    float py = (2.0f * v - 1.0f) * fovScale;
 
     glm::vec4 rayOriginCameraSpace = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-    // TODO: Verify if -1.0f is correct for right-handed system
     glm::vec4 rayDirectionCameraSpace = glm::normalize(glm::vec4(px, -py, -1.0f, 0.0f));
 
     glm::vec4 rayOriginWorldSpace = cameraToWorld_ * rayOriginCameraSpace;

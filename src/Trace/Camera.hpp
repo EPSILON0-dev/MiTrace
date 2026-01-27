@@ -23,14 +23,14 @@ class Camera
 
    public:
     glm::mat4 GetCameraToWorld() noexcept { return cameraToWorld_; }
-    float GetYFOV() noexcept { return yfovRadians_; }
+    float GetYFovRadians() noexcept { return yfovRadians_; }
 
    public:
     void SetCameraToWorld(const glm::mat4& cameraToWorld) noexcept
     {
         cameraToWorld_ = cameraToWorld;
     }
-    void SetYFOV(float yfov) noexcept { yfovRadians_ = yfov; }
+    void SetYFovRadians(float yfov) noexcept { yfovRadians_ = yfov; }
 
    public:
     // UV coordinates are in range [0, 1]

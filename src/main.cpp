@@ -24,7 +24,9 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
 
     GLTF loader(gltfFilePath);
     const auto camera = loader.LoadSceneCamera(0);
-    const auto scene = loader.LoadScene(0);
+    auto scene = loader.LoadScene(0);
+    scene.Optimize();
+    loader.Cleanup();
     float renderDuration = 0.0f;
 
     spdlog::info("Starting render...");
@@ -45,7 +47,9 @@ int main(int argc, char** argv)
     Config::Instance().LoadConfig(argc, argv);
     const auto& config = Config::Instance().GetConfig();
     const auto verbose = Config::Instance().IsVerbose();
-    spdlog::set_level(verbose ? spdlog::level::debug : spdlog::level::info);
+    const auto veryVerbose = Config::Instance().IsVeryVerbose();
+    spdlog::set_level(veryVerbose ? spdlog::level::trace
+                                  : (verbose ? spdlog::level::debug : spdlog::level::info));
 
     if (std::filesystem::exists("outputs"))
     {

@@ -54,6 +54,7 @@ class Config
     void LoadConfig(int argc, char** argv);
     bool PrintHelpIfNeeded() const;
     bool IsVerbose() const { return verbose_; }
+    bool IsVeryVerbose() const { return veryVerbose_; }
 
     const ConfigOptions& GetConfig() const { return options_; }
 };
