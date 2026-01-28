@@ -16,8 +16,6 @@
 // filtering options.
 class TextureImage
 {
-    friend class GLTF;
-
    public:
     enum class FilterMode : uint8_t
     {
@@ -34,11 +32,13 @@ class TextureImage
    public:
     TextureImage(const std::filesystem::path& filePath);
 
-    int GetWidth() const noexcept { return width_; }
-    int GetHeight() const noexcept { return height_; }
-    int GetChannels() const noexcept { return channels_; }
-    const std::string& GetName() const { return name_; }
-    const std::filesystem::path& GetFilePath() const { return filePath_; }
+    auto GetWidth() const noexcept { return width_; }
+    auto GetHeight() const noexcept { return height_; }
+    auto GetChannels() const noexcept { return channels_; }
+    const auto& GetName() const { return name_; }
+    const auto& GetFilePath() const { return filePath_; }
+
+    void SetName(const std::string& name) { name_ = name; }
 
    private:
     glm::u8vec4 SampleNearest(float& x, float& y) const noexcept;

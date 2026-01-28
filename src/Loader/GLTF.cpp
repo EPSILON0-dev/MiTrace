@@ -128,8 +128,8 @@ GLTF::BufferView GLTF::ParseBufferView(size_t bufferViewIndex)
 }
 
 template <typename T>
-std::vector<T> GLTF::LoadMeshAttributeData(const BufferView& bufferView,
-    const Accessor& accessor, AttributeType expectedType, ComponentType expectedComponentType)
+std::vector<T> GLTF::LoadMeshAttributeData(const BufferView& bufferView, const Accessor& accessor,
+    AttributeType expectedType, ComponentType expectedComponentType)
 {
     if (accessor.attributeType != expectedType || accessor.componentType != expectedComponentType)
         throw std::runtime_error("Attribute type does not match expected type");
@@ -248,12 +248,12 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
     if (loadedMeshes_.find(std::pair(meshIndex, primitiveIndex)) != loadedMeshes_.end())
         return loadedMeshes_.at(std::pair(meshIndex, primitiveIndex));
 
-    // Create a new mesh
+    // Create a new mesh builder
     auto meshPtr = std::make_shared<Mesh>();
-    auto& mesh = *meshPtr;
+    auto mesh = *meshPtr;
 
     // Load the useless name
-    mesh.name_ = (*gltfData_)["meshes"][meshIndex].value("name", "Unnamed_Mesh");
+    mesh.SetName((*gltfData_)["meshes"][meshIndex].value("name", "Unnamed_Mesh"));
 
     // Validate primitive data
     const auto& primitiveData = (*gltfData_)["meshes"][meshIndex]["primitives"][primitiveIndex];
@@ -279,17 +279,19 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
 
         if (areIndicesUnsignedInt)
         {
-            mesh.indices_ = LoadMeshAttribute<uint32_t>(
-                indicesAcc, AttributeType::SCALAR, ComponentType::UNSIGNED_INT);
+            mesh.SetIndices(LoadMeshAttribute<uint32_t>(
+                indicesAcc, AttributeType::SCALAR, ComponentType::UNSIGNED_INT));
         }
         else
         {
             auto shortIndices = LoadMeshAttribute<uint16_t>(
                 indicesAcc, AttributeType::SCALAR, ComponentType::UNSIGNED_SHORT);
-            mesh.indices_.reserve(shortIndices.size());
-            std::transform(shortIndices.begin(), shortIndices.end(),
-                std::back_inserter(mesh.indices_),
+
+            auto indices = std::vector<uint32_t>();
+            indices.reserve(shortIndices.size());
+            std::transform(shortIndices.begin(), shortIndices.end(), std::back_inserter(indices),
                 [](uint16_t index) { return static_cast<uint32_t>(index); });
+            mesh.SetIndices(std::move(indices));
         }
     }
     catch (const std::exception& e)
@@ -326,33 +328,33 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
         {
             if (attribute.name == "POSITION")
             {
-                mesh.positions_ = LoadMeshAttribute<glm::vec3>(
-                    accessorIndex, attribute.type, attribute.componentType);
+                mesh.SetPositions(LoadMeshAttribute<glm::vec3>(
+                    accessorIndex, attribute.type, attribute.componentType));
             }
             else if (attribute.name == "NORMAL")
             {
-                mesh.normals_ = LoadMeshAttribute<glm::vec3>(
-                    accessorIndex, attribute.type, attribute.componentType);
+                mesh.SetNormals(LoadMeshAttribute<glm::vec3>(
+                    accessorIndex, attribute.type, attribute.componentType));
             }
             else if (attribute.name == "TANGENT")
             {
-                mesh.tangents_ = LoadMeshAttribute<glm::vec4>(
-                    accessorIndex, attribute.type, attribute.componentType);
+                mesh.SetTangents(LoadMeshAttribute<glm::vec4>(
+                    accessorIndex, attribute.type, attribute.componentType));
             }
             else if (attribute.name == "TEXCOORD_0")
             {
-                mesh.texCoord0_ = LoadMeshAttribute<glm::vec2>(
-                    accessorIndex, attribute.type, attribute.componentType);
+                mesh.SetTexCoord0(LoadMeshAttribute<glm::vec2>(
+                    accessorIndex, attribute.type, attribute.componentType));
             }
             else if (attribute.name == "TEXCOORD_1")
             {
-                mesh.texCoord1_ = LoadMeshAttribute<glm::vec2>(
-                    accessorIndex, attribute.type, attribute.componentType);
+                mesh.SetTexCoord1(LoadMeshAttribute<glm::vec2>(
+                    accessorIndex, attribute.type, attribute.componentType));
             }
             else if (attribute.name == "COLOR_0")
             {
-                mesh.color0_ = LoadMeshAttribute<glm::vec4>(
-                    accessorIndex, attribute.type, attribute.componentType);
+                mesh.SetColor0(LoadMeshAttribute<glm::vec4>(
+                    accessorIndex, attribute.type, attribute.componentType));
             }
         }
         catch (const std::exception& e)
@@ -362,10 +364,9 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
         }
     }
 
-    spdlog::trace("Loaded new mesh \"{}\", triangles: {}, attributes: P-N{}{}{}{}-I", mesh.name_,
-        mesh.indices_.size() / 3, (mesh.tangents_.empty() ? "" : "-T"),
-        (mesh.texCoord0_.empty() ? "" : "-U0"), (mesh.texCoord1_.empty() ? "" : "-U1"),
-        (mesh.color0_.empty() ? "" : "-C0"));
+    // Build the mesh
+    spdlog::trace(
+        "Loaded new mesh \"{}\", triangles: {}", meshPtr->GetName(), meshPtr->GetTriangleCount());
 
     // Cache and return the loaded mesh
     loadedMeshes_.emplace(std::pair(meshIndex, primitiveIndex), meshPtr);
@@ -392,10 +393,10 @@ std::shared_ptr<TextureImage> GLTF::LoadImage(size_t imageIndex)
     auto& imageData = (*gltfData_)["images"][imageIndex];
     if (!imageData.contains("uri")) throw std::runtime_error("Only URI-based images are supported");
     auto image = std::make_shared<TextureImage>(basePath_ / imageData["uri"].get<std::string>());
-    image->name_ = imageData.value("name", "Unnamed_Image");
+    image->SetName(imageData.value("name", "Unnamed_Image"));
 
-    spdlog::trace("Loaded new image \"{}\" ({}x{}, {} channels)", image->name_, image->width_,
-        image->height_, image->channels_);
+    spdlog::trace("Loaded new image \"{}\" ({}x{}, {} channels)", image->GetName(),
+        image->GetWidth(), image->GetHeight(), image->GetChannels());
 
     // Emplace in cache and return
     loadedImages_.emplace(imageIndex, image);
@@ -410,39 +411,41 @@ Material GLTF::LoadMaterial(size_t materialIndex)
 
     // Load emissive texture and factor
     if (pbrData.contains("emissiveTexture"))
-        material.emissiveTexture_ = LoadTexture(pbrData["emissiveTexture"]["index"].get<size_t>());
-    material.emissiveFactor_ =
+        material.SetEmissiveTexture(
+            LoadTexture(pbrData["emissiveTexture"]["index"].get<size_t>()));
+    material.SetEmissiveFactor(
         pbrData.contains("emissiveFactor")
             ? glm::make_vec3(pbrData["emissiveFactor"].get<std::vector<float>>().data())
-            : glm::vec3(1.0f);
+            : glm::vec3(1.0f));
 
     // Load PBR material properties
-    material.name_ = materialData.value("name", "Unnamed_Material");
-    material.baseColorFactor_ =
+    material.SetName(materialData.value("name", "Unnamed_Material"));
+    material.SetBaseColorFactor(
         pbrData.contains("baseColorFactor")
             ? glm::make_vec4(pbrData["baseColorFactor"].get<std::vector<float>>().data())
-            : glm::vec4(1.0f);
-    material.metallicFactor_ = pbrData.value("metallicFactor", 1.0f);
-    material.roughnessFactor_ = pbrData.value("roughnessFactor", 1.0f);
+            : glm::vec4(1.0f));
+    material.SetMetallicFactor(pbrData.value("metallicFactor", 1.0f));
+    material.SetRoughnessFactor(pbrData.value("roughnessFactor", 1.0f));
 
     // Load textures if present
     if (pbrData.contains("baseColorTexture"))
-        material.baseColorTexture_ =
-            LoadTexture(pbrData["baseColorTexture"]["index"].get<size_t>());
+        material.SetBaseColorTexture(
+            LoadTexture(pbrData["baseColorTexture"]["index"].get<size_t>()));
     if (pbrData.contains("metallicRoughnessTexture"))
-        material.metallicRoughnessTexture_ =
-            LoadTexture(pbrData["metallicRoughnessTexture"]["index"].get<size_t>());
+        material.SetMetallicRoughnessTexture(
+            LoadTexture(pbrData["metallicRoughnessTexture"]["index"].get<size_t>()));
 
     // Load normal texture if present
     if (materialData.contains("normalTexture"))
-        material.normalTexture_ = LoadTexture(materialData["normalTexture"]["index"].get<size_t>());
-    material.normalScale_ = materialData.value("normalTexture", 1.0f);
+        material.SetNormalTexture(
+            LoadTexture(materialData["normalTexture"]["index"].get<size_t>()));
+    material.SetNormalScale(materialData.value("normalTexture", 1.0f));
 
     // Load occlusion texture if present
     if (materialData.contains("occlusionTexture"))
-        material.occlusionTexture_ =
-            LoadTexture(materialData["occlusionTexture"]["index"].get<size_t>());
-    material.occlusionStrength_ = materialData.value("occlusionStrength", 1.0f);
+        material.SetOcclusionTexture(
+            LoadTexture(materialData["occlusionTexture"]["index"].get<size_t>()));
+    material.SetOcclusionStrength(materialData.value("occlusionStrength", 1.0f));
 
     // Load alpha properties
     static const std::map<std::string, Material::TransparencyMode> alphaModeMap = {
@@ -452,17 +455,16 @@ Material GLTF::LoadMaterial(size_t materialIndex)
     std::string alphaMode = materialData.value("alphaMode", "OPAQUE");
     try
     {
-        material.transparencyMode_ = alphaModeMap.at(alphaMode);
+        material.SetTransparencyMode(alphaModeMap.at(alphaMode));
     }
     catch (const std::out_of_range&)
     {
         throw std::runtime_error("Unsupported alpha mode in material");
     }
-    material.alphaCutoff_ = materialData.value("alphaCutoff", 0.5f);
-    material.doubleSided_ = materialData.value("doubleSided", false);
+    material.SetAlphaCutoff(materialData.value("alphaCutoff", 0.5f));
+    material.SetDoubleSided(materialData.value("doubleSided", false));
 
-    spdlog::trace("Loaded new material \"{}\"", material.name_);
-
+    spdlog::trace("Loaded new material \"{}\"", material.GetName());
     return material;
 }
 
@@ -628,8 +630,7 @@ std::vector<MeshInstance> GLTF::LoadNodeMeshes(size_t nodeIndex, const glm::mat4
     return instances;
 }
 
-std::vector<MeshInstance> GLTF::LoadSceneMeshes(
-    size_t sceneIndex, const glm::mat4& transform)
+std::vector<MeshInstance> GLTF::LoadSceneMeshes(size_t sceneIndex, const glm::mat4& transform)
 {
     const auto& sceneData = (*gltfData_)["scenes"][sceneIndex];
 
@@ -740,8 +741,7 @@ std::vector<Camera> GLTF::LoadNodeCameras(size_t nodeIndex, const glm::mat4& tra
     return cameras;
 }
 
-std::vector<Camera> GLTF::LoadSceneCameras(
-    size_t sceneIndex, const glm::mat4& transform) const
+std::vector<Camera> GLTF::LoadSceneCameras(size_t sceneIndex, const glm::mat4& transform) const
 {
     std::vector<Camera> cameras;
     const auto& sceneData = (*gltfData_)["scenes"][sceneIndex];

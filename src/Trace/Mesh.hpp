@@ -14,7 +14,6 @@
 
 class Mesh
 {
-    friend class GLTF;
     using MeshHash = uint32_t;
 
    private:
@@ -33,14 +32,25 @@ class Mesh
     virtual ~Mesh();
 
    public:
-    const std::string& GetName() const noexcept { return name_; }
-    const std::vector<glm::vec3>& GetPositions() const noexcept { return positions_; }
-    const std::vector<glm::vec3>& GetNormals() const noexcept { return normals_; }
-    const std::vector<glm::vec4>& GetTangents() const noexcept { return tangents_; }
-    const std::vector<glm::vec2>& GetTexCoord0() const noexcept { return texCoord0_; }
-    const std::vector<glm::vec2>& GetTexCoord1() const noexcept { return texCoord1_; }
-    const std::vector<glm::vec4>& GetColor0() const noexcept { return color0_; }
-    const std::vector<uint32_t>& GetIndices() const noexcept { return indices_; }
+    const auto& GetName() const noexcept { return name_; }
+    const auto& GetPositions() const noexcept { return positions_; }
+    const auto& GetNormals() const noexcept { return normals_; }
+    const auto& GetTangents() const noexcept { return tangents_; }
+    const auto& GetTexCoord0() const noexcept { return texCoord0_; }
+    const auto& GetTexCoord1() const noexcept { return texCoord1_; }
+    const auto& GetColor0() const noexcept { return color0_; }
+    const auto& GetIndices() const noexcept { return indices_; }
+
+    auto GetTriangleCount() const noexcept { return indices_.size() / 3; }
+
+    void SetName(const auto& name) noexcept { name_ = name; }
+    void SetPositions(const auto& positions) noexcept { positions_ = positions; }
+    void SetNormals(const auto& normals) noexcept { normals_ = normals; }
+    void SetTangents(const auto& tangents) noexcept { tangents_ = tangents; }
+    void SetTexCoord0(const auto& texCoord0) noexcept { texCoord0_ = texCoord0; }
+    void SetTexCoord1(const auto& texCoord1) noexcept { texCoord1_ = texCoord1; }
+    void SetColor0(const auto& color0) noexcept { color0_ = color0; }
+    void SetIndices(const auto& indices) noexcept { indices_ = indices; }
 
    public:
     MeshHash GetMeshHash() const noexcept;

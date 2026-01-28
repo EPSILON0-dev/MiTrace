@@ -1,7 +1,7 @@
 /**
  * @file Material.hpp
- * 
- * Material representation including textures (with image references) and 
+ *
+ * Material representation including textures (with image references) and
  * factors for rendering.
  */
 #pragma once
@@ -15,8 +15,6 @@
 
 class Material
 {
-    friend class GLTF;
-
    public:
     enum class TransparencyMode : uint8_t
     {
@@ -25,7 +23,7 @@ class Material
         BLEND
     };
 
-    public:
+   public:
     struct MaterialPoint
     {
         glm::vec4 baseColor;
@@ -69,6 +67,56 @@ class Material
           occlusionStrength_(1.0f)
     {
     }
+
+   public:
+    void SetName(const auto& name) noexcept { name_ = name; }
+    void SetBaseColorTexture(const auto& baseColorTexture) noexcept
+    {
+        baseColorTexture_ = baseColorTexture;
+    }
+    void SetMetallicRoughnessTexture(const auto& metallicRoughnessTexture) noexcept
+    {
+        metallicRoughnessTexture_ = metallicRoughnessTexture;
+    }
+    void SetNormalTexture(const auto& normalTexture) noexcept { normalTexture_ = normalTexture; }
+    void SetOcclusionTexture(const auto& occlusionTexture) noexcept
+    {
+        occlusionTexture_ = occlusionTexture;
+    }
+    void SetEmissiveTexture(const auto& emissiveTexture) noexcept
+    {
+        emissiveTexture_ = emissiveTexture;
+    }
+    void SetBaseColorFactor(const auto& baseColorFactor) noexcept
+    {
+        baseColorFactor_ = baseColorFactor;
+    }
+    void SetEmissiveFactor(const auto& emissiveFactor) noexcept
+    {
+        emissiveFactor_ = emissiveFactor;
+    }
+    void SetNormalScale(const auto& normalScale) noexcept { normalScale_ = normalScale; }
+    void SetMetallicFactor(const auto& metallicFactor) noexcept
+    {
+        metallicFactor_ = metallicFactor;
+    }
+    void SetRoughnessFactor(const auto& roughnessFactor) noexcept
+    {
+        roughnessFactor_ = roughnessFactor;
+    }
+    void SetOcclusionStrength(const auto& occlusionStrength) noexcept
+    {
+        occlusionStrength_ = occlusionStrength;
+    }
+    void SetAlphaCutoff(const auto& alphaCutoff) noexcept { alphaCutoff_ = alphaCutoff; }
+    void SetTransparencyMode(const auto& transparencyMode) noexcept
+    {
+        transparencyMode_ = transparencyMode;
+    }
+    void SetDoubleSided(const auto& doubleSided) noexcept { doubleSided_ = doubleSided; }
+
+   public:
+    const auto& GetName() const noexcept { return name_; }
 
     glm::vec4 GetBaseColor(const glm::vec2& texCoord) const noexcept
     {
