@@ -53,6 +53,7 @@ void Scene::MergeEquivalentMeshes()
     }
 
     // Effectively does nothing, still no harm in keeping it, at least for now
+    // XXX Maybe delete this
 }
 
 void Scene::Optimize()
