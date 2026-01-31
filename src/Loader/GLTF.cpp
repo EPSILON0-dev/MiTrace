@@ -250,7 +250,7 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
 
     // Create a new mesh builder
     auto meshPtr = std::make_shared<Mesh>();
-    auto mesh = *meshPtr;
+    auto& mesh = *meshPtr;
 
     // Load the useless name
     mesh.SetName((*gltfData_)["meshes"][meshIndex].value("name", "Unnamed_Mesh"));
@@ -411,8 +411,7 @@ Material GLTF::LoadMaterial(size_t materialIndex)
 
     // Load emissive texture and factor
     if (pbrData.contains("emissiveTexture"))
-        material.SetEmissiveTexture(
-            LoadTexture(pbrData["emissiveTexture"]["index"].get<size_t>()));
+        material.SetEmissiveTexture(LoadTexture(pbrData["emissiveTexture"]["index"].get<size_t>()));
     material.SetEmissiveFactor(
         pbrData.contains("emissiveFactor")
             ? glm::make_vec3(pbrData["emissiveFactor"].get<std::vector<float>>().data())

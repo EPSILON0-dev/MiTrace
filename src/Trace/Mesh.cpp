@@ -1,8 +1,9 @@
 #include "Mesh.hpp"
 
+#include <spdlog/spdlog.h>
+
 #include <cstddef>
 #include <numeric>
-#include <spdlog/spdlog.h>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/intersect.hpp>
