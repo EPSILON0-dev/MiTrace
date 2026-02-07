@@ -176,6 +176,41 @@ std::vector<T> GLTF::LoadMeshAttribute(
     return LoadMeshAttributeData<T>(bufferView, accessor, expectedType, expectedComponentType);
 }
 
+std::vector<uint32_t> GLTF::LoadMeshIndices(size_t accessor)
+{
+    try
+    {
+        bool areIndicesUnsignedInt =
+            IsAccessorCorrect(accessor, AttributeType::Scalar, ComponentType::UnsignedInt);
+        bool areIndicesUnsignedShort =
+            IsAccessorCorrect(accessor, AttributeType::Scalar, ComponentType::UnsignedShort);
+
+        if (!areIndicesUnsignedInt && !areIndicesUnsignedShort)
+            throw std::runtime_error("Indices accessor has unsupported component type");
+
+        if (areIndicesUnsignedInt)
+        {
+            return LoadMeshAttribute<uint32_t>(
+                accessor, AttributeType::Scalar, ComponentType::UnsignedInt);
+        }
+        else
+        {
+            auto shortIndices = LoadMeshAttribute<uint16_t>(
+                accessor, AttributeType::Scalar, ComponentType::UnsignedShort);
+
+            auto indices = std::vector<uint32_t>();
+            indices.reserve(shortIndices.size());
+            std::transform(shortIndices.begin(), shortIndices.end(), std::back_inserter(indices),
+                [](uint16_t index) { return static_cast<uint32_t>(index); });
+            return indices;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(std::format("Failed to load INDICES: {}", e.what()));
+    }
+}
+
 Texture GLTF::LoadTexture(size_t textureIndex)
 {
     const auto& textureData = (*gltfData_)["textures"][textureIndex];
@@ -271,38 +306,10 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
     if (!attributes.contains("POSITION") || !attributes.contains("NORMAL"))
         throw std::runtime_error("POSITION and NORMAL attributes are required");
 
-    // Load indices
-    try
+    // Load indices if present
+    if (primitiveData["indices"].is_number_unsigned())
     {
-        size_t indicesAcc = primitiveData["indices"].get<size_t>();
-        bool areIndicesUnsignedInt =
-            IsAccessorCorrect(indicesAcc, AttributeType::Scalar, ComponentType::UnsignedInt);
-        bool areIndicesUnsignedShort =
-            IsAccessorCorrect(indicesAcc, AttributeType::Scalar, ComponentType::UnsignedShort);
-
-        if (!areIndicesUnsignedInt && !areIndicesUnsignedShort)
-            throw std::runtime_error("Indices accessor has unsupported component type");
-
-        if (areIndicesUnsignedInt)
-        {
-            mesh.indices = LoadMeshAttribute<uint32_t>(
-                indicesAcc, AttributeType::Scalar, ComponentType::UnsignedInt);
-        }
-        else
-        {
-            auto shortIndices = LoadMeshAttribute<uint16_t>(
-                indicesAcc, AttributeType::Scalar, ComponentType::UnsignedShort);
-
-            auto indices = std::vector<uint32_t>();
-            indices.reserve(shortIndices.size());
-            std::transform(shortIndices.begin(), shortIndices.end(), std::back_inserter(indices),
-                [](uint16_t index) { return static_cast<uint32_t>(index); });
-            mesh.indices = std::move(indices);
-        }
-    }
-    catch (const std::exception& e)
-    {
-        throw std::runtime_error(std::format("Failed to load INDICES: {}", e.what()));
+        mesh.indices = LoadMeshIndices(primitiveData["indices"].get<size_t>());
     }
 
     // Load the rest of the attributes

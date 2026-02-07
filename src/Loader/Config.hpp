@@ -20,13 +20,6 @@ class Config
             std::string filename = "";
             std::string config = "";
         } input;
-
-        struct
-        {
-            unsigned bounces = 5;
-            unsigned pixelsPerBucket = 16;
-            unsigned samplesPerBucket = 8;
-        } render;
     };
 
    private:

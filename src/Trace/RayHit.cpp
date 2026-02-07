@@ -10,9 +10,9 @@ RayHitGeometryInfo::RayHitGeometryInfo(const RayHit& rayHit) noexcept
 
     auto interpolate = [&](const auto& dataArray, bool normalize = false)
     {
-        const auto& v0 = dataArray[mesh.GetIndices()[triangleIndex * 3 + 0]];
-        const auto& v1 = dataArray[mesh.GetIndices()[triangleIndex * 3 + 1]];
-        const auto& v2 = dataArray[mesh.GetIndices()[triangleIndex * 3 + 2]];
+        const auto& v0 = dataArray[triangleIndex * 3 + 0];
+        const auto& v1 = dataArray[triangleIndex * 3 + 1];
+        const auto& v2 = dataArray[triangleIndex * 3 + 2];
         if (normalize)
         {
             return glm::normalize(

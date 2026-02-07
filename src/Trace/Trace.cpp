@@ -1,5 +1,3 @@
-// FIXME File needs fixes
-
 #include "Trace/Trace.hpp"
 
 #include <spdlog/spdlog.h>
@@ -19,7 +17,7 @@
 
 Ray Trace::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
 {
-    float fovScale = tanf(camera_.GetYFovRadians() * 0.5f);
+    float fovScale = tanf(camera_.GetFov() * 0.5f);
     float px = (2.0f * u - 1.0f) * fovScale * aspectRatio;
     float py = (2.0f * v - 1.0f) * fovScale;
 

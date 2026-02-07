@@ -11,13 +11,13 @@ class Camera
 {
    private:
     glm::mat4 cameraToWorld_;
-    float yfovRadians_;
+    float fov_;
 
    public:
-    Camera() noexcept : yfovRadians_(glm::radians(60.0f)) {};
+    Camera() noexcept : fov_(glm::radians(60.0f)) {};
 
     Camera(const Loader::Camera& cam)
-        : cameraToWorld_(cam.cameraToWorld), yfovRadians_(cam.perspectiveFovY)
+        : cameraToWorld_(cam.cameraToWorld), fov_(cam.perspectiveFovY)
     {
         if (cam.type == Loader::CameraType::Orthogonal)
             throw std::runtime_error("Orthogonal camera not implemented");
@@ -25,7 +25,7 @@ class Camera
 
    public:
     inline glm::mat4 GetCameraToWorld() const noexcept { return cameraToWorld_; }
-    inline float GetYFovRadians() const noexcept { return yfovRadians_; }
+    inline float GetFov() const noexcept { return fov_; }
 };
 
 }  // namespace Scene

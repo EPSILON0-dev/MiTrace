@@ -26,18 +26,16 @@ static std::optional<RayHit> IntersectMeshInstanceInner(
     localRay.direction =
         glm::normalize(glm::vec3(invModelToWorld * glm::vec4(ray.direction, 0.0f)));
 
+    // Find the closest triangle intersection
     float dist = std::numeric_limits<float>::max();
     glm::vec2 baryCoord = glm::vec2(0.0f);
     size_t triangleIndex = 0;
-
     auto positions = meshInstance.GetMesh().GetPositions();
-    auto indices = meshInstance.GetMesh().GetIndices();
-
-    for (size_t i = 0; i < indices.size(); i += 3)
+    for (size_t i = 0; i < positions.size(); i += 3)
     {
-        const glm::vec3& v0 = positions[indices[i + 0]];
-        const glm::vec3& v1 = positions[indices[i + 1]];
-        const glm::vec3& v2 = positions[indices[i + 2]];
+        const glm::vec3& v0 = positions[i + 0];
+        const glm::vec3& v1 = positions[i + 1];
+        const glm::vec3& v2 = positions[i + 2];
 
         float currentDistance;
         glm::vec2 currentBaryCoord;
@@ -54,6 +52,7 @@ static std::optional<RayHit> IntersectMeshInstanceInner(
         }
     }
 
+    // If there is an intersection, transform the hit position back to world space and return the hit info
     if (dist < std::numeric_limits<float>::max())
     {
         RayHit hit;

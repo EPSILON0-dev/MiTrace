@@ -69,6 +69,7 @@ class GLTF
     template <typename T>
     std::vector<T> LoadMeshAttribute(
         size_t accessorIndex, AttributeType expectedType, ComponentType expectedComponentType);
+    std::vector<uint32_t> LoadMeshIndices(size_t accessor);
     glm::mat4 ComputeNodeTransform(size_t nodeIndex) const;
 
     Light LoadPointLight(size_t lightIndex) const;
