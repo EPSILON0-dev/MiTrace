@@ -1,8 +1,10 @@
+// FIXME File needs fixes
+
 /**
  * @file Trace.hpp
- * 
+ *
  * The tracer entry point, responsible for rendering a scene from a camera's
- * perspective into a render buffer. 
+ * perspective into a render buffer.
  *
  * Interface:
  *  - Trace(imageBuffer, camera, scene) : Creates the tracer instance.
@@ -13,11 +15,11 @@
 #include <memory>
 #include <random>
 
-#include "Trace/Camera.hpp"
+#include "Scene/Camera.hpp"
+#include "Scene/Scene.hpp"
 #include "Trace/Ray.hpp"
 #include "Trace/RayHit.hpp"
 #include "Trace/RenderBuffer.hpp"
-#include "Trace/Scene.hpp"
 
 class Trace
 {
@@ -27,7 +29,7 @@ class Trace
         Ray incomingRay;
         Ray outgoingRay;
         RayHit hitInfo;
-        Material::MaterialPoint materialPoint;
+        Scene::Material::MaterialPoint materialPoint;
         glm::vec3 effectiveNormal;
         glm::vec3 energyTransfer;
     };
@@ -46,14 +48,15 @@ class Trace
    private:
     // Scene components
     std::shared_ptr<RenderBuffer> imageBuffer_;
-    const Camera& camera_;
-    const Scene& scene_;
+    const Scene::Camera& camera_;
+    const Scene::Scene& scene_;
     std::random_device rd_;
     std::mt19937 rng_;
 
    private:
+    Ray GenerateCameraRay(float u, float v, float aspectRatio) const noexcept;
     std::optional<RayHit> TraceScene(
-        const Ray& ray, const Scene& scene, bool anyHit = false) noexcept;
+        const Ray& ray, const Scene::Scene& scene, bool anyHit = false) noexcept;
     glm::vec3 GenerateHemisphereDirection(const glm::vec3& normal) noexcept;
     glm::vec3 ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept;
     Ray ReflectSpecular(const RayHit& hit, const glm::vec3& normal, float roughness) noexcept;
@@ -69,8 +72,8 @@ class Trace
     */
 
    public:
-    Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Camera& camera,
-        const Scene& scene) noexcept;
+    Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Camera& camera,
+        const Scene::Scene& scene) noexcept;
     ~Trace() = default;
 
     void RenderNormal();

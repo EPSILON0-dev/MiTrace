@@ -4,32 +4,29 @@
 #include <map>
 #include <memory>
 #include <nlohmann/json_fwd.hpp>
+#include <optional>
 #include <vector>
 
-#include "Trace/Camera.hpp"
-#include "Trace/Light.hpp"
-#include "Trace/Material.hpp"
-#include "Trace/Mesh.hpp"
-#include "Trace/MeshInstance.hpp"
-#include "Trace/Scene.hpp"
-#include "Trace/TextureImage.hpp"
+#include "Types.hpp"
 
+namespace Loader
+{
 class GLTF
 {
    private:  // Mesh related types
     enum class ComponentType : uint16_t
     {
-        FLOAT = 5126,
-        UNSIGNED_SHORT = 5123,
-        UNSIGNED_INT = 5125
+        Float = 5126,
+        UnsignedShort = 5123,
+        UnsignedInt = 5125
     };
 
     enum class AttributeType : uint8_t
     {
-        SCALAR,
-        VEC2,
-        VEC3,
-        VEC4
+        Scalar,
+        Vec2,
+        Vec3,
+        Vec4
     };
 
     struct Accessor
@@ -57,7 +54,7 @@ class GLTF
     std::unique_ptr<nlohmann::json> gltfData_;
     std::map<size_t, std::vector<uint8_t>> loadedBuffers_;
     std::map<size_t, std::shared_ptr<Material>> loadedMaterials_;
-    std::map<size_t, std::shared_ptr<TextureImage>> loadedImages_;
+    std::map<size_t, std::shared_ptr<Image>> loadedImages_;
     std::map<std::pair<size_t, size_t>, std::shared_ptr<Mesh>> loadedMeshes_;
 
    private:  // Helper methods
@@ -74,10 +71,10 @@ class GLTF
         size_t accessorIndex, AttributeType expectedType, ComponentType expectedComponentType);
     glm::mat4 ComputeNodeTransform(size_t nodeIndex) const;
 
-    Light::PointLight LoadPointLight(size_t lightIndex) const;
-    Light::DirectionalLight LoadDirectionalLight(size_t lightIndex) const;
-    Light::SpotLight LoadSpotLight(size_t lightIndex) const;
-    Light::AreaLight LoadAreaLight(size_t lightIndex) const;
+    Light LoadPointLight(size_t lightIndex) const;
+    Light LoadDirectionalLight(size_t lightIndex) const;
+    Light LoadSpotLight(size_t lightIndex) const;
+    Light LoadAreaLight(size_t lightIndex) const;
 
    public:  // Rule of five
     GLTF(const std::filesystem::path& filePath);
@@ -90,7 +87,7 @@ class GLTF
 
    public:  // Loaders
     using Mesh_sptr = std::shared_ptr<Mesh>;
-    using TexImage_sptr = std::shared_ptr<TextureImage>;
+    using TexImage_sptr = std::shared_ptr<Image>;
     using MeshInstance_vec = std::vector<MeshInstance>;
     using Light_vec = std::vector<Light>;
     using Camera_vec = std::vector<Camera>;
@@ -121,3 +118,4 @@ class GLTF
    public:  // Other methods
     void Cleanup();
 };
+}  // namespace Loader

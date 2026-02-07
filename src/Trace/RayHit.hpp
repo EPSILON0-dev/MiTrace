@@ -1,6 +1,6 @@
 /**
  * @file RayHit.hpp
- * 
+ *
  * Representation of ray intersection results with scene geometry.
  */
 #pragma once
@@ -8,14 +8,18 @@
 #include "Ray.hpp"
 
 // Forward declaration
-class MeshInstance;  
+namespace Scene
+{
+class MeshInstance;
+}
+
 class RayHit;
 class RayHitGeometryInfo;
 
 class RayHit : public Ray
 {
    public:
-    const MeshInstance* meshInstance;
+    const Scene::MeshInstance* meshInstance;
     glm::vec2 baryCoord;
     glm::vec3 worldPosition;
     size_t triangleIndex;

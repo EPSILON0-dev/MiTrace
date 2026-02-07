@@ -1,14 +1,20 @@
 #include "GLTF.hpp"
 
 #include <spdlog/spdlog.h>
+#include <stb/stb_image.h>
 
 #include <format>
 #include <fstream>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
+
+#include "Loader/Types.hpp"
+
+using namespace Loader;
 
 GLTF::GLTF(const std::filesystem::path& filePath)
     : filePath_(filePath), basePath_(filePath.parent_path())
@@ -73,10 +79,10 @@ GLTF::Accessor GLTF::ParseAccessor(size_t accessorIndex)
     auto attributeType = accessorData["type"].get<std::string>();
 
     static const std::map<std::string, AttributeType> typeComponentCounts = {
-        {"SCALAR", AttributeType::SCALAR},                                           // SCALAR
-        {"VEC2", AttributeType::VEC2},                                               // VEC2
-        {"VEC3", AttributeType::VEC3},                                               // VEC3
-        {"VEC4", AttributeType::VEC4}};                                              // VEC4
+        {"SCALAR", AttributeType::Scalar},                                           // SCALAR
+        {"VEC2", AttributeType::Vec2},                                               // VEC2
+        {"VEC3", AttributeType::Vec3},                                               // VEC3
+        {"VEC4", AttributeType::Vec4}};                                              // VEC4
     static const std::map<std::string, size_t> typeComponentSizes = {{"SCALAR", 1},  // SCALAR
         {"VEC2", 2},                                                                 // VEC2
         {"VEC3", 3},                                                                 // VEC3
@@ -92,9 +98,9 @@ GLTF::Accessor GLTF::ParseAccessor(size_t accessorIndex)
     }
 
     static const std::map<size_t, ComponentType> componentTypes = {
-        {5126, ComponentType::FLOAT},           // FLOAT
-        {5123, ComponentType::UNSIGNED_SHORT},  // UNSIGNED SHORT
-        {5125, ComponentType::UNSIGNED_INT}     // UNSIGNED INT
+        {5126, ComponentType::Float},          // FLOAT
+        {5123, ComponentType::UnsignedShort},  // UNSIGNED SHORT
+        {5125, ComponentType::UnsignedInt}     // UNSIGNED INT
     };
     static const std::map<size_t, size_t> componentSizes = {
         {5126, sizeof(float)},     // FLOAT
@@ -183,14 +189,14 @@ Texture GLTF::LoadTexture(size_t textureIndex)
         if (texCoordSet != 0) throw std::runtime_error("Only TEXCOORD_0 is supported");
     }
 
-    TextureImage::FilterMode filterMode = TextureImage::FilterMode::Linear;
-    const static std::map<size_t, TextureImage::FilterMode> filterModeMap = {
-        {9728, TextureImage::FilterMode::Nearest},  // NEAREST
-        {9984, TextureImage::FilterMode::Nearest},  // NEAREST
-        {9985, TextureImage::FilterMode::Nearest},  // NEAREST
-        {9729, TextureImage::FilterMode::Linear},   // LINEAR
-        {9986, TextureImage::FilterMode::Linear},   // LINEAR
-        {9987, TextureImage::FilterMode::Linear}};  // LINEAR
+    SamplerFilter filterMode = SamplerFilter::Linear;
+    const static std::map<size_t, SamplerFilter> filterModeMap = {
+        {9728, SamplerFilter::Nearest},  // NEAREST
+        {9984, SamplerFilter::Nearest},  // NEAREST
+        {9985, SamplerFilter::Nearest},  // NEAREST
+        {9729, SamplerFilter::Linear},   // LINEAR
+        {9986, SamplerFilter::Linear},   // LINEAR
+        {9987, SamplerFilter::Linear}};  // LINEAR
 
     if (textureData.contains("sampler"))
     {
@@ -206,7 +212,7 @@ Texture GLTF::LoadTexture(size_t textureIndex)
         }
     }
 
-    return Texture(imagePtr, filterMode);
+    return Texture{.image = imagePtr, .filter = filterMode};
 }
 
 glm::mat4 GLTF::ComputeNodeTransform(size_t nodeIndex) const
@@ -253,7 +259,7 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
     auto& mesh = *meshPtr;
 
     // Load the useless name
-    mesh.SetName((*gltfData_)["meshes"][meshIndex].value("name", "Unnamed_Mesh"));
+    mesh.name = (*gltfData_)["meshes"][meshIndex].value("name", "Unnamed_Mesh");
 
     // Validate primitive data
     const auto& primitiveData = (*gltfData_)["meshes"][meshIndex]["primitives"][primitiveIndex];
@@ -270,28 +276,28 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
     {
         size_t indicesAcc = primitiveData["indices"].get<size_t>();
         bool areIndicesUnsignedInt =
-            IsAccessorCorrect(indicesAcc, AttributeType::SCALAR, ComponentType::UNSIGNED_INT);
+            IsAccessorCorrect(indicesAcc, AttributeType::Scalar, ComponentType::UnsignedInt);
         bool areIndicesUnsignedShort =
-            IsAccessorCorrect(indicesAcc, AttributeType::SCALAR, ComponentType::UNSIGNED_SHORT);
+            IsAccessorCorrect(indicesAcc, AttributeType::Scalar, ComponentType::UnsignedShort);
 
         if (!areIndicesUnsignedInt && !areIndicesUnsignedShort)
             throw std::runtime_error("Indices accessor has unsupported component type");
 
         if (areIndicesUnsignedInt)
         {
-            mesh.SetIndices(LoadMeshAttribute<uint32_t>(
-                indicesAcc, AttributeType::SCALAR, ComponentType::UNSIGNED_INT));
+            mesh.indices = LoadMeshAttribute<uint32_t>(
+                indicesAcc, AttributeType::Scalar, ComponentType::UnsignedInt);
         }
         else
         {
             auto shortIndices = LoadMeshAttribute<uint16_t>(
-                indicesAcc, AttributeType::SCALAR, ComponentType::UNSIGNED_SHORT);
+                indicesAcc, AttributeType::Scalar, ComponentType::UnsignedShort);
 
             auto indices = std::vector<uint32_t>();
             indices.reserve(shortIndices.size());
             std::transform(shortIndices.begin(), shortIndices.end(), std::back_inserter(indices),
                 [](uint16_t index) { return static_cast<uint32_t>(index); });
-            mesh.SetIndices(std::move(indices));
+            mesh.indices = std::move(indices);
         }
     }
     catch (const std::exception& e)
@@ -307,12 +313,12 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
         ComponentType componentType;
         bool isRequired;
     } loadedAttributes[] = {
-        {"POSITION", AttributeType::VEC3, ComponentType::FLOAT, true},     // Required Vector3
-        {"NORMAL", AttributeType::VEC3, ComponentType::FLOAT, true},       // Required Vector3
-        {"TANGENT", AttributeType::VEC4, ComponentType::FLOAT, false},     // Optional Vector4
-        {"TEXCOORD_0", AttributeType::VEC2, ComponentType::FLOAT, false},  // Optional Vector2
-        {"TEXCOORD_1", AttributeType::VEC2, ComponentType::FLOAT, false},  // Optional Vector2
-        {"COLOR_0", AttributeType::VEC4, ComponentType::FLOAT, false}      // Optional Vector4
+        {"POSITION", AttributeType::Vec3, ComponentType::Float, true},     // Required Vector3
+        {"NORMAL", AttributeType::Vec3, ComponentType::Float, true},       // Required Vector3
+        {"TANGENT", AttributeType::Vec4, ComponentType::Float, false},     // Optional Vector4
+        {"TEXCOORD_0", AttributeType::Vec2, ComponentType::Float, false},  // Optional Vector2
+        {"TEXCOORD_1", AttributeType::Vec2, ComponentType::Float, false},  // Optional Vector2
+        {"COLOR_0", AttributeType::Vec4, ComponentType::Float, false}      // Optional Vector4
     };
 
     for (const auto& attribute : loadedAttributes)
@@ -328,33 +334,33 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
         {
             if (attribute.name == "POSITION")
             {
-                mesh.SetPositions(LoadMeshAttribute<glm::vec3>(
-                    accessorIndex, attribute.type, attribute.componentType));
+                mesh.positions = LoadMeshAttribute<glm::vec3>(
+                    accessorIndex, attribute.type, attribute.componentType);
             }
             else if (attribute.name == "NORMAL")
             {
-                mesh.SetNormals(LoadMeshAttribute<glm::vec3>(
-                    accessorIndex, attribute.type, attribute.componentType));
+                mesh.normals = LoadMeshAttribute<glm::vec3>(
+                    accessorIndex, attribute.type, attribute.componentType);
             }
             else if (attribute.name == "TANGENT")
             {
-                mesh.SetTangents(LoadMeshAttribute<glm::vec4>(
-                    accessorIndex, attribute.type, attribute.componentType));
+                mesh.tangents = LoadMeshAttribute<glm::vec4>(
+                    accessorIndex, attribute.type, attribute.componentType);
             }
             else if (attribute.name == "TEXCOORD_0")
             {
-                mesh.SetTexCoord0(LoadMeshAttribute<glm::vec2>(
-                    accessorIndex, attribute.type, attribute.componentType));
+                mesh.texCoord0 = LoadMeshAttribute<glm::vec2>(
+                    accessorIndex, attribute.type, attribute.componentType);
             }
             else if (attribute.name == "TEXCOORD_1")
             {
-                mesh.SetTexCoord1(LoadMeshAttribute<glm::vec2>(
-                    accessorIndex, attribute.type, attribute.componentType));
+                mesh.texCoord1 = LoadMeshAttribute<glm::vec2>(
+                    accessorIndex, attribute.type, attribute.componentType);
             }
             else if (attribute.name == "COLOR_0")
             {
-                mesh.SetColor0(LoadMeshAttribute<glm::vec4>(
-                    accessorIndex, attribute.type, attribute.componentType));
+                mesh.color0 = LoadMeshAttribute<glm::vec4>(
+                    accessorIndex, attribute.type, attribute.componentType);
             }
         }
         catch (const std::exception& e)
@@ -366,7 +372,7 @@ std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
 
     // Build the mesh
     spdlog::trace(
-        "Loaded new mesh \"{}\", triangles: {}", meshPtr->GetName(), meshPtr->GetTriangleCount());
+        "Loaded new mesh \"{}\", triangles: {}", meshPtr->name, meshPtr->indices.size() / 3);
 
     // Cache and return the loaded mesh
     loadedMeshes_.emplace(std::pair(meshIndex, primitiveIndex), meshPtr);
@@ -384,19 +390,29 @@ Material GLTF::LoadMeshMaterial(size_t meshIndex, size_t primitiveIndex)
     return LoadMaterial(materialIndex);
 }
 
-std::shared_ptr<TextureImage> GLTF::LoadImage(size_t imageIndex)
+std::shared_ptr<Image> GLTF::LoadImage(size_t imageIndex)
 {
     // Return from cache if already loaded
     if (loadedImages_.find(imageIndex) != loadedImages_.end()) return loadedImages_.at(imageIndex);
 
-    // Load the image
+    // Get the path
     auto& imageData = (*gltfData_)["images"][imageIndex];
     if (!imageData.contains("uri")) throw std::runtime_error("Only URI-based images are supported");
-    auto image = std::make_shared<TextureImage>(basePath_ / imageData["uri"].get<std::string>());
-    image->SetName(imageData.value("name", "Unnamed_Image"));
+    auto path = basePath_ / imageData["uri"].get<std::string>();
 
-    spdlog::trace("Loaded new image \"{}\" ({}x{}, {} channels)", image->GetName(),
-        image->GetWidth(), image->GetHeight(), image->GetChannels());
+    // Load image
+    auto image = std::make_shared<Image>();
+    FILE* f = fopen(path.string().c_str(), "rb");
+    uint8_t* pixels = stbi_load_from_file(f, &image->width, &image->height, &image->channels, 3);
+    fclose(f);
+
+    // Move the loaded image data into the Image object
+    if (!pixels) throw std::runtime_error(std::format("Failed to load image: {}", path.string()));
+    image->pixels = std::shared_ptr<uint8_t[]>(pixels, stbi_image_free);
+    image->name = imageData.value("name", "Unnamed_Image");
+
+    spdlog::trace("Loaded new image \"{}\" ({}x{}, {} channels)", image->name, image->width,
+        image->height, image->channels);
 
     // Emplace in cache and return
     loadedImages_.emplace(imageIndex, image);
@@ -411,59 +427,57 @@ Material GLTF::LoadMaterial(size_t materialIndex)
 
     // Load emissive texture and factor
     if (pbrData.contains("emissiveTexture"))
-        material.SetEmissiveTexture(LoadTexture(pbrData["emissiveTexture"]["index"].get<size_t>()));
-    material.SetEmissiveFactor(
+        material.emissiveTexture = LoadTexture(pbrData["emissiveTexture"]["index"].get<size_t>());
+    material.emissiveFactor =
         pbrData.contains("emissiveFactor")
             ? glm::make_vec3(pbrData["emissiveFactor"].get<std::vector<float>>().data())
-            : glm::vec3(1.0f));
+            : glm::vec3(1.0f);
 
     // Load PBR material properties
-    material.SetName(materialData.value("name", "Unnamed_Material"));
-    material.SetBaseColorFactor(
-        pbrData.contains("baseColorFactor")
-            ? glm::make_vec4(pbrData["baseColorFactor"].get<std::vector<float>>().data())
-            : glm::vec4(1.0f));
-    material.SetMetallicFactor(pbrData.value("metallicFactor", 1.0f));
-    material.SetRoughnessFactor(pbrData.value("roughnessFactor", 1.0f));
+    material.name = materialData.value("name", "Unnamed_Material");
+    material.baseColorFactor =
+        (pbrData.contains("baseColorFactor")
+                ? glm::make_vec4(pbrData["baseColorFactor"].get<std::vector<float>>().data())
+                : glm::vec4(1.0f));
+    material.metallicFactor = pbrData.value("metallicFactor", 1.0f);
+    material.roughnessFactor = pbrData.value("roughnessFactor", 1.0f);
 
     // Load textures if present
     if (pbrData.contains("baseColorTexture"))
-        material.SetBaseColorTexture(
-            LoadTexture(pbrData["baseColorTexture"]["index"].get<size_t>()));
+        material.baseColorTexture = LoadTexture(pbrData["baseColorTexture"]["index"].get<size_t>());
     if (pbrData.contains("metallicRoughnessTexture"))
-        material.SetMetallicRoughnessTexture(
-            LoadTexture(pbrData["metallicRoughnessTexture"]["index"].get<size_t>()));
+        material.metallicRoughnessTexture =
+            LoadTexture(pbrData["metallicRoughnessTexture"]["index"].get<size_t>());
 
     // Load normal texture if present
     if (materialData.contains("normalTexture"))
-        material.SetNormalTexture(
-            LoadTexture(materialData["normalTexture"]["index"].get<size_t>()));
-    material.SetNormalScale(materialData.value("normalTexture", 1.0f));
+        material.normalTexture = LoadTexture(materialData["normalTexture"]["index"].get<size_t>());
+    material.normalScale = materialData.value("normalTexture", 1.0f);
 
     // Load occlusion texture if present
     if (materialData.contains("occlusionTexture"))
-        material.SetOcclusionTexture(
-            LoadTexture(materialData["occlusionTexture"]["index"].get<size_t>()));
-    material.SetOcclusionStrength(materialData.value("occlusionStrength", 1.0f));
+        material.occlusionTexture =
+            LoadTexture(materialData["occlusionTexture"]["index"].get<size_t>());
+    material.occlusionStrength = materialData.value("occlusionStrength", 1.0f);
 
     // Load alpha properties
-    static const std::map<std::string, Material::TransparencyMode> alphaModeMap = {
-        {"OPAQUE", Material::TransparencyMode::OPAQUE},  // OPAQUE
-        {"MASK", Material::TransparencyMode::MASK},      // MASK
-        {"BLEND", Material::TransparencyMode::BLEND}};   // BLEND
+    static const std::map<std::string, TransparencyMode> alphaModeMap = {
+        {"OPAQUE", TransparencyMode::Opaque},  // OPAQUE
+        {"MASK", TransparencyMode::Mask},      // MASK
+        {"BLEND", TransparencyMode::Blend}};   // BLEND
     std::string alphaMode = materialData.value("alphaMode", "OPAQUE");
     try
     {
-        material.SetTransparencyMode(alphaModeMap.at(alphaMode));
+        material.transparencyMode = alphaModeMap.at(alphaMode);
     }
     catch (const std::out_of_range&)
     {
         throw std::runtime_error("Unsupported alpha mode in material");
     }
-    material.SetAlphaCutoff(materialData.value("alphaCutoff", 0.5f));
-    material.SetDoubleSided(materialData.value("doubleSided", false));
+    material.alphaCutoff = materialData.value("alphaCutoff", 0.5f);
+    material.doubleSided = materialData.value("doubleSided", false);
 
-    spdlog::trace("Loaded new material \"{}\"", material.GetName());
+    spdlog::trace("Loaded new material \"{}\"", material.name);
     return material;
 }
 
@@ -478,89 +492,99 @@ Camera GLTF::LoadCamera(size_t cameraIndex) const
     const auto& perspectiveData = cameraData["perspective"];
     float yfov = perspectiveData["yfov"].get<float>();
 
+    float aspectRatio = perspectiveData.value("aspectRatio", 1.0f);
+
     // We don't need these parameters
-    // float aspectRatio = perspectiveData.value("aspectRatio", 1.0f);
     // float znear = perspectiveData["znear"].get<float>();
     // float zfar = perspectiveData.value("zfar", 1000.0f);
 
-    return Camera(yfov);
+    return Camera{
+        .type = CameraType::Perspective,
+        .cameraToWorld = glm::identity<glm::mat4>(),
+        .perspectiveFovY = yfov,
+        .orthogonalSizeY = 0.0f,
+        .aspectRatio = aspectRatio,
+    };
 }
 
-Light::PointLight GLTF::LoadPointLight(size_t lightIndex) const
+Light GLTF::LoadPointLight(size_t lightIndex) const
 {
     const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
 
-    Light::PointLight pointLight;
+    Light light;
+    light.type = LightType::Point;
     if (lightData.contains("color"))
-        pointLight.Color = glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
+        light.color = glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
     else
-        pointLight.Color = glm::vec3(1.0f);
-    pointLight.Intensity = lightData.value("intensity", 1.0f);
-    pointLight.Range = lightData.value("range", 0.0f);
-    pointLight.Size = lightData.value("size", 0.0f);
-    return pointLight;
+        light.color = glm::vec3(1.0f);
+    light.intensity = lightData.value("intensity", 1.0f);
+    light.range = lightData.value("range", 0.0f);
+    light.pointSize = lightData.value("size", 0.0f);
+    return light;
 }
 
-Light::DirectionalLight GLTF::LoadDirectionalLight(size_t lightIndex) const
+Light GLTF::LoadDirectionalLight(size_t lightIndex) const
 {
     const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
 
-    Light::DirectionalLight directionalLight;
+    Light light;
+    light.type = LightType::Directional;
     if (lightData.contains("color"))
-        directionalLight.Color =
-            glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
+        light.color = glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
     else
-        directionalLight.Color = glm::vec3(1.0f);
-    directionalLight.Intensity = lightData.value("intensity", 1.0f);
-    directionalLight.Angle = lightData.value("angle", 0.0f);
-    return directionalLight;
+        light.color = glm::vec3(1.0f);
+    light.intensity = lightData.value("intensity", 1.0f);
+    light.directionalAngle = lightData.value("angle", 0.0f);
+    return light;
 }
 
-Light::SpotLight GLTF::LoadSpotLight(size_t lightIndex) const
+Light GLTF::LoadSpotLight(size_t lightIndex) const
 {
     const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
 
-    Light::SpotLight spotLight;
+    Light light;
+    light.type = LightType::Spot;
     if (lightData.contains("color"))
-        spotLight.Color = glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
+        light.color = glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
     else
-        spotLight.Color = glm::vec3(1.0f);
-    spotLight.Intensity = lightData.value("intensity", 1.0f);
-    spotLight.Range = lightData.value("range", 0.0f);
-    spotLight.Size = lightData.value("size", 0.0f);
-    spotLight.InnerConeAngle = lightData["spot"].value("innerConeAngle", 0.0f);
-    spotLight.OuterConeAngle = lightData["spot"].value("outerConeAngle", glm::quarter_pi<float>());
-    return spotLight;
+        light.color = glm::vec3(1.0f);
+    light.intensity = lightData.value("intensity", 1.0f);
+    light.range = lightData.value("range", 0.0f);
+    light.pointSize = lightData.value("size", 0.0f);
+    light.spotInnerConeAngle = lightData["spot"].value("innerConeAngle", 0.0f);
+    light.spotOuterConeAngle = lightData["spot"].value("outerConeAngle", glm::quarter_pi<float>());
+    return light;
 }
 
-Light::AreaLight GLTF::LoadAreaLight(size_t lightIndex) const
+Light GLTF::LoadAreaLight(size_t lightIndex) const
 {
     const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
 
     if (!lightData.contains("area_size"))
         throw std::runtime_error("Area light missing 'area_size' property");
 
-    Light::AreaLight areaLight;
+    Light light;
+    light.type = LightType::Area;
     if (lightData.contains("color"))
-        areaLight.Color = glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
+        light.color = glm::make_vec3(lightData["color"].get<std::vector<float>>().data());
     else
-        areaLight.Color = glm::vec3(1.0f);
-    areaLight.Intensity = lightData.value("intensity", 1.0f);
-    areaLight.Range = lightData.value("range", 0.0f);
-    areaLight.Size = glm::make_vec2(lightData["area_size"].get<std::vector<float>>().data());
-    return areaLight;
+        light.color = glm::vec3(1.0f);
+    light.intensity = lightData.value("intensity", 1.0f);
+    light.range = lightData.value("range", 0.0f);
+    light.areaSize = glm::make_vec2(lightData["area_size"].get<std::vector<float>>().data());
+    return light;
 }
 
 Light GLTF::LoadLight(size_t lightIndex, const glm::mat4& transform)
 {
     const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
 
-    static const std::map<std::string, Light::Type> lightTypeMap = {
-        {"point", Light::Type::POINT},              // POINT
-        {"directional", Light::Type::DIRECTIONAL},  // DIRECTIONAL
-        {"spot", Light::Type::SPOT},                // SPOT
-        {"area", Light::Type::AREA}};               // AREA
-    Light::Type type;
+    static const std::map<std::string, LightType> lightTypeMap = {
+        {"point", LightType::Point},              // Point
+        {"directional", LightType::Directional},  // Directional
+        {"spot", LightType::Spot},                // Spot
+        {"area", LightType::Area}};               // Area
+    LightType type;
     try
     {
         type = lightTypeMap.at(lightData["type"].get<std::string>());
@@ -570,19 +594,27 @@ Light GLTF::LoadLight(size_t lightIndex, const glm::mat4& transform)
         throw std::runtime_error("Unsupported light type in GLTF");
     }
 
+    Light light;
     switch (type)
     {
-        case Light::Type::POINT:
-            return Light(transform, LoadPointLight(lightIndex));
-        case Light::Type::DIRECTIONAL:
-            return Light(transform, LoadDirectionalLight(lightIndex));
-        case Light::Type::SPOT:
-            return Light(transform, LoadSpotLight(lightIndex));
-        case Light::Type ::AREA:
-            return Light(transform, LoadAreaLight(lightIndex));
+        case LightType::Point:
+            light = LoadPointLight(lightIndex);
+            break;
+        case LightType::Directional:
+            light = LoadDirectionalLight(lightIndex);
+            break;
+        case LightType::Spot:
+            light = LoadSpotLight(lightIndex);
+            break;
+        case LightType::Area:
+            light = LoadAreaLight(lightIndex);
+            break;
         default:
             throw std::runtime_error("Unsupported light type in GLTF");
     }
+
+    light.transform = transform;
+    return light;
 }
 
 std::vector<MeshInstance> GLTF::LoadNodeMeshes(size_t nodeIndex, const glm::mat4& transform)
@@ -603,7 +635,8 @@ std::vector<MeshInstance> GLTF::LoadNodeMeshes(size_t nodeIndex, const glm::mat4
                 auto meshIndex = nodeData["mesh"].get<size_t>();
                 auto meshPtr = LoadMesh(meshIndex, primitiveIndex);
                 auto material = LoadMeshMaterial(meshIndex, primitiveIndex);
-                instances.push_back(MeshInstance(std::move(meshPtr), material, worldTransform));
+                instances.push_back(MeshInstance{
+                    .mesh = std::move(meshPtr), .material = material, .transform = worldTransform});
             }
         }
         catch (const std::exception& e)
@@ -710,8 +743,8 @@ std::vector<Camera> GLTF::LoadNodeCameras(size_t nodeIndex, const glm::mat4& tra
         try
         {
             size_t cameraIndex = nodeData["camera"].get<size_t>();
-            Camera camera = LoadCamera(cameraIndex);
-            camera.SetCameraToWorld(worldTransform);
+            auto camera = LoadCamera(cameraIndex);
+            camera.cameraToWorld = worldTransform;
             cameras.push_back(camera);
 
             spdlog::trace("Loaded camera {} on node {} ({})", cameraIndex,
@@ -794,22 +827,22 @@ Scene GLTF::LoadScene(size_t sceneIndex, const glm::mat4& transform)
 
     // Load meshes
     auto meshInstances = LoadSceneMeshes(sceneIndex, transform);
-    for (auto& instance : meshInstances) scene.AddMeshInstance(std::move(instance));
+    for (auto& instance : meshInstances) scene.meshInstances.push_back(std::move(instance));
 
     // Load lights
     auto lights = LoadSceneLights(sceneIndex, transform);
-    for (auto& light : lights) scene.AddLight(std::move(light));
+    for (auto& light : lights) scene.lights.push_back(std::move(light));
 
     // Load environment texture if present
     auto envTexture = LoadSceneEnvironmentTexture();
     if (envTexture.has_value())
     {
-        scene.SetEnvironmentTexture(envTexture.value());
+        scene.environmentTexture = envTexture.value();
         spdlog::info("Loaded environment texture for the scene");
     }
 
     spdlog::info("Loaded scene {} with {} mesh instances and {} lights", sceneIndex,
-        scene.GetMeshInstances().size(), scene.GetLights().size());
+        scene.meshInstances.size(), scene.lights.size());
 
     return scene;
 }

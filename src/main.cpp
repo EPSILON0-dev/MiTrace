@@ -22,10 +22,13 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
     using std::chrono::steady_clock;
     using std::chrono::system_clock;
 
-    GLTF loader(gltfFilePath);
-    const auto camera = loader.LoadSceneCamera(0);
-    auto scene = loader.LoadScene(0);
-    scene.Optimize();
+    Loader::GLTF loader(gltfFilePath);
+
+    const auto loaderCamera = loader.LoadSceneCamera(0);
+    const auto loaderScene = loader.LoadScene(0);
+    const auto camera = Scene::Camera(loaderCamera);
+    const auto scene = Scene::Scene(loaderScene);
+
     loader.Cleanup();
     float renderDuration = 0.0f;
 

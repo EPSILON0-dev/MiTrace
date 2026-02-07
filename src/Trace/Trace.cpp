@@ -1,3 +1,5 @@
+// FIXME File needs fixes
+
 #include "Trace/Trace.hpp"
 
 #include <spdlog/spdlog.h>
@@ -6,29 +8,47 @@
 #include <glm/fwd.hpp>
 
 #include "Loader/Config.hpp"
+#include "Scene/MeshInstance.hpp"
 #include "Trace/BRDF.hpp"
+#include "Trace/Intersect.hpp"
 #include "Trace/RayHit.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/intersect.hpp>
 
+Ray Trace::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
+{
+    float fovScale = tanf(camera_.GetYFovRadians() * 0.5f);
+    float px = (2.0f * u - 1.0f) * fovScale * aspectRatio;
+    float py = (2.0f * v - 1.0f) * fovScale;
+
+    glm::vec4 rayOriginCameraSpace = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    glm::vec4 rayDirectionCameraSpace = glm::normalize(glm::vec4(px, -py, -1.0f, 0.0f));
+
+    glm::vec4 rayOriginWorldSpace = camera_.GetCameraToWorld() * rayOriginCameraSpace;
+    glm::vec4 rayDirectionWorldSpace = camera_.GetCameraToWorld() * rayDirectionCameraSpace;
+
+    return Ray(glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace)));
+}
+
 static const float pulloutEpsilon = 0.0001f;
 
-Trace::Trace(
-    std::shared_ptr<RenderBuffer> imageBuffer, const Camera& camera, const Scene& scene) noexcept
+Trace::Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Camera& camera,
+    const Scene::Scene& scene) noexcept
     : imageBuffer_(imageBuffer), camera_(camera), scene_(scene), rd_(), rng_(rd_())
 {
 }
 
-std::optional<RayHit> Trace::TraceScene(const Ray& ray, const Scene& scene, bool anyHit) noexcept
+std::optional<RayHit> Trace::TraceScene(
+    const Ray& ray, const Scene::Scene& scene, bool anyHit) noexcept
 {
     float lowestDistance = std::numeric_limits<float>::max();
     std::optional<RayHit> bestHit = std::nullopt;
 
     for (const auto& meshInstance : scene.GetMeshInstances())
     {
-        if (const auto hit = meshInstance.IntersectRay(ray); hit.has_value())
+        if (const auto hit = IntersectMeshInstance(ray, meshInstance); hit.has_value())
         {
             if (anyHit) break;
             if (hit->distance < lowestDistance)
@@ -153,7 +173,7 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
         for (const auto& light : scene_.GetLights())
         {
             // For now we assume that all lights are point lights
-            const auto pointLight = light.GetPointLight();
+            const auto lightColor = light.GetColor();
             const glm::vec3 lightDir = light.GetPosition() - bounce.hitInfo.worldPosition;
             const Ray shadowRay(bounce.hitInfo.worldPosition + lightDir * pulloutEpsilon, lightDir);
             const auto shadowHit = TraceScene(shadowRay, scene_);
@@ -182,8 +202,7 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
             if (!shadowHit.has_value() || shadowHit->distance > glm::length(lightDir))
             {
                 totalLight += currentEnergy * lightEnergy *
-                              glm::vec3(bounce.materialPoint.baseColor) * pointLight.Color *
-                              pointLight.Intensity;
+                              glm::vec3(bounce.materialPoint.baseColor) * lightColor;
             }
         }
 
@@ -218,7 +237,7 @@ void Trace::RenderNormal()
             {
                 const auto u = baseU + xDist(rng_);
                 const auto v = baseV + yDist(rng_);
-                const Ray ray = camera_.GenerateRay(u, v, aspectRatio);
+                const Ray ray = GenerateCameraRay(u, v, aspectRatio);
                 color += ProcessRay(ray);
             }
             color /= static_cast<float>(imageSamples);
