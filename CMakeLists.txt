@@ -60,15 +60,14 @@ set(SRC_FILES
     src/GUI/GUI.cpp
     src/GUI/GL_Texture.cpp
     src/Loader/GLTF.cpp
-    src/Trace/Camera.cpp
-    src/Trace/TextureImage.cpp
-    src/Trace/Mesh.cpp
-    src/Trace/MeshInstance.cpp
+    src/Loader/Config.cpp
+    src/Scene/Image.cpp
+    src/Scene/Mesh.cpp
+    src/Scene/MeshInstance.cpp
+    src/Scene/Scene.cpp
     src/Trace/Intersect.cpp
     src/Trace/RayHit.cpp
     src/Trace/Trace.cpp
-    src/Trace/Scene.cpp
-    src/Loader/Config.cpp
     src/Common/STB_Impl.cpp
     ${IMGUI_BACKEND_FILES}
 )
@@ -87,7 +86,6 @@ target_include_directories(RayTracing PRIVATE src)
 target_include_directories(RayTracing PRIVATE ${imgui_SOURCE_DIR}/backends)
 
 # Compiler options
-# Arch temporarily set to x86-64 for callgrind compatibility
 target_compile_options(RayTracing PRIVATE
     $<$<CONFIG:Release>:-Ofast -march=${TARGET_ARCH}>
     $<$<CONFIG:RelWithDebInfo>:-Ofast -g -march=${TARGET_ARCH}>
