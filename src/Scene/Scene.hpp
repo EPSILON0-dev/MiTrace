@@ -5,7 +5,7 @@
 
 #include "Light.hpp"
 #include "Loader/Types.hpp"
-#include "MeshInstance.hpp"
+#include "Mesh.hpp"
 #include "Texture.hpp"
 
 class Light;

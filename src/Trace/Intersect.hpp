@@ -9,8 +9,7 @@
 
 #include "Ray.hpp"
 #include "RayHit.hpp"
-#include "Scene/MeshInstance.hpp"
+#include "Scene/Mesh.hpp"
 
-bool IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, glm::vec3>& aabb);
 std::optional<RayHit> IntersectMeshInstance(
-    const Ray& ray, const Scene::MeshInstance& meshInstance);
+    const Ray& ray, const Scene::MeshInstance& meshInstance) noexcept;

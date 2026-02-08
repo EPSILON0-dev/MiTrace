@@ -61,9 +61,9 @@ set(SRC_FILES
     src/GUI/GL_Texture.cpp
     src/Loader/GLTF.cpp
     src/Loader/Config.cpp
+    src/Scene/BVH.cpp
     src/Scene/Image.cpp
     src/Scene/Mesh.cpp
-    src/Scene/MeshInstance.cpp
     src/Scene/Scene.cpp
     src/Trace/Intersect.cpp
     src/Trace/RayHit.cpp

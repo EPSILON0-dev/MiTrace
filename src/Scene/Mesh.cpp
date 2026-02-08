@@ -1,4 +1,5 @@
 #include "Mesh.hpp"
+#include "Loader/Config.hpp"
 
 #include <numeric>
 
@@ -21,6 +22,8 @@ static std::vector<Td> UnpackVector(const std::vector<Td>& data, const std::vect
 
 Mesh::Mesh(const Loader::Mesh& mesh)
 {
+    const auto &config = Config::GetConfig();
+
     name_ = mesh.name;
     positions_ = UnpackVector(mesh.positions, mesh.indices);
     normals_ = UnpackVector(mesh.normals, mesh.indices);
@@ -28,7 +31,8 @@ Mesh::Mesh(const Loader::Mesh& mesh)
     texCoord0_ = UnpackVector(mesh.texCoord0, mesh.indices);
     texCoord1_ = UnpackVector(mesh.texCoord1, mesh.indices);
     color0_ = UnpackVector(mesh.color0, mesh.indices);
-    CalculateAABB();
+
+    bvh_ = BVH(*this, config.rendering.maxBVHTriangles, 30);
 }
 
 std::pair<glm::vec3, glm::vec3> Mesh::CalculateAABB() const noexcept
@@ -42,4 +46,30 @@ std::pair<glm::vec3, glm::vec3> Mesh::CalculateAABB() const noexcept
         [](const auto& a, const auto& b) { return glm::max(a, b); });
 
     return {min, max};
+}
+
+void MeshInstance::CalculateWorldAABB()
+{
+    auto aabb = mesh_->CalculateAABB();
+
+    glm::vec3 corners[8] = {
+        {aabb.first.x, aabb.first.y, aabb.first.z},
+        {aabb.first.x, aabb.first.y, aabb.second.z},
+        {aabb.first.x, aabb.second.y, aabb.first.z},
+        {aabb.first.x, aabb.second.y, aabb.second.z},
+        {aabb.second.x, aabb.first.y, aabb.first.z},
+        {aabb.second.x, aabb.first.y, aabb.second.z},
+        {aabb.second.x, aabb.second.y, aabb.first.z},
+        {aabb.second.x, aabb.second.y, aabb.second.z},
+    };
+
+    worldAABB_.first = glm::vec3(std::numeric_limits<float>::max());
+    worldAABB_.second = glm::vec3(std::numeric_limits<float>::lowest());
+
+    for (const auto& corner : corners)
+    {
+        glm::vec4 transformedCorner = transform_ * glm::vec4(corner, 1.0f);
+        worldAABB_.first = glm::min(worldAABB_.first, glm::vec3(transformedCorner));
+        worldAABB_.second = glm::max(worldAABB_.second, glm::vec3(transformedCorner));
+    }
 }

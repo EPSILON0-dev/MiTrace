@@ -17,6 +17,13 @@ class Config
 
         struct
         {
+            unsigned maxBounces = 5;
+            unsigned maxBVHTriangles = 32;
+            unsigned blockSize = 8;
+        } rendering;
+
+        struct
+        {
             std::string filename = "";
             std::string config = "";
         } input;
@@ -49,5 +56,6 @@ class Config
     bool IsVerbose() const { return verbose_; }
     bool IsVeryVerbose() const { return veryVerbose_; }
 
-    const ConfigOptions& GetConfig() const { return options_; }
+    const ConfigOptions& GetConfigStruct() const { return options_; }
+    static const ConfigOptions& GetConfig() { return Instance().GetConfigStruct(); }
 };

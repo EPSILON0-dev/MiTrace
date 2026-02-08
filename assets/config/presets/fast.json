@@ -5,8 +5,8 @@
         "samples": 64
     },
     "rendering": {
-        "max_bounces": 5,
-        "samples_per_bucket": 16,
-        "pixels_per_bucket": 8
+        "max_bounces": 4,
+        "max_bvh_triangles": 32,
+        "block_size": 16
     }
 }

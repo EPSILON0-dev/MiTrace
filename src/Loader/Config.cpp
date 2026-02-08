@@ -70,6 +70,10 @@ void Config::LoadFromFile(const std::string& filepath)
     LoadFromJson(json, "output.width", options_.image.width);
     LoadFromJson(json, "output.height", options_.image.height);
     LoadFromJson(json, "output.samples", options_.image.samples);
+
+    LoadFromJson(json, "rendering.max_bounces", options_.rendering.maxBounces);
+    LoadFromJson(json, "rendering.max_bvh_triangles", options_.rendering.maxBVHTriangles);
+    LoadFromJson(json, "rendering.block_size", options_.rendering.blockSize);
 }
 
 void Config::LoadConfig(int argc, char** argv)

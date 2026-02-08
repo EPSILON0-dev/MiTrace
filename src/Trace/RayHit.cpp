@@ -1,6 +1,6 @@
 #include "RayHit.hpp"
 
-#include "Scene/MeshInstance.hpp"
+#include "Scene/Mesh.hpp"
 
 RayHitGeometryInfo::RayHitGeometryInfo(const RayHit& rayHit) noexcept
     : RayHit(rayHit), Flags{0, 0, 0, 0}
