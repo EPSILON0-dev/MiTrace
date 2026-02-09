@@ -1,10 +1,10 @@
+#define GLM_ENABLE_EXPERIMENTAL
 #include "Intersect.hpp"
 
-#include "LocalStack.hpp"
-
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/intersect.hpp>
+
+#include "LocalStack.hpp"
 
 static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, glm::vec3>& aabb)
 {

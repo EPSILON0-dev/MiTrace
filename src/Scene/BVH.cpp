@@ -231,6 +231,6 @@ BVH::BVH(const Mesh& mesh, int maxTrianglesPerNode, int maxDepth)
     BVHTree tree(mesh.GetPositions(), maxTrianglesPerNode, maxDepth);
     FlattenRecursive(*tree.GetRoot());
 
-    spdlog::debug("Generate BVH for mesh {}, total nodes: {}, effective triangles: {}, up from {}",
+    spdlog::debug("Generated BVH for mesh {}, total nodes: {}, effective triangles: {}, up from {}",
         mesh.GetName(), nodes_.size(), indices_.size(), tree.GetTriangleCount());
 }

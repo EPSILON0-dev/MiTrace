@@ -34,16 +34,11 @@ class Trace
         glm::vec3 energyTransfer;
     };
 
-    /*
-        struct BucketJob
-        {
-            glm::ivec2 offset;
-            glm::ivec2 size;
-            int samples;
-        };
-        using BucketRays = std::vector<Ray>;
-        using BucketResult = std::vector<glm::vec3>;
-    */
+    struct Block
+    {
+        glm::ivec2 offset;
+        glm::ivec2 size;
+    };
 
    private:
     // Scene components
@@ -62,20 +57,12 @@ class Trace
     Ray ReflectSpecular(const RayHit& hit, const glm::vec3& normal, float roughness) noexcept;
     Ray ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept;
     glm::vec3 ProcessRay(const Ray& ray) noexcept;
-    /*
-        std::vector<BucketJob> GenerateJobs() noexcept;
-        void GenerateBucket(
-            BucketRays& bucket, glm::ivec2 offset, glm::ivec2 size, int samples) noexcept;
-        void ProcessBucket(const BucketRays& bucket, BucketResult& result) noexcept;
-        void WriteBucketToImage(const BucketJob& job, const BucketResult& result) noexcept;
-        void NormalizeImage() noexcept;
-    */
+    void RenderBlock(const Block& block);
 
    public:
     Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Camera& camera,
         const Scene::Scene& scene) noexcept;
     ~Trace() = default;
 
-    void RenderNormal();
-    // void RenderBucketted();
+    void Render();
 };

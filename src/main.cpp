@@ -35,7 +35,7 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
     spdlog::info("Starting render...");
     {
         ScopeTimer timer(renderDuration);
-        Trace(texture, camera, scene).RenderNormal();
+        Trace(texture, camera, scene).Render();
     }
     spdlog::info("Render completed in {:.2f} seconds", renderDuration);
 

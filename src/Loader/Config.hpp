@@ -20,6 +20,7 @@ class Config
             unsigned maxBounces = 5;
             unsigned maxBVHTriangles = 32;
             unsigned blockSize = 8;
+            unsigned numThreads = 8;
         } rendering;
 
         struct

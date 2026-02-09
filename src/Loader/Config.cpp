@@ -1,11 +1,11 @@
 #include "Config.hpp"
 
 #include <spdlog/spdlog.h>
-#include <nlohmann/json.hpp>
 
-#include <iostream>
-#include <sstream>
 #include <fstream>
+#include <iostream>
+#include <nlohmann/json.hpp>
+#include <sstream>
 
 static constexpr char helpMessage[] =
     "Usage: RayTracing [options]\n"
@@ -27,7 +27,7 @@ std::vector<std::string> Config::SplitPath(const std::string& path)
 }
 
 template <typename T>
-void Config::LoadFromJson(const nlohmann::json& jsonObj, const std::string& path, T &prop)
+void Config::LoadFromJson(const nlohmann::json& jsonObj, const std::string& path, T& prop)
 {
     const auto* obj = &jsonObj;
     const auto keys = SplitPath(path);
@@ -72,6 +72,7 @@ void Config::LoadFromFile(const std::string& filepath)
     LoadFromJson(json, "output.samples", options_.image.samples);
 
     LoadFromJson(json, "rendering.max_bounces", options_.rendering.maxBounces);
+    LoadFromJson(json, "rendering.num_threads", options_.rendering.numThreads);
     LoadFromJson(json, "rendering.max_bvh_triangles", options_.rendering.maxBVHTriangles);
     LoadFromJson(json, "rendering.block_size", options_.rendering.blockSize);
 }

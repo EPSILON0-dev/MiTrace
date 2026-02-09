@@ -2,11 +2,12 @@
     "output": {
         "width": 1024,
         "height": 1024,
-        "samples": 256
+        "samples": 128
     },
     "rendering": {
         "max_bounces": 5,
         "max_bvh_triangles": 32,
-        "block_size": 8
+        "block_size": 8,
+        "num_threads": 16
     }
 }

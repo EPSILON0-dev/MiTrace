@@ -1,19 +1,19 @@
+#define GLM_ENABLE_EXPERIMENTAL
 #include "Trace/Trace.hpp"
 
 #include <spdlog/spdlog.h>
 
 #include <cmath>
 #include <glm/fwd.hpp>
+#include <glm/gtc/constants.hpp>
+#include <glm/gtx/intersect.hpp>
+#include <stack>
 
 #include "Loader/Config.hpp"
 #include "Scene/Mesh.hpp"
 #include "Trace/BRDF.hpp"
 #include "Trace/Intersect.hpp"
 #include "Trace/RayHit.hpp"
-
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtc/constants.hpp>
-#include <glm/gtx/intersect.hpp>
 
 Ray Trace::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
 {
@@ -178,19 +178,6 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
             const Ray shadowRay(bounce.hitInfo.worldPosition + lightDir * pulloutEpsilon, lightDir);
             const auto shadowHit = TraceScene(shadowRay, scene_);
 
-            /*
-            float frenelFactor = bounce.materialPoint.metallic;
-            float lightDivisor = 500.0f;
-            float lightDot =
-                glm::max(glm::dot(bounce.effectiveNormal, glm::normalize(lightDir)), 0.0f);
-            float lightDiffuse = lightDot * (1.0f - frenelFactor);
-            float lightSpecular =
-                std::powf(lightDot, 250.0f * (1.0f - bounce.materialPoint.roughness) + 10.0f) *
-                frenelFactor;
-            float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir));
-            float lightEnergy = (lightDiffuse * distanceFalloff + lightSpecular) / lightDivisor;
-            */
-
             float metalness = bounce.materialPoint.metallic;
             float roughness = bounce.materialPoint.roughness;
             float lightDivisor = 350.0f;
@@ -213,10 +200,9 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
     return glm::clamp(totalLight, glm::vec3(0.0f), glm::vec3(5.0f));
 }
 
-void Trace::RenderNormal()
+void Trace::RenderBlock(const Block& block)
 {
     const auto& config = Config::GetConfig();
-    const auto blockSize = config.rendering.blockSize;
     const auto imageWidth = config.image.width;
     const auto imageHeight = config.image.height;
     const auto imageSamples = config.image.samples;
@@ -243,17 +229,57 @@ void Trace::RenderNormal()
         imageBuffer_->SetPixel(x, y, color);
     };
 
-    for (unsigned by = 0; by < imageHeight; by += blockSize)
+    for (int y = block.offset.y; y < block.offset.y + block.size.y; ++y)
     {
-        for (unsigned bx = 0; bx < imageWidth; bx += blockSize)
+        for (int x = block.offset.x; x < block.offset.x + block.size.x; ++x)
         {
-            for (unsigned y = 0; y < blockSize && by + y < imageHeight; ++y)
-            {
-                for (unsigned x = 0; x < blockSize && bx + x < imageWidth; ++x)
-                {
-                    renderPixel(bx + x, by + y);
-                }
-            }
+            renderPixel(x, y);
         }
     }
+}
+
+void Trace::Render()
+{
+    const auto& config = Config::GetConfig();
+    const auto blockSize = config.rendering.blockSize;
+    const auto imageWidth = config.image.width;
+    const auto imageHeight = config.image.height;
+    const auto numThreads = config.rendering.numThreads;
+
+    // Prepare blocks for multithreading
+    std::stack<Block> blocks;
+    std::mutex blockMutex;
+    for (unsigned y = 0; y < imageHeight; y += blockSize)
+    {
+        for (unsigned x = 0; x < imageWidth; x += blockSize)
+        {
+            auto offset = glm::ivec2(x, y);
+            auto sizeX = std::min(blockSize, imageWidth - x);
+            auto sizeY = std::min(blockSize, imageHeight - y);
+            blocks.push(Block{offset, glm::ivec2(sizeX, sizeY)});
+        }
+    }
+    spdlog::info("Generated {} jobs of size {}x{}", blocks.size(), blockSize, blockSize);
+
+    // Worker function for threads
+    auto worker = [&]()
+    {
+        for (;;)
+        {
+            Block block;
+            {
+                std::scoped_lock<std::mutex> lock(blockMutex);
+                if (blocks.empty()) break;
+                block = blocks.top();
+                blocks.pop();
+            }
+            RenderBlock(block);
+        }
+    };
+
+    // Start and join worker threads
+    std::vector<std::thread> threads;
+    for (unsigned i = 0; i < numThreads; ++i) threads.emplace_back(worker);
+    spdlog::info("Started {} worker threads", numThreads);
+    for (auto& thread : threads) thread.join();
 }
