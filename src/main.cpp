@@ -7,13 +7,11 @@
 #include <thread>
 
 #include "Common/ScopeTimer.hpp"
-#include "GUI/GUI.hpp"
 #include "Loader/Config.hpp"
 #include "Loader/GLTF.hpp"
+#include "Preview/Preview.hpp"
 #include "Trace/RenderBuffer.hpp"
 #include "Trace/Trace.hpp"
-
-bool terminateRender = false;
 
 void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePath)
 {
@@ -27,7 +25,8 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
     const auto loaderCamera = loader.LoadSceneCamera(0);
     const auto loaderScene = loader.LoadScene(0);
     const auto camera = Scene::Camera(loaderCamera);
-    const auto scene = Scene::Scene(loaderScene);
+    auto scene = Scene::Scene(loaderScene);
+    scene.SetCamera(camera);
 
     loader.Cleanup();
     float renderDuration = 0.0f;
@@ -35,7 +34,7 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
     spdlog::info("Starting render...");
     {
         ScopeTimer timer(renderDuration);
-        Trace(texture, camera, scene).Render();
+        Trace(texture, scene).Render();
     }
     spdlog::info("Render completed in {:.2f} seconds", renderDuration);
 
@@ -68,17 +67,15 @@ int main(int argc, char** argv)
         spdlog::info("Created 'outputs' directory.");
     }
 
-    GUI::Window gui(800, 600, "Render View");
     std::shared_ptr<RenderBuffer> tex =
         std::make_shared<RenderBuffer>(config.image.width, config.image.height);
-
     const auto file = config.input.filename.c_str();
     std::thread renderThread(RenderThread, tex, file);
 
-    gui.SetTexture(tex);
-    gui.SetTextureRefreshInterval(1.0f / 5.0f);
-    gui.Run();
+    if (Config::Instance().IsPreviewEnabled())
+    {
+        Preview::PreviewWindow(tex).Open();
+    }
 
-    terminateRender = true;
     renderThread.join();
 }

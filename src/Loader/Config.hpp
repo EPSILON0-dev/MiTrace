@@ -34,6 +34,7 @@ class Config
     ConfigOptions options_;
     bool printHelp_ = false;
     bool verbose_ = false;
+    bool enablePreview_ = false;
     bool veryVerbose_ = false;
 
    private:
@@ -54,6 +55,7 @@ class Config
     static Config& Instance();
     void LoadConfig(int argc, char** argv);
     bool PrintHelpIfNeeded() const;
+    bool IsPreviewEnabled() const { return enablePreview_; }
     bool IsVerbose() const { return verbose_; }
     bool IsVeryVerbose() const { return veryVerbose_; }
 

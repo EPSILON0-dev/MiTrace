@@ -57,8 +57,7 @@ set(IMGUI_BACKEND_FILES
 # Add ImGui backend files to the build
 set(SRC_FILES
     src/main.cpp
-    src/GUI/GUI.cpp
-    src/GUI/GL_Texture.cpp
+    src/Preview/Preview.cpp
     src/Loader/GLTF.cpp
     src/Loader/Config.cpp
     src/Scene/BVH.cpp

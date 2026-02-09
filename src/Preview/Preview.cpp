@@ -1,4 +1,6 @@
-#include "GUI.hpp"
+#include "Preview.hpp"
+
+#include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <stdexcept>
@@ -7,17 +9,32 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
-GUI::Window::Window(int w, int h, const char* t)
+using namespace Preview;
+
+PreviewTexture::PreviewTexture(unsigned width, unsigned height, const unsigned char* rgbPixelsU8)
+    : width_(width), height_(height)
 {
-    Init(w, h, t);
+    glGenTextures(1, &textureID_);
+    glBindTexture(GL_TEXTURE_2D, textureID_);
+
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGB, width_, height_, 0, GL_RGB, GL_UNSIGNED_BYTE, rgbPixelsU8);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-GUI::Window::~Window()
+PreviewTexture::~PreviewTexture()
 {
-    Shutdown();
+    glDeleteTextures(1, &textureID_);
 }
 
-void GUI::Window::Init(int w, int h, const char* t)
+PreviewWindow::PreviewWindow(const std::shared_ptr<RenderBuffer>& renderTexture)
+    : renderBuffer_(renderTexture)
 {
     using std::chrono::milliseconds;
     using std::this_thread::sleep_for;
@@ -31,7 +48,7 @@ void GUI::Window::Init(int w, int h, const char* t)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window_ = glfwCreateWindow(w, h, t, nullptr, nullptr);
+    window_ = glfwCreateWindow(kDefaultWidth, kDefaultHeight, kDefaultTitle, nullptr, nullptr);
     if (!window_)
     {
         glfwTerminate();
@@ -49,10 +66,11 @@ void GUI::Window::Init(int w, int h, const char* t)
     ImGui_ImplGlfw_InitForOpenGL(window_, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    texture_ = std::make_unique<GLTexture>(1, 1, nullptr);
+    texture_ = std::make_unique<PreviewTexture>(1, 1, nullptr);
+    spdlog::info("Opened preview window");
 }
 
-void GUI::Window::Shutdown()
+PreviewWindow::~PreviewWindow()
 {
     exitTextureRefreshThread_ = true;
     textureRefreshThread_.join();
@@ -66,56 +84,52 @@ void GUI::Window::Shutdown()
         glfwDestroyWindow(window_);
     }
     glfwTerminate();
+    spdlog::info("Closed preview window");
 }
 
-void GUI::Window::Run()
+void PreviewWindow::Open()
 {
-    if (!cpuTexture_) throw std::runtime_error("No texture set for GUI window");
-    textureRefreshThread_ = std::thread(&Window::RefreshThreadFunc, this);
+    if (!renderBuffer_) throw std::runtime_error("No texture set for GUI window");
+    textureRefreshThread_ = std::thread(&PreviewWindow::RefreshThreadFunc, this);
 
     while (!glfwWindowShouldClose(window_))
     {
         glfwPollEvents();
-        Frame();
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        RefreshTextureIfNeeded();
+        DrawContents();
+
+        ImGui::Render();
+
+        int displayW, displayH;
+        glfwGetFramebufferSize(window_, &displayW, &displayH);
+        glViewport(0, 0, displayW, displayH);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window_);
     }
 }
 
-void GUI::Window::Frame()
-{
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
-    RefreshTextureIfNeeded();
-    MainWindow();
-
-    ImGui::Render();
-
-    int displayW, displayH;
-    glfwGetFramebufferSize(window_, &displayW, &displayH);
-    glViewport(0, 0, displayW, displayH);
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-}
-
-void GUI::Window::RefreshTextureIfNeeded()
+void PreviewWindow::RefreshTextureIfNeeded()
 {
     if (!shouldRefreshTexture_) return;
     shouldRefreshTexture_ = false;
 
-    const auto& cpuTex = cpuTexture_.get();
+    const auto& cpuTex = renderBuffer_.get();
     if (cpuTex)
     {
         auto pixels = cpuTex->GetPixelsRGB8();
         texture_ =
-            std::make_unique<GLTexture>(cpuTex->GetWidth(), cpuTex->GetHeight(), pixels.get());
+            std::make_unique<PreviewTexture>(cpuTex->GetWidth(), cpuTex->GetHeight(), pixels.get());
     }
 }
 
-void GUI::Window::MainWindow()
+void PreviewWindow::DrawContents()
 {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
@@ -157,7 +171,7 @@ void GUI::Window::MainWindow()
     ImGui::End();
 }
 
-void GUI::Window::RefreshThreadFunc()
+void PreviewWindow::RefreshThreadFunc()
 {
     using std::chrono::milliseconds;
     using std::this_thread::sleep_for;
@@ -165,6 +179,6 @@ void GUI::Window::RefreshThreadFunc()
     while (!exitTextureRefreshThread_)
     {
         shouldRefreshTexture_ = true;
-        sleep_for(milliseconds(static_cast<int>(textureRefreshInterval_ * 1000)));
+        sleep_for(milliseconds(static_cast<int>(kDefaultTextureRefreshInterval * 1000)));
     }
 }

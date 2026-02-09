@@ -12,6 +12,7 @@ static constexpr char helpMessage[] =
     "Options:\n"
     "  -f,  --file        <file>     Specify the scene file to load.\n"
     "  -c,  --config      <config>   Specify the configuration file to load.\n"
+    "  -p,  --preview                Enable preview window.\n"
     "  -vv, --very-verbose           Enable very verbose logging.\n"
     "  -v,  --verbose                Enable verbose logging.\n";
 
@@ -117,6 +118,10 @@ void Config::LoadConfig(int argc, char** argv)
         else if (arg == "-vv" || arg == "--very-verbose")
         {
             veryVerbose_ = true;
+        }
+        else if (arg == "-p" || arg == "--preview")
+        {
+            enablePreview_ = true;
         }
         else
         {
