@@ -1,8 +1,3 @@
-/**
- * @file Ray.hpp
- * 
- * Representation of a ray in 3D space.
- */
 #pragma once
 #include <glm/glm.hpp>
 

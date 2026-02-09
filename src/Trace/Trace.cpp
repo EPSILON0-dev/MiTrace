@@ -17,24 +17,25 @@
 
 Ray Trace::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
 {
-    float fovScale = tanf(camera_.GetFov() * 0.5f);
+    const auto& cam = scene_.GetCamera();
+
+    float fovScale = tanf(cam.GetFov() * 0.5f);
     float px = (2.0f * u - 1.0f) * fovScale;
     float py = (2.0f * v - 1.0f) * fovScale / aspectRatio;
 
     glm::vec4 rayOriginCameraSpace = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
     glm::vec4 rayDirectionCameraSpace = glm::normalize(glm::vec4(px, -py, -1.0f, 0.0f));
 
-    glm::vec4 rayOriginWorldSpace = camera_.GetCameraToWorld() * rayOriginCameraSpace;
-    glm::vec4 rayDirectionWorldSpace = camera_.GetCameraToWorld() * rayDirectionCameraSpace;
+    glm::vec4 rayOriginWorldSpace = cam.GetCameraToWorld() * rayOriginCameraSpace;
+    glm::vec4 rayDirectionWorldSpace = cam.GetCameraToWorld() * rayDirectionCameraSpace;
 
     return Ray(glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace)));
 }
 
 static const float pulloutEpsilon = 0.0001f;
 
-Trace::Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Camera& camera,
-    const Scene::Scene& scene) noexcept
-    : imageBuffer_(imageBuffer), camera_(camera), scene_(scene), rd_(), rng_(rd_())
+Trace::Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
+    : imageBuffer_(imageBuffer), scene_(scene), rd_(), rng_(rd_())
 {
 }
 

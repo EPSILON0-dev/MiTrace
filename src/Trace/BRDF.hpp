@@ -1,9 +1,3 @@
-/**
- * @file BRDF.hpp
- * 
- * Implementation of Bidirectional Reflectance Distribution Function (BRDF)
- * calculations for physically based rendering.
- */
 #pragma once
 
 #include <glm/glm.hpp>

@@ -2,7 +2,7 @@
     "output": {
         "width": 200,
         "height": 150,
-        "samples": 16
+        "samples": 256
     },
     "rendering": {
         "max_bounces": 4,

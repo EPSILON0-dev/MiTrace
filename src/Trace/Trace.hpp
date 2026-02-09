@@ -1,21 +1,8 @@
-// FIXME File needs fixes
-
-/**
- * @file Trace.hpp
- *
- * The tracer entry point, responsible for rendering a scene from a camera's
- * perspective into a render buffer.
- *
- * Interface:
- *  - Trace(imageBuffer, camera, scene) : Creates the tracer instance.
- *  - RenderNormal() : Renders the scene using normal path tracing.
- */
 #pragma once
 
 #include <memory>
 #include <random>
 
-#include "Scene/Camera.hpp"
 #include "Scene/Scene.hpp"
 #include "Trace/Ray.hpp"
 #include "Trace/RayHit.hpp"
@@ -43,7 +30,6 @@ class Trace
    private:
     // Scene components
     std::shared_ptr<RenderBuffer> imageBuffer_;
-    const Scene::Camera& camera_;
     const Scene::Scene& scene_;
     std::random_device rd_;
     std::mt19937 rng_;
@@ -60,8 +46,7 @@ class Trace
     void RenderBlock(const Block& block);
 
    public:
-    Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Camera& camera,
-        const Scene::Scene& scene) noexcept;
+    Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene);
     ~Trace() = default;
 
     void Render();

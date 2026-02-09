@@ -6,6 +6,7 @@
 #include "Light.hpp"
 #include "Loader/Types.hpp"
 #include "Mesh.hpp"
+#include "Scene/Camera.hpp"
 #include "Texture.hpp"
 
 class Light;
@@ -19,6 +20,7 @@ class Scene
     std::vector<MeshInstance> meshInstances_;
     std::vector<Light> lights_;
     std::optional<Texture> environmentTexture_;
+    Camera camera_;
 
     void CopyLoaderMeshInstances(const Loader::Scene& scene);
     void CopyLoaderLights(const Loader::Scene& scene);
@@ -32,6 +34,7 @@ class Scene
     // void AddLights(const std::vector<Light>& lights) noexcept;
 
     void SetEnvironmentTexture(const Texture& texture) noexcept { environmentTexture_ = texture; }
+    void SetCamera(const Camera& camera) noexcept { camera_ = camera; }
 
     using MeshInstance_vec_cr = const std::vector<MeshInstance>&;
     using Light_vec_cr = const std::vector<Light>&;
@@ -40,6 +43,7 @@ class Scene
     MeshInstance_vec_cr GetMeshInstances() const noexcept { return meshInstances_; }
     Light_vec_cr GetLights() const noexcept { return lights_; }
     Texture_opt_cr GetEnvironmentTexture() const noexcept { return environmentTexture_; }
+    const Camera& GetCamera() const noexcept { return camera_; }
 };
 
 }  // namespace Scene
