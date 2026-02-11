@@ -7,7 +7,7 @@
 #include <glm/fwd.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/intersect.hpp>
-#include <stack>
+#include <queue>
 
 #include "Loader/Config.hpp"
 #include "Scene/Mesh.hpp"
@@ -248,7 +248,7 @@ void Trace::Render()
     const auto numThreads = config.rendering.numThreads;
 
     // Prepare blocks for multithreading
-    std::stack<Block> blocks;
+    std::queue<Block> blocks;
     std::mutex blockMutex;
     for (unsigned y = 0; y < imageHeight; y += blockSize)
     {
@@ -271,7 +271,7 @@ void Trace::Render()
             {
                 std::scoped_lock<std::mutex> lock(blockMutex);
                 if (blocks.empty()) break;
-                block = blocks.top();
+                block = blocks.front();
                 blocks.pop();
             }
             RenderBlock(block);

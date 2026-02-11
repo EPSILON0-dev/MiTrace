@@ -1,3 +1,4 @@
+#if ENABLE_PREVIEW_GUI
 #include "Preview.hpp"
 
 #include <spdlog/spdlog.h>
@@ -182,3 +183,4 @@ void PreviewWindow::RefreshThreadFunc()
         sleep_for(milliseconds(static_cast<int>(kDefaultTextureRefreshInterval * 1000)));
     }
 }
+#endif

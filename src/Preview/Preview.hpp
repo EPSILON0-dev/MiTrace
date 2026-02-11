@@ -1,5 +1,6 @@
 #pragma once
 
+#if ENABLE_PREVIEW_GUI
 #include <GLFW/glfw3.h>
 
 #include <atomic>
@@ -11,8 +12,6 @@
 namespace Preview
 {
 
-#if DISABLE_PREVIEW_WINDOW
-#else
 class PreviewTexture
 {
    private:
@@ -63,6 +62,28 @@ class PreviewWindow
 
     void Open();
 };
-#endif
 
 }  // namespace Preview
+#else
+#include <spdlog/spdlog.h>
+
+// Forward declaration
+class RenderBuffer;
+
+namespace Preview
+{
+
+class PreviewWindow
+{
+   public:
+    PreviewWindow(const std::shared_ptr<RenderBuffer>& renderTexture) { (void)renderTexture; };
+    ~PreviewWindow() = default;
+
+    void Open()
+    {
+        spdlog::warn("Preview GUI is disabled. Recompile with ENABLE_PREVIEW_GUI=ON to enable it.");
+    }
+};
+
+}  // namespace Preview
+#endif

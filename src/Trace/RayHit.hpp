@@ -34,8 +34,6 @@ class RayHitGeometryInfo : public RayHit
    public:
     struct Flags
     {
-        // Always has normals
-        // bool HasNormal : 1;
         bool HasTangent : 1;
         bool HasTexCoord0 : 1;
         bool HasTexCoord1 : 1;
