@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include <stb/stb_image_write.h>
+#include <stb_image_write.h>
 #include <glm/glm.hpp>
 #include <memory>
 

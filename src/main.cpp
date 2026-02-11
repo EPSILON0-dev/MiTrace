@@ -38,7 +38,8 @@ void StatThread(const Tracer& tracer, bool& shouldStop)
         if (stats.progress - lastProgress >= updatePercentage ||
             now - lastUpdateTime >= milliseconds(maxUpdateIntervalMs) || true)
         {
-            spdlog::info("Progress: {:.2f}%, Time Elapsed: {:.1f}s, Estimated Time Remaining: {:.1f}s",
+            spdlog::info(
+                "Progress: {:.2f}%, Time Elapsed: {:.1f}s, Estimated Time Remaining: {:.1f}s",
                 stats.progress * 100.0f, stats.timeElapsed, stats.estimatedTimeRemaining);
             lastProgress = stats.progress;
             lastUpdateTime = now;

@@ -4,11 +4,10 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.16)
 
 project(RayTracing)
 
-set(ENABLE_PREVIEW_GUI ON)
-set(ENABLE_BACKEND_BASIC ON)
+set(ENABLE_PREVIEW_GUI OFF CACHE BOOL "Enable Preview GUI")
+set(ENABLE_BACKEND_BASIC ON CACHE BOOL "Enable Basic Backend")
+set(TARGET_ARCH "native" CACHE STRING "Target architecture for optimization (e.g., native, x86-64, etc.)")
 
-# set(TARGET_ARCH "haswell")  # Temporary fix for callgrind compatibility
-set(TARGET_ARCH "native")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -46,6 +45,15 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
 )
 FetchContent_MakeAvailable(glm)
+
+# Add STB library
+FetchContent_Declare(
+    stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG master
+    GIT_PROGRESS TRUE
+)
+FetchContent_MakeAvailable(stb)
 
 # Preview GUI dependencies
 if (ENABLE_PREVIEW_GUI)
@@ -105,8 +113,14 @@ set(SRC_FILES
 )
 
 add_executable(RayTracing ${SRC_FILES})
-target_link_libraries(RayTracing PRIVATE spdlog fmt)
+
+target_link_libraries(RayTracing PRIVATE spdlog)
 target_include_directories(RayTracing PRIVATE src)
+
+target_include_directories(RayTracing PRIVATE ${nlohmann_json_SOURCE_DIR}/include)
+target_include_directories(RayTracing PRIVATE ${spdlog_SOURCE_DIR})
+target_include_directories(RayTracing PRIVATE ${glm_SOURCE_DIR})
+target_include_directories(RayTracing PRIVATE ${stb_SOURCE_DIR})
 
 if (ENABLE_PREVIEW_GUI)
     target_compile_definitions(RayTracing PRIVATE ENABLE_PREVIEW_GUI)
@@ -118,7 +132,7 @@ target_compile_options(RayTracing PRIVATE
     $<$<CONFIG:Release>:-Ofast -march=${TARGET_ARCH}>
     $<$<CONFIG:RelWithDebInfo>:-Ofast -g -march=${TARGET_ARCH}>
     $<$<CONFIG:Debug>:-O0 -g -fsanitize=address,undefined>
-    -pthread -Wall -Wextra -Wpedantic
+    -pthread -Wall -Wextra -Wpedantic -std=c++2a
 )
 
 target_link_options(RayTracing PRIVATE

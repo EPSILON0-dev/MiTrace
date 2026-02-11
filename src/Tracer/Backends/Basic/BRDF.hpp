@@ -81,4 +81,4 @@ float BRDF(const glm::vec3& L, const glm::vec3& V, const glm::vec3& N, float rou
     return brdf;
 }
 
-};  // namespace BRDF
+}  // namespace BRDF

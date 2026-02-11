@@ -119,4 +119,5 @@ struct Scene
     std::optional<Texture> environmentTexture;
     Camera camera;
 };
-};  // namespace LoaderTypes
+
+}  // namespace Loader

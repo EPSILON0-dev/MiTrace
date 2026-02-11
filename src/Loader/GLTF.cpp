@@ -1,7 +1,7 @@
 #include "GLTF.hpp"
 
 #include <spdlog/spdlog.h>
-#include <stb/stb_image.h>
+#include <stb_image.h>
 
 #include <format>
 #include <fstream>

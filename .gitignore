@@ -1,14 +1,19 @@
-build/
-tmp/
+# Development environment files
 .vscode/
 .cache/
 compile_commands.json
 
+# Build artifacts
+build*/
+tmp/
+
+# Render outputs
 outputs/
 
-.venv
-
+# Random log/save/backup files
 *.ini
 *.bak
+*.log
 
-__pycache__/
+# Don't ask...
+src/format
