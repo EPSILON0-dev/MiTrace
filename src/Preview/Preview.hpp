@@ -7,7 +7,7 @@
 #include <memory>
 #include <thread>
 
-#include "Trace/RenderBuffer.hpp"
+#include "Tracer/RenderBuffer.hpp"
 
 namespace Preview
 {

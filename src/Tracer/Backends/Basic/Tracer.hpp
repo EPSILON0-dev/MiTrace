@@ -1,14 +1,18 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
+#include <mutex>
+#include <queue>
 #include <random>
 
+#include "Ray.hpp"
+#include "RayHit.hpp"
 #include "Scene/Scene.hpp"
-#include "Trace/Ray.hpp"
-#include "Trace/RayHit.hpp"
-#include "Trace/RenderBuffer.hpp"
+#include "Tracer/RenderBuffer.hpp"
+#include "Tracer/Tracer.hpp"
 
-class Trace
+class BasicTracer : public Tracer
 {
    private:
     struct Bounce
@@ -28,11 +32,16 @@ class Trace
     };
 
    private:
-    // Scene components
     std::shared_ptr<RenderBuffer> imageBuffer_;
     const Scene::Scene& scene_;
     std::random_device rd_;
     std::mt19937 rng_;
+    std::queue<Block> blocks_;
+    unsigned int initialQueueSize_ = 0;
+    std::mutex blockMutex_;
+    std::vector<std::thread> workers_;
+    std::chrono::time_point<std::chrono::system_clock> startTime_;
+    bool renderKilled_ = false;
 
    private:
     Ray GenerateCameraRay(float u, float v, float aspectRatio) const noexcept;
@@ -44,10 +53,15 @@ class Trace
     Ray ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept;
     glm::vec3 ProcessRay(const Ray& ray) noexcept;
     void RenderBlock(const Block& block);
+    void WorkerThread();
 
    public:
-    Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene);
-    ~Trace() = default;
+    BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene);
+    ~BasicTracer() override = default;
 
-    void Render();
+    void StartRender() override;
+    void WaitForRender() override;
+    void KillRender() override;
+    Stats GetStats() const override;
+    bool IsDone() const override;
 };

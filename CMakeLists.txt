@@ -4,8 +4,10 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.16)
 
 project(RayTracing)
 
+set(ENABLE_PREVIEW_GUI ON)
+set(ENABLE_BACKEND_BASIC ON)
+
 # set(TARGET_ARCH "haswell")  # Temporary fix for callgrind compatibility
-set(ENABLE_PREVIEW_GUI OFF)
 set(TARGET_ARCH "native")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,7 +19,15 @@ endif()
 
 include(FetchContent)
 
-# GLFW and ImGui libraries for preview GUI
+# Nlohmann JSON library
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.2
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
+# Preview GUI dependencies
 if (ENABLE_PREVIEW_GUI)
     FetchContent_Declare(
         glfw
@@ -47,13 +57,16 @@ if (ENABLE_PREVIEW_GUI)
     set (PREVIEW_SRC_FILES)
 endif()
 
-# Nlohmann JSON library
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.11.2
-)
-FetchContent_MakeAvailable(nlohmann_json)
+# Basic Backend
+if (ENABLE_BACKEND_BASIC)
+    add_compile_definitions(ENABLE_BACKEND_BASIC)
+    set (BACKEND_BASIC_SRC_FILES
+        src/Tracer/Backends/Basic/Intersect.cpp
+        src/Tracer/Backends/Basic/RayHit.cpp
+        src/Tracer/Backends/Basic/Tracer.cpp
+    )
+endif()
+
 
 set(SRC_FILES
     src/main.cpp
@@ -64,10 +77,8 @@ set(SRC_FILES
     src/Scene/Image.cpp
     src/Scene/Mesh.cpp
     src/Scene/Scene.cpp
-    src/Trace/Intersect.cpp
-    src/Trace/RayHit.cpp
-    src/Trace/Trace.cpp
     src/Common/STB_Impl.cpp
+    ${BACKEND_BASIC_SRC_FILES}
     ${IMGUI_BACKEND_FILES}
 )
 

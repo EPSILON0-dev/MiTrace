@@ -6,17 +6,50 @@
 #include <memory>
 #include <thread>
 
-#include "Common/ScopeTimer.hpp"
 #include "Loader/Config.hpp"
 #include "Loader/GLTF.hpp"
 #include "Preview/Preview.hpp"
-#include "Trace/RenderBuffer.hpp"
-#include "Trace/Trace.hpp"
+#include "Tracer/Backends/Basic/Tracer.hpp"
+#include "Tracer/RenderBuffer.hpp"
+#include "Tracer/Tracer.hpp"
 
-void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePath)
+void StatThread(const Tracer& tracer, bool& shouldStop)
 {
-    using std::chrono::duration_cast;
     using std::chrono::milliseconds;
+    using std::chrono::seconds;
+    using std::chrono::system_clock;
+    using std::chrono::time_point;
+    using std::this_thread::sleep_for;
+
+    const float updatePercentage = 10.0f;
+    const int updateIntervalMs = 1000;
+    const int maxUpdateIntervalMs = 30000;
+    const int minUpdateIntervalMs = 3000;
+
+    time_point<system_clock> lastUpdateTime = system_clock::now();
+    float lastProgress = 0.0f;
+    while (!shouldStop && !tracer.IsDone())
+    {
+        sleep_for(milliseconds(updateIntervalMs));
+        auto now = system_clock::now();
+        if (now - lastUpdateTime < milliseconds(minUpdateIntervalMs)) continue;
+
+        auto stats = tracer.GetStats();
+        if (stats.progress - lastProgress >= updatePercentage ||
+            now - lastUpdateTime >= milliseconds(maxUpdateIntervalMs) || true)
+        {
+            spdlog::info("Progress: {:.2f}%, Time Elapsed: {:.1f}s, Estimated Time Remaining: {:.1f}s",
+                stats.progress * 100.0f, stats.timeElapsed, stats.estimatedTimeRemaining);
+            lastProgress = stats.progress;
+            lastUpdateTime = now;
+        }
+    }
+}
+
+void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePath, bool& shouldStop)
+{
+    using std::chrono::milliseconds;
+    using std::chrono::seconds;
     using std::chrono::steady_clock;
     using std::chrono::system_clock;
 
@@ -30,13 +63,16 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
         scene->SetCamera(camera);
     }
 
-    float renderDuration = 0.0f;
+    auto tracerBackend = BasicTracer(texture, scene.value());
+    auto& tracer = dynamic_cast<Tracer&>(tracerBackend);
+
     spdlog::info("Starting render...");
-    {
-        ScopeTimer timer(renderDuration);
-        Trace(texture, scene.value()).Render();
-    }
-    spdlog::info("Render completed in {:.2f} seconds", renderDuration);
+    std::thread statThread(StatThread, std::cref(tracer), std::ref(shouldStop));
+    tracer.StartRender();
+    tracer.WaitForRender();
+    shouldStop = true;
+    statThread.join();
+    spdlog::info("Render completed.");
 
     auto now = std::chrono::system_clock::now();
     auto filename = std::format("outputs/render_{:%d%m%Y_%H%M}.png", now);
@@ -67,14 +103,16 @@ int main(int argc, char** argv)
         spdlog::info("Created 'outputs' directory.");
     }
 
+    bool shouldStop = false;
     std::shared_ptr<RenderBuffer> tex =
         std::make_shared<RenderBuffer>(config.image.width, config.image.height);
     const auto file = config.input.filename.c_str();
-    std::thread renderThread(RenderThread, tex, file);
+    std::thread renderThread(RenderThread, tex, file, std::ref(shouldStop));
 
     if (Config::Instance().IsPreviewEnabled())
     {
         Preview::PreviewWindow(tex).Open();
+        shouldStop = true;
     }
 
     renderThread.join();

@@ -1,21 +1,20 @@
+#include <chrono>
 #define GLM_ENABLE_EXPERIMENTAL
-#include "Trace/Trace.hpp"
-
 #include <spdlog/spdlog.h>
 
 #include <cmath>
 #include <glm/fwd.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/intersect.hpp>
-#include <queue>
 
+#include "BRDF.hpp"
+#include "Intersect.hpp"
 #include "Loader/Config.hpp"
+#include "RayHit.hpp"
 #include "Scene/Mesh.hpp"
-#include "Trace/BRDF.hpp"
-#include "Trace/Intersect.hpp"
-#include "Trace/RayHit.hpp"
+#include "Tracer.hpp"
 
-Ray Trace::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
+Ray BasicTracer::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
 {
     const auto& cam = scene_.GetCamera();
 
@@ -34,12 +33,12 @@ Ray Trace::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
 
 static const float pulloutEpsilon = 0.0001f;
 
-Trace::Trace(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
+BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
     : imageBuffer_(imageBuffer), scene_(scene), rd_(), rng_(rd_())
 {
 }
 
-std::optional<RayHit> Trace::TraceScene(
+std::optional<RayHit> BasicTracer::TraceScene(
     const Ray& ray, const Scene::Scene& scene, bool anyHit) noexcept
 {
     float lowestDistance = std::numeric_limits<float>::max();
@@ -61,7 +60,7 @@ std::optional<RayHit> Trace::TraceScene(
     return bestHit;
 }
 
-glm::vec3 Trace::GenerateHemisphereDirection(const glm::vec3& normal) noexcept
+glm::vec3 BasicTracer::GenerateHemisphereDirection(const glm::vec3& normal) noexcept
 {
     std::uniform_real_distribution<float> phi(0.0f, 2.0f * glm::pi<float>());
     std::uniform_real_distribution<float> theta(-glm::half_pi<float>(), glm::half_pi<float>());
@@ -73,7 +72,7 @@ glm::vec3 Trace::GenerateHemisphereDirection(const glm::vec3& normal) noexcept
     return (glm::dot(dir, normal) > 0.0f) ? dir : -dir;
 }
 
-glm::vec3 Trace::ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept
+glm::vec3 BasicTracer::ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept
 {
     // FIXME currently broken
     glm::vec3 tangent, bitangent;
@@ -89,7 +88,8 @@ glm::vec3 Trace::ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNo
     return glm::normalize(tbn * mappedNormal);
 }
 
-Ray Trace::ReflectSpecular(const RayHit& hit, const glm::vec3& normal, float roughness) noexcept
+Ray BasicTracer::ReflectSpecular(
+    const RayHit& hit, const glm::vec3& normal, float roughness) noexcept
 {
     const auto dirDiffuse = glm::normalize(GenerateHemisphereDirection(normal));
     const auto dirSpecular = glm::normalize(glm::reflect(hit.direction, normal));
@@ -98,14 +98,14 @@ Ray Trace::ReflectSpecular(const RayHit& hit, const glm::vec3& normal, float rou
     return Ray(pos, dir);
 }
 
-Ray Trace::ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept
+Ray BasicTracer::ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept
 {
     const auto dir = glm::normalize(GenerateHemisphereDirection(normal));
     const auto pos = hit.origin + hit.direction * hit.distance + pulloutEpsilon * normal;
     return Ray(pos, dir);
 }
 
-glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
+glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
 {
     constexpr int bounceArraySize = 16;
     int maxBounces = Config::GetConfig().rendering.maxBounces;
@@ -201,7 +201,7 @@ glm::vec3 Trace::ProcessRay(const Ray& ray) noexcept
     return glm::clamp(totalLight, glm::vec3(0.0f), glm::vec3(5.0f));
 }
 
-void Trace::RenderBlock(const Block& block)
+void BasicTracer::RenderBlock(const Block& block)
 {
     const auto& config = Config::GetConfig();
     const auto imageWidth = config.image.width;
@@ -239,7 +239,22 @@ void Trace::RenderBlock(const Block& block)
     }
 }
 
-void Trace::Render()
+void BasicTracer::WorkerThread()
+{
+    while (!renderKilled_)
+    {
+        Block block;
+        {
+            std::scoped_lock<std::mutex> lock(blockMutex_);
+            if (blocks_.empty()) break;
+            block = blocks_.front();
+            blocks_.pop();
+        }
+        RenderBlock(block);
+    }
+}
+
+void BasicTracer::StartRender()
 {
     const auto& config = Config::GetConfig();
     const auto blockSize = config.rendering.blockSize;
@@ -247,9 +262,7 @@ void Trace::Render()
     const auto imageHeight = config.image.height;
     const auto numThreads = config.rendering.numThreads;
 
-    // Prepare blocks for multithreading
-    std::queue<Block> blocks;
-    std::mutex blockMutex;
+    // Prepare blocks for rendering
     for (unsigned y = 0; y < imageHeight; y += blockSize)
     {
         for (unsigned x = 0; x < imageWidth; x += blockSize)
@@ -257,30 +270,48 @@ void Trace::Render()
             auto offset = glm::ivec2(x, y);
             auto sizeX = std::min(blockSize, imageWidth - x);
             auto sizeY = std::min(blockSize, imageHeight - y);
-            blocks.push(Block{offset, glm::ivec2(sizeX, sizeY)});
+            blocks_.push(Block{offset, glm::ivec2(sizeX, sizeY)});
         }
     }
-    spdlog::info("Generated {} jobs of size {}x{}", blocks.size(), blockSize, blockSize);
-
-    // Worker function for threads
-    auto worker = [&]()
-    {
-        for (;;)
-        {
-            Block block;
-            {
-                std::scoped_lock<std::mutex> lock(blockMutex);
-                if (blocks.empty()) break;
-                block = blocks.front();
-                blocks.pop();
-            }
-            RenderBlock(block);
-        }
-    };
+    initialQueueSize_ = blocks_.size();
+    spdlog::info("Generated {} jobs of size {}x{}", blocks_.size(), blockSize, blockSize);
 
     // Start and join worker threads
-    std::vector<std::thread> threads;
-    for (unsigned i = 0; i < numThreads; ++i) threads.emplace_back(worker);
+    startTime_ = std::chrono::system_clock::now();
+    for (unsigned i = 0; i < numThreads; ++i)
+        workers_.emplace_back(&BasicTracer::WorkerThread, this);
     spdlog::info("Started {} worker threads", numThreads);
-    for (auto& thread : threads) thread.join();
+}
+
+void BasicTracer::WaitForRender()
+{
+    for (auto& thread : workers_) thread.join();
+    workers_.clear();
+}
+
+void BasicTracer::KillRender()
+{
+    renderKilled_ = true;
+    WaitForRender();
+}
+
+Tracer::Stats BasicTracer::GetStats() const
+{
+    using std::chrono::duration_cast;
+    using std::chrono::seconds;
+    using std::chrono::system_clock;
+
+    Stats stats;
+    stats.progress = 1.0f - static_cast<float>(blocks_.size()) / initialQueueSize_;
+    stats.timeElapsed = duration_cast<seconds>(system_clock::now() - startTime_).count();
+    stats.estimatedTimeRemaining = (stats.timeElapsed / stats.progress) * (1.0f - stats.progress);
+    stats.raysTraced = 0;  // TODO
+    return stats;
+}
+
+bool BasicTracer::IsDone() const
+{
+    return initialQueueSize_ &&  // A render was started
+           blocks_.empty() &&    // No more blocks to render
+           workers_.empty();     // All worker threads have finished
 }
