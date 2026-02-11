@@ -2,17 +2,16 @@
 
 #include "Scene/Mesh.hpp"
 
-RayHitGeometryInfo::RayHitGeometryInfo(const RayHit& rayHit) noexcept
-    : RayHit(rayHit), Flags{0, 0, 0, 0}
+RayHitGeometryInfo::RayHitGeometryInfo(const RayHit& rayHit) noexcept : RayHit(rayHit)
 {
     const auto& mesh = meshInstance->GetMesh();
     const auto& transform = meshInstance->GetTransform();
 
     auto interpolate = [&](const auto& dataArray, bool normalize = false)
     {
-        const auto& v0 = dataArray[triangleIndex * 3 + 0];
-        const auto& v1 = dataArray[triangleIndex * 3 + 1];
-        const auto& v2 = dataArray[triangleIndex * 3 + 2];
+        const auto& v0 = dataArray[0];
+        const auto& v1 = dataArray[1];
+        const auto& v2 = dataArray[2];
         if (normalize)
         {
             return glm::normalize(
@@ -24,33 +23,28 @@ RayHitGeometryInfo::RayHitGeometryInfo(const RayHit& rayHit) noexcept
         }
     };
 
-    Normal = glm::normalize(transform * glm::vec4(interpolate(mesh.GetNormals(), true), 0.0f));
+    const auto& triangle = mesh.GetTriangles()[triangleIndex];
+    Normal = glm::normalize(transform * glm::vec4(interpolate(triangle.normal, true), 0.0f));
+    Flags = mesh.GetFlags();
 
-    if (!mesh.GetTangents().empty())
+    if (Flags.HasTangent)
     {
-        // TODO Handle tangent w component
         Tangent = glm::normalize(
-            transform * glm::vec4(glm::vec3(interpolate(mesh.GetTangents(), true)), 0.0f));
-        Flags.HasTangent = true;
+            transform * glm::vec4(glm::vec3(interpolate(triangle.tangent, true)), 0.0f));
     }
 
-    // TODO Compute bitangent
-
-    if (!mesh.GetTexCoord0().empty())
+    if (Flags.HasTexCoord0)
     {
-        TexCoord0 = interpolate(mesh.GetTexCoord0(), false);
-        Flags.HasTexCoord0 = true;
+        TexCoord0 = interpolate(triangle.texCoord0, false);
     }
 
-    if (!mesh.GetTexCoord1().empty())
+    if (Flags.HasTexCoord1)
     {
-        TexCoord1 = interpolate(mesh.GetTexCoord1(), false);
-        Flags.HasTexCoord1 = true;
+        TexCoord1 = interpolate(triangle.texCoord1, false);
     }
 
-    if (!mesh.GetColor0().empty())
+    if (Flags.HasColor0)
     {
-        Color0 = interpolate(mesh.GetColor0(), false);
-        Flags.HasColor0 = true;
+        Color0 = interpolate(triangle.color0, false);
     }
 }

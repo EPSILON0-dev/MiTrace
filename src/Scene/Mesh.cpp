@@ -1,7 +1,8 @@
 #include "Mesh.hpp"
-#include "Loader/Config.hpp"
 
 #include <numeric>
+
+#include "Loader/Config.hpp"
 
 using namespace Scene;
 
@@ -20,17 +21,66 @@ static std::vector<Td> UnpackVector(const std::vector<Td>& data, const std::vect
     return unpacked;
 }
 
+static inline glm::vec3 ConvertTangent4To3(const glm::vec4& tangent)
+{
+    // FIXME: It that's what we're supposed to do?
+    return glm::normalize(glm::vec3(tangent) * tangent.w);
+}
+
+template <typename T>
+static inline T ProtectedAccess(const std::vector<T>& data, size_t index)
+{
+    if (data.empty()) return T{};
+    if (index < data.size()) return data[index];
+    throw std::out_of_range("Index out of range in ProtectedAccess");
+}
+
+static std::vector<Mesh::Triangle> UnpackTriangles(const std::vector<glm::vec3>& normals,
+    const std::vector<glm::vec4>& tangents, const std::vector<glm::vec2>& texCoord0,
+    const std::vector<glm::vec2>& texCoord1, const std::vector<glm::vec4>& color0,
+    const std::vector<uint32_t>& indices)
+{
+    std::vector<Mesh::Triangle> triangles;
+    triangles.reserve(indices.size() / 3);
+    for (size_t i = 0; i < indices.size(); i += 3)
+    {
+        Mesh::Triangle triangle;
+        for (int j = 0; j < 3; ++j)
+        {
+            triangle.normal[j] = ProtectedAccess(normals, indices[i + j]);
+            triangle.tangent[j] = ConvertTangent4To3(ProtectedAccess(tangents, indices[i + j]));
+            triangle.texCoord0[j] = ProtectedAccess(texCoord0, indices[i + j]);
+            triangle.texCoord1[j] = ProtectedAccess(texCoord1, indices[i + j]);
+            triangle.color0[j] = ProtectedAccess(color0, indices[i + j]);
+        }
+        triangles.push_back(triangle);
+    }
+    return triangles;
+}
+
+static Mesh::Flags ExtractFlags(const std::vector<glm::vec4>& tangents,
+    const std::vector<glm::vec2>& texCoord0, const std::vector<glm::vec2>& texCoord1,
+    const std::vector<glm::vec4>& color0)
+{
+    Mesh::Flags flags{};
+    flags.HasTangent = !tangents.empty();
+    flags.HasTexCoord0 = !texCoord0.empty();
+    flags.HasTexCoord1 = !texCoord1.empty();
+    flags.HasColor0 = !color0.empty();
+    return flags;
+}
+
 Mesh::Mesh(const Loader::Mesh& mesh)
 {
-    const auto &config = Config::GetConfig();
+    const auto& config = Config::GetConfig();
 
     name_ = mesh.name;
     positions_ = UnpackVector(mesh.positions, mesh.indices);
-    normals_ = UnpackVector(mesh.normals, mesh.indices);
-    tangents_ = UnpackVector(mesh.tangents, mesh.indices);
-    texCoord0_ = UnpackVector(mesh.texCoord0, mesh.indices);
-    texCoord1_ = UnpackVector(mesh.texCoord1, mesh.indices);
-    color0_ = UnpackVector(mesh.color0, mesh.indices);
+
+    triangles_ = UnpackTriangles(
+        mesh.normals, mesh.tangents, mesh.texCoord0, mesh.texCoord1, mesh.color0, mesh.indices);
+
+    flags_ = ExtractFlags(mesh.tangents, mesh.texCoord0, mesh.texCoord1, mesh.color0);
 
     bvh_ = BVH(*this, config.rendering.maxBVHTriangles, 30);
 }

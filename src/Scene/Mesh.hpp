@@ -1,28 +1,44 @@
 #pragma once
 
+#include <glm/fwd.hpp>
 #include <glm/glm.hpp>
 #include <string>
+#include <vector>
 
 #include "BVH.hpp"
-#include "Material.hpp"
 #include "Loader/Types.hpp"
+#include "Material.hpp"
 
 namespace Scene
 {
 
 class Mesh
 {
+   public:
+    struct Flags
+    {
+        bool HasTangent : 1;
+        bool HasTexCoord0 : 1;
+        bool HasTexCoord1 : 1;
+        bool HasColor0 : 1;
+    };
+
+    struct alignas(64) Triangle
+    {
+        glm::vec3 normal[3];
+        glm::vec2 texCoord0[3];
+        glm::vec3 tangent[3];
+        glm::vec2 texCoord1[3];
+        glm::vec4 color0[3];
+        // We can fit 24 more bytes here if needed :p
+    };
+
    private:
     std::string name_;
     std::vector<glm::vec3> positions_;
-    std::vector<glm::vec3> normals_;
-    std::vector<glm::vec4> tangents_;
-    std::vector<glm::vec2> texCoord0_;
-    std::vector<glm::vec2> texCoord1_;
-    std::vector<glm::vec4> color0_;
-    // Indices are dropped when converting from the Loader Mesh
-    // std::vector<uint32_t> indices_;
+    std::vector<Triangle> triangles_;
     BVH bvh_;
+    Flags flags_;
 
    public:
     Mesh() {}
@@ -32,11 +48,8 @@ class Mesh
    public:
     const auto& GetName() const noexcept { return name_; }
     inline const auto& GetPositions() const noexcept { return positions_; }
-    inline const auto& GetNormals() const noexcept { return normals_; }
-    inline const auto& GetTangents() const noexcept { return tangents_; }
-    inline const auto& GetTexCoord0() const noexcept { return texCoord0_; }
-    inline const auto& GetTexCoord1() const noexcept { return texCoord1_; }
-    inline const auto& GetColor0() const noexcept { return color0_; }
+    inline const auto& GetTriangles() const noexcept { return triangles_; }
+    inline const auto& GetFlags() const noexcept { return flags_; }
     inline const auto& GetBVH() const noexcept { return bvh_; }
 
     auto GetTriangleCount() const noexcept { return positions_.size() / 3; }

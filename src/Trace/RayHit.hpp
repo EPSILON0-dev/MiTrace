@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Ray.hpp"
+#include "Scene/Mesh.hpp"
 
 // Forward declaration
 namespace Scene
@@ -32,15 +33,7 @@ class RayHit : public Ray
 class RayHitGeometryInfo : public RayHit
 {
    public:
-    struct Flags
-    {
-        // Always has normals
-        // bool HasNormal : 1;
-        bool HasTangent : 1;
-        bool HasTexCoord0 : 1;
-        bool HasTexCoord1 : 1;
-        bool HasColor0 : 1;
-    } Flags;
+    Scene::Mesh::Flags Flags;
 
     glm::vec3 Normal;
     glm::vec4 Tangent;
