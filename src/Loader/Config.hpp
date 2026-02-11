@@ -17,6 +17,7 @@ class Config
 
         struct
         {
+            bool disableBVH = false;
             unsigned maxBounces = 5;
             unsigned maxBVHTriangles = 32;
             unsigned blockSize = 8;

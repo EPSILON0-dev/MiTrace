@@ -20,9 +20,7 @@ class Mesh
     std::vector<glm::vec2> texCoord0_;
     std::vector<glm::vec2> texCoord1_;
     std::vector<glm::vec4> color0_;
-    // Indices are dropped when converting from the Loader Mesh
-    // std::vector<uint32_t> indices_;
-    BVH bvh_;
+    std::optional<BVH> bvh_;
 
    public:
     Mesh() {}
@@ -37,7 +35,8 @@ class Mesh
     inline const auto& GetTexCoord0() const noexcept { return texCoord0_; }
     inline const auto& GetTexCoord1() const noexcept { return texCoord1_; }
     inline const auto& GetColor0() const noexcept { return color0_; }
-    inline const auto& GetBVH() const noexcept { return bvh_; }
+    inline const auto& GetBVH() const noexcept { return bvh_.value(); }
+    inline bool HasBVH() const noexcept { return bvh_.has_value(); }
 
     auto GetTriangleCount() const noexcept { return positions_.size() / 3; }
 

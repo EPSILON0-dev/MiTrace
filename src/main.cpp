@@ -20,21 +20,21 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
     using std::chrono::steady_clock;
     using std::chrono::system_clock;
 
-    Loader::GLTF loader(gltfFilePath);
+    std::optional<Scene::Scene> scene;
+    {
+        Loader::GLTF loader(gltfFilePath);
+        const auto loaderCamera = loader.LoadSceneCamera(0);
+        const auto loaderScene = loader.LoadScene(0);
+        const auto camera = Scene::Camera(loaderCamera);
+        scene = Scene::Scene(loaderScene);
+        scene->SetCamera(camera);
+    }
 
-    const auto loaderCamera = loader.LoadSceneCamera(0);
-    const auto loaderScene = loader.LoadScene(0);
-    const auto camera = Scene::Camera(loaderCamera);
-    auto scene = Scene::Scene(loaderScene);
-    scene.SetCamera(camera);
-
-    loader.Cleanup();
     float renderDuration = 0.0f;
-
     spdlog::info("Starting render...");
     {
         ScopeTimer timer(renderDuration);
-        Trace(texture, scene).Render();
+        Trace(texture, scene.value()).Render();
     }
     spdlog::info("Render completed in {:.2f} seconds", renderDuration);
 

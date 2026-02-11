@@ -117,8 +117,14 @@ std::optional<RayHit> IntersectMeshInstance(
     float dist = std::numeric_limits<float>::max();
     glm::vec2 baryCoord = glm::vec2(0.0f);
     size_t triangleIndex = 0;
-    // IntersectTrianglesLinear(localRay, meshInstance, dist, baryCoord, triangleIndex);
-    IntersectTrianglesBVH(localRay, meshInstance, dist, baryCoord, triangleIndex);
+    if (meshInstance.GetMesh().HasBVH())
+    {
+        IntersectTrianglesBVH(localRay, meshInstance, dist, baryCoord, triangleIndex);
+    }
+    else
+    {
+        IntersectTrianglesLinear(localRay, meshInstance, dist, baryCoord, triangleIndex);
+    }
 
     // If there is an intersection, transform the hit position back to world space and return the
     // hit info

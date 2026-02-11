@@ -13,8 +13,8 @@ static constexpr char helpMessage[] =
     "  -f,  --file        <file>     Specify the scene file to load.\n"
     "  -c,  --config      <config>   Specify the configuration file to load.\n"
     "  -p,  --preview                Enable preview window.\n"
-    "  -vv, --very-verbose           Enable very verbose logging.\n"
-    "  -v,  --verbose                Enable verbose logging.\n";
+    "  -v,  --verbose                Enable verbose logging.\n"
+    "  -vv, --very-verbose           Enable very verbose logging.\n";
 
 std::vector<std::string> Config::SplitPath(const std::string& path)
 {
@@ -72,6 +72,7 @@ void Config::LoadFromFile(const std::string& filepath)
     LoadFromJson(json, "output.height", options_.image.height);
     LoadFromJson(json, "output.samples", options_.image.samples);
 
+    LoadFromJson(json, "rendering.disable_bvh", options_.rendering.disableBVH);
     LoadFromJson(json, "rendering.max_bounces", options_.rendering.maxBounces);
     LoadFromJson(json, "rendering.num_threads", options_.rendering.numThreads);
     LoadFromJson(json, "rendering.max_bvh_triangles", options_.rendering.maxBVHTriangles);

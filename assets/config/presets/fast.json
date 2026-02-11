@@ -5,6 +5,7 @@
         "samples": 256
     },
     "rendering": {
+        "disable_bvh": false,
         "max_bounces": 4,
         "max_bvh_triangles": 32,
         "block_size": 16,

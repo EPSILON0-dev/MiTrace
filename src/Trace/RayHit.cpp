@@ -28,13 +28,10 @@ RayHitGeometryInfo::RayHitGeometryInfo(const RayHit& rayHit) noexcept
 
     if (!mesh.GetTangents().empty())
     {
-        // TODO Handle tangent w component
         Tangent = glm::normalize(
             transform * glm::vec4(glm::vec3(interpolate(mesh.GetTangents(), true)), 0.0f));
         Flags.HasTangent = true;
     }
-
-    // TODO Compute bitangent
 
     if (!mesh.GetTexCoord0().empty())
     {

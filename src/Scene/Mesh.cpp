@@ -1,7 +1,8 @@
 #include "Mesh.hpp"
-#include "Loader/Config.hpp"
 
 #include <numeric>
+
+#include "Loader/Config.hpp"
 
 using namespace Scene;
 
@@ -22,7 +23,7 @@ static std::vector<Td> UnpackVector(const std::vector<Td>& data, const std::vect
 
 Mesh::Mesh(const Loader::Mesh& mesh)
 {
-    const auto &config = Config::GetConfig();
+    const auto& config = Config::GetConfig();
 
     name_ = mesh.name;
     positions_ = UnpackVector(mesh.positions, mesh.indices);
@@ -32,7 +33,9 @@ Mesh::Mesh(const Loader::Mesh& mesh)
     texCoord1_ = UnpackVector(mesh.texCoord1, mesh.indices);
     color0_ = UnpackVector(mesh.color0, mesh.indices);
 
-    bvh_ = BVH(*this, config.rendering.maxBVHTriangles, 30);
+    bool generateBVH = !config.rendering.disableBVH;
+    generateBVH &= GetTriangleCount() > config.rendering.maxBVHTriangles;
+    if (generateBVH) bvh_ = BVH(*this, config.rendering.maxBVHTriangles, 30);
 }
 
 std::pair<glm::vec3, glm::vec3> Mesh::CalculateAABB() const noexcept
