@@ -9,5 +9,6 @@ outputs/
 .venv
 
 *.ini
+*.bak
 
 __pycache__/

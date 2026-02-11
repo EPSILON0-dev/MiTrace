@@ -17,6 +17,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+set(FETCHCONTENT_QUIET OFF)
 include(FetchContent)
 
 # Nlohmann JSON library
@@ -24,8 +25,27 @@ FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
     GIT_TAG v3.11.2
+    GIT_PROGRESS TRUE
 )
 FetchContent_MakeAvailable(nlohmann_json)
+
+# Add spdlog library
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.17.0
+    GIT_PROGRESS TRUE
+)
+FetchContent_MakeAvailable(spdlog)
+
+# Add GLM library
+FetchContent_Declare(
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG 1.0.3
+    GIT_PROGRESS TRUE
+)
+FetchContent_MakeAvailable(glm)
 
 # Preview GUI dependencies
 if (ENABLE_PREVIEW_GUI)
@@ -33,6 +53,7 @@ if (ENABLE_PREVIEW_GUI)
         glfw
         GIT_REPOSITORY https://github.com/glfw/glfw.git
         GIT_TAG 3.3.9
+		GIT_PROGRESS TRUE
     )
     
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
@@ -45,6 +66,7 @@ if (ENABLE_PREVIEW_GUI)
         imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
         GIT_TAG v1.90.4
+		GIT_PROGRESS TRUE
     )
     
     FetchContent_MakeAvailable(imgui)
@@ -67,7 +89,7 @@ if (ENABLE_BACKEND_BASIC)
     )
 endif()
 
-
+# Source Files
 set(SRC_FILES
     src/main.cpp
     src/Loader/GLTF.cpp
