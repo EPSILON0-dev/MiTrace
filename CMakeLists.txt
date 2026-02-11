@@ -4,7 +4,7 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.16)
 
 project(RayTracing)
 
-set(ENABLE_PREVIEW_GUI OFF CACHE BOOL "Enable Preview GUI")
+set(ENABLE_PREVIEW_GUI ON CACHE BOOL "Enable Preview GUI")
 set(ENABLE_BACKEND_BASIC ON CACHE BOOL "Enable Basic Backend")
 set(TARGET_ARCH "native" CACHE STRING "Target architecture for optimization (e.g., native, x86-64, etc.)")
 
@@ -13,7 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
+    set(CMAKE_BUILD_TYPE Release)
 endif()
 
 set(FETCHCONTENT_QUIET OFF)
@@ -132,7 +132,7 @@ target_compile_options(RayTracing PRIVATE
     $<$<CONFIG:Release>:-Ofast -march=${TARGET_ARCH}>
     $<$<CONFIG:RelWithDebInfo>:-Ofast -g -march=${TARGET_ARCH}>
     $<$<CONFIG:Debug>:-O0 -g -fsanitize=address,undefined>
-    -pthread -Wall -Wextra -Wpedantic -std=c++2a
+    -pthread -Wall -Wextra -Wpedantic -Werror
 )
 
 target_link_options(RayTracing PRIVATE

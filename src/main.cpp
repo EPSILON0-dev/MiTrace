@@ -84,6 +84,8 @@ void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePat
 int main(int argc, char** argv)
 {
     Config::Instance().LoadConfig(argc, argv);
+    if (Config::Instance().PrintHelpIfNeeded()) return EXIT_SUCCESS;
+
     const auto& config = Config::GetConfig();
     const auto verbose = Config::Instance().IsVerbose();
     const auto veryVerbose = Config::Instance().IsVeryVerbose();

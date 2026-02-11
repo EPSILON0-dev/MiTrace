@@ -1,4 +1,4 @@
-#if ENABLE_PREVIEW_GUI
+#ifdef ENABLE_PREVIEW_GUI
 #include "Preview.hpp"
 
 #include <spdlog/spdlog.h>
