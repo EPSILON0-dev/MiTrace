@@ -163,7 +163,7 @@ void PreviewWindow::DrawContents()
     ImGui::SetCursorPos(
         ImVec2(cursor.x + (region.x - boxSize.x) * 0.5f, cursor.y + (region.y - boxSize.y) * 0.5f));
 
-    auto texRef = (void*)(uintptr_t)(texture_->GetID());
+    auto texRef = static_cast<ImTextureID>(texture_->GetID());
     ImGui::Image(texRef, boxSize, ImVec2(0, 0), ImVec2(1, 1));
 
     ImGui::EndChild();

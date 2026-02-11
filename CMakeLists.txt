@@ -89,7 +89,6 @@ endif()
 
 # Basic Backend
 if (ENABLE_BACKEND_BASIC)
-    add_compile_definitions(ENABLE_BACKEND_BASIC)
     set (BACKEND_BASIC_SRC_FILES
         src/Tracer/Backends/Basic/Intersect.cpp
         src/Tracer/Backends/Basic/RayHit.cpp
@@ -122,8 +121,12 @@ target_include_directories(RayTracing PRIVATE ${spdlog_SOURCE_DIR})
 target_include_directories(RayTracing PRIVATE ${glm_SOURCE_DIR})
 target_include_directories(RayTracing PRIVATE ${stb_SOURCE_DIR})
 
+if (ENABLE_BACKEND_BASIC)
+    target_compile_definitions(RayTracing PRIVATE ENABLE_BACKEND_BASIC=1)
+endif()
+
 if (ENABLE_PREVIEW_GUI)
-    target_compile_definitions(RayTracing PRIVATE ENABLE_PREVIEW_GUI)
+    target_compile_definitions(RayTracing PRIVATE ENABLE_PREVIEW_GUI=1)
     target_include_directories(RayTracing PRIVATE ${imgui_SOURCE_DIR}/backends)
     target_link_libraries(RayTracing PRIVATE imgui glfw GL)
 endif()

@@ -1,6 +1,6 @@
 #pragma once
 
-#if ENABLE_PREVIEW_GUI
+#ifdef ENABLE_PREVIEW_GUI
 #include <GLFW/glfw3.h>
 
 #include <atomic>
