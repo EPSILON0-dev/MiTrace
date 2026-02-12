@@ -15,7 +15,7 @@ class BVHTreeNode
     using BVHNodeChildrenRawPtr = std::pair<const BVHTreeNode*, const BVHTreeNode*>;
     using SplitIndices = std::pair<std::vector<uint32_t>, std::vector<uint32_t>>;
 
-    enum class SplitAxis
+    enum class SplitAxis : uint8_t
     {
         X,
         Y,
@@ -34,13 +34,13 @@ class BVHTreeNode
     void ComputeAABB();
     glm::vec3 FindCenterOfMass() const;
     SplitIndices SplitTriangles(SplitAxis axis, float splitPos) const;
-    float ComputeSplitScore(SplitIndices) const;
+    float ComputeSplitScore(SplitIndices& split) const;
 
    public:
     BVHTreeNode(const std::vector<glm::vec3>& allTriangles,
         const std::vector<uint32_t>& triangleIndices, int depth = 0);
     BVHTreeNode(const std::vector<glm::vec3>& allTriangles,
-        const std::vector<uint32_t>& triangleIndices, const AABB& aabb, int depth = 0);
+        const std::vector<uint32_t>& triangleIndices, AABB aabb, int depth = 0);
 
     bool IsLeaf() const { return isLeaf_; }
     AABB GetAABB() const { return aabb_; }
@@ -50,7 +50,7 @@ class BVHTreeNode
         return {children_.first.get(), children_.second.get()};
     }
 
-    void Subdivide(int maxTrianglesPerLeaf = 8, int maxDepth = 32);
+    void Subdivide(unsigned maxTrianglesPerLeaf = 8, unsigned maxDepth = 32);
 };
 
 class BVHTree
@@ -63,10 +63,10 @@ class BVHTree
     uint32_t GetMaxDepthRecursive(const BVHTreeNode* node) const;
 
    public:
-    BVHTree(
-        const std::vector<glm::vec3>& triangles, int maxTrianglesPerLeaf = 8, int maxDepth = 32);
+    BVHTree(const std::vector<glm::vec3>& triangles, unsigned maxTrianglesPerLeaf = 8,
+        unsigned maxDepth = 32);
 
-    int GetTriangleCount() const { return allTriangles_.size() / 3; }
+    auto GetTriangleCount() const { return allTriangles_.size() / 3; }
     const BVHTreeNode* GetRoot() const { return root_.get(); }
 };
 
@@ -109,12 +109,12 @@ class alignas(32) BVHNode
         nodeData_.triangles.count = triangleCount;
     }
 
-    inline const auto& GetAABB() const noexcept { return aabb_; }
-    inline auto IsLeaf() const noexcept { return (nodeData_.children.a & leafBit) != 0; }
-    inline auto GetChildA() const noexcept { return nodeData_.children.a; }
-    inline auto GetChildB() const noexcept { return nodeData_.children.b; }
-    inline auto GetTriangleIndex() const noexcept { return nodeData_.triangles.index & ~leafBit; }
-    inline auto GetTriangleCount() const noexcept { return nodeData_.triangles.count & ~leafBit; }
+    const auto& GetAABB() const noexcept { return aabb_; }
+    auto IsLeaf() const noexcept { return (nodeData_.children.a & leafBit) != 0; }
+    auto GetChildA() const noexcept { return nodeData_.children.a; }
+    auto GetChildB() const noexcept { return nodeData_.children.b; }
+    auto GetTriangleIndex() const noexcept { return nodeData_.triangles.index & ~leafBit; }
+    auto GetTriangleCount() const noexcept { return nodeData_.triangles.count & ~leafBit; }
 };
 
 class Mesh;  // Forward declaration
@@ -129,10 +129,10 @@ class BVH
 
    public:
     BVH() = default;
-    BVH(const Scene::Mesh& mesh, int maxTrianglesPerNode = 8, int maxDepth = 32);
+    BVH(const Scene::Mesh& mesh, unsigned maxTrianglesPerNode = 8, unsigned maxDepth = 32);
 
-    inline const std::vector<BVHNode>& GetNodes() const noexcept { return nodes_; }
-    inline const std::vector<uint32_t>& GetIndices() const noexcept { return indices_; }
+    const std::vector<BVHNode>& GetNodes() const noexcept { return nodes_; }
+    const std::vector<uint32_t>& GetIndices() const noexcept { return indices_; }
 };
 
 }  // namespace Scene

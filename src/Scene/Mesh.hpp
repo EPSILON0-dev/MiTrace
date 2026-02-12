@@ -23,20 +23,19 @@ class Mesh
     std::optional<BVH> bvh_;
 
    public:
-    Mesh() {}
-
+    Mesh() = default;
     Mesh(const Loader::Mesh& mesh);
 
    public:
     const auto& GetName() const noexcept { return name_; }
-    inline const auto& GetPositions() const noexcept { return positions_; }
-    inline const auto& GetNormals() const noexcept { return normals_; }
-    inline const auto& GetTangents() const noexcept { return tangents_; }
-    inline const auto& GetTexCoord0() const noexcept { return texCoord0_; }
-    inline const auto& GetTexCoord1() const noexcept { return texCoord1_; }
-    inline const auto& GetColor0() const noexcept { return color0_; }
-    inline const auto& GetBVH() const noexcept { return bvh_.value(); }
-    inline bool HasBVH() const noexcept { return bvh_.has_value(); }
+    const auto& GetPositions() const noexcept { return positions_; }
+    const auto& GetNormals() const noexcept { return normals_; }
+    const auto& GetTangents() const noexcept { return tangents_; }
+    const auto& GetTexCoord0() const noexcept { return texCoord0_; }
+    const auto& GetTexCoord1() const noexcept { return texCoord1_; }
+    const auto& GetColor0() const noexcept { return color0_; }
+    const auto& GetBVH() const noexcept { return bvh_.value(); }
+    bool HasBVH() const noexcept { return bvh_.has_value(); }
 
     auto GetTriangleCount() const noexcept { return positions_.size() / 3; }
 
@@ -58,8 +57,8 @@ class MeshInstance
    public:
     MeshInstance() = default;
 
-    MeshInstance(std::shared_ptr<Mesh> mesh, const Material& material, const glm::mat4& transform)
-        : mesh_(mesh), material_(material), transform_(transform)
+    MeshInstance(std::shared_ptr<Mesh> mesh, Material material, const glm::mat4& transform)
+        : mesh_(std::move(mesh)), material_(std::move(material)), transform_(transform)
     {
         CalculateWorldAABB();
     }
@@ -67,11 +66,11 @@ class MeshInstance
     // Mesh Instances have to be done explicitly, so we can avoid unnecessary duplication of Meshes
     MeshInstance(const Loader::MeshInstance& meshInstance) = delete;
 
-    inline const Mesh& GetMesh() const noexcept { return *mesh_; }
-    inline const std::shared_ptr<Mesh>& GetMeshPtr() const noexcept { return mesh_; }
-    inline const glm::mat4& GetTransform() const noexcept { return transform_; }
-    inline const Material& GetMaterial() const noexcept { return material_; }
-    inline const std::pair<glm::vec3, glm::vec3>& GetWorldAABB() const noexcept
+    const Mesh& GetMesh() const noexcept { return *mesh_; }
+    const std::shared_ptr<Mesh>& GetMeshPtr() const noexcept { return mesh_; }
+    const glm::mat4& GetTransform() const noexcept { return transform_; }
+    const Material& GetMaterial() const noexcept { return material_; }
+    const std::pair<glm::vec3, glm::vec3>& GetWorldAABB() const noexcept
     {
         return worldAABB_;
     }

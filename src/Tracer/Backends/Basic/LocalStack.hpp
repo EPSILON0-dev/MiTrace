@@ -8,7 +8,7 @@ class Stack
     int count_ = 0;
 
    public:
-    Stack() : count_(0) {}
+    Stack() = default;
 
     T Pop()
     {

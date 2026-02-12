@@ -24,8 +24,8 @@ class Camera
     };
 
    public:
-    inline glm::mat4 GetCameraToWorld() const noexcept { return cameraToWorld_; }
-    inline float GetFov() const noexcept { return fov_; }
+    glm::mat4 GetCameraToWorld() const noexcept { return cameraToWorld_; }
+    float GetFov() const noexcept { return fov_; }
 };
 
 }  // namespace Scene

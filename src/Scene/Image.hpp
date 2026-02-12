@@ -38,11 +38,11 @@ class Image
         }
     }
 
-    inline auto GetWidth() const noexcept { return width_; }
-    inline auto GetHeight() const noexcept { return height_; }
-    inline auto GetChannels() const noexcept { return channels_; }
-    inline const uint8_t* GetPixels() const noexcept { return data_.get(); }
-    inline const auto& GetName() const noexcept { return name_; }
+    auto GetWidth() const noexcept { return width_; }
+    auto GetHeight() const noexcept { return height_; }
+    auto GetChannels() const noexcept { return channels_; }
+    const uint8_t* GetPixels() const noexcept { return data_.get(); }
+    const auto& GetName() const noexcept { return name_; }
 
     void SetName(const std::string& name) { name_ = name; }
 

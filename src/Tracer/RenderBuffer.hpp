@@ -1,11 +1,12 @@
 /**
  * @file RenderBuffer.hpp
  *
- * Render buffer for storing pixel color data during rendering. 
+ * Render buffer for storing pixel color data during rendering.
  */
 #pragma once
 
 #include <stb_image_write.h>
+
 #include <glm/glm.hpp>
 #include <memory>
 
@@ -43,7 +44,7 @@ class RenderBuffer
         pixels_[index] += color;
     }
 
-    uint8_t FloatToU8(float v) const
+    static uint8_t FloatToU8(float v) noexcept
     {
         return static_cast<uint8_t>(glm::clamp(v * 255.0f, 0.0f, 255.0f));
     }
@@ -69,11 +70,12 @@ class RenderBuffer
     unsigned int GetWidth() const { return width_; }
     unsigned int GetHeight() const { return height_; }
 
-    void SaveToFile(const std::string &filename) const
+    void SaveToFile(const std::string& filename) const
     {
         auto rgbPixels = GetPixelsRGB8();
         // 1 means success, there's no define for it
-        if (stbi_write_png(filename.c_str(), width_, height_, 3, rgbPixels.get(), width_ * 3) != 1)
+        if (stbi_write_png(filename.c_str(), static_cast<int>(width_), static_cast<int>(height_), 3,
+                rgbPixels.get(), static_cast<int>(width_ * 3)) != 1)
             throw std::runtime_error("Failed to save image to file");
     }
 };

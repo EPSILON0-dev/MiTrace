@@ -12,8 +12,8 @@ glm::vec4 Image::SamplePixel(int x, int y) const noexcept
 
 glm::vec4 Image::SampleNearest(float& x, float& y) const noexcept
 {
-    int ix = static_cast<int>(x * width_) % width_;
-    int iy = static_cast<int>(y * height_) % height_;
+    int ix = static_cast<int>(x * static_cast<float>(width_)) % width_;
+    int iy = static_cast<int>(y * static_cast<float>(height_)) % height_;
     if (ix < 0) ix += width_;
     if (iy < 0) iy += height_;
     return SamplePixel(ix, iy);
@@ -21,13 +21,13 @@ glm::vec4 Image::SampleNearest(float& x, float& y) const noexcept
 
 glm::vec4 Image::SampleLinear(float& x, float& y) const noexcept
 {
-    int x0 = static_cast<int>(std::floor(x * width_));
+    int x0 = static_cast<int>(std::floor(x * static_cast<float>(width_)));
     int x1 = std::min(x0 + 1, width_ - 1);
-    int y0 = static_cast<int>(std::floor(y * height_));
+    int y0 = static_cast<int>(std::floor(y * static_cast<float>(height_)));
     int y1 = std::min(y0 + 1, height_ - 1);
 
-    float sx = x - static_cast<float>(x0) / width_;
-    float sy = y - static_cast<float>(y0) / height_;
+    float sx = x - static_cast<float>(x0) / static_cast<float>(width_);
+    float sy = y - static_cast<float>(y0) / static_cast<float>(height_);
 
     auto c00 = SamplePixel(x0, y0);
     auto c10 = SamplePixel(x1, y0);
@@ -52,7 +52,7 @@ glm::vec4 Image::Sample(const glm::vec2& uv, const FilterMode filter) const noex
         case FilterMode::Linear:
             return SampleLinear(u, v);
         default:
-            return glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+            return {0.0f, 0.0f, 0.0f, 1.0f};
     }
 }
 

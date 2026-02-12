@@ -71,15 +71,15 @@ struct Material
     Texture normalTexture;
     Texture occlusionTexture;
     Texture emissiveTexture;
-    glm::vec4 baseColorFactor;
-    glm::vec3 emissiveFactor;
-    float normalScale;
-    float metallicFactor;
-    float roughnessFactor;
-    float occlusionStrength;
-    float alphaCutoff;
-    TransparencyMode transparencyMode;
-    bool doubleSided;
+    glm::vec4 baseColorFactor = glm::vec4(1.0f);
+    glm::vec3 emissiveFactor = glm::vec3(0.0f);
+    float normalScale = 1.0f;
+    float metallicFactor = 0.5f;
+    float roughnessFactor = 0.5f;
+    float occlusionStrength = 0.0f;
+    float alphaCutoff = 0.5f;
+    TransparencyMode transparencyMode = TransparencyMode::Opaque;
+    bool doubleSided = false;
 };
 
 struct MeshInstance

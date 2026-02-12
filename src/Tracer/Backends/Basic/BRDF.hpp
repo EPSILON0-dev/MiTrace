@@ -6,13 +6,13 @@
 namespace BRDF
 {
 
-float FresnelSchlick(float cosTheta, float f0) noexcept
+static float FresnelSchlick(float cosTheta, float f0) noexcept
 {
     float f = glm::clamp(f0 * (1.0f - 0.04f) + 0.04f, 0.0f, 1.0f);
     return f + (1.0f - f) * glm::pow(1.0f - cosTheta, 5.0f);
 }
 
-float DistributionGGX(float gotNH, float roughness) noexcept
+static float DistributionGGX(float gotNH, float roughness) noexcept
 {
     float a = roughness * roughness;
     float a2 = a * a;
@@ -24,7 +24,7 @@ float DistributionGGX(float gotNH, float roughness) noexcept
     return a2 / denom;
 }
 
-float GeometrySchlickGGX(float dotNV, float roughness) noexcept
+static float GeometrySchlickGGX(float dotNV, float roughness) noexcept
 {
     float r = (roughness + 1.0f);
     float k = (r * r) / 8.0f;
@@ -33,7 +33,7 @@ float GeometrySchlickGGX(float dotNV, float roughness) noexcept
     return dotNV / denom;
 }
 
-float GeometrySmith(float dotNV, float dotNL, float roughness) noexcept
+static float GeometrySmith(float dotNV, float dotNL, float roughness) noexcept
 {
     float ggx1 = GeometrySchlickGGX(dotNV, roughness);
     float ggx2 = GeometrySchlickGGX(dotNL, roughness);
@@ -54,8 +54,8 @@ float CookTorrance(float NdotL, float NdotV, float NdotH, float roughness, float
 }
 */
 
-float BRDF(const glm::vec3& L, const glm::vec3& V, const glm::vec3& N, float roughness,
-    float metallic) noexcept
+[[maybe_unused]] static float BRDF(const glm::vec3& L, const glm::vec3& V, const glm::vec3& N,
+    float roughness, float metallic) noexcept
 {
     // Roughness hack
     // roughness = glm::max(roughness, 0.05f);

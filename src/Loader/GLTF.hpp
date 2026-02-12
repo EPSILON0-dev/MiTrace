@@ -58,6 +58,7 @@ class GLTF
     std::map<std::pair<size_t, size_t>, std::shared_ptr<Mesh>> loadedMeshes_;
 
    private:  // Helper methods
+    static Material GenerateDefaultMaterial();
     const std::vector<uint8_t>& GetBufferData(size_t bufferIndex);
     bool IsAccessorCorrect(
         size_t accessorIndex, AttributeType expectedType, ComponentType expectedComponentType);

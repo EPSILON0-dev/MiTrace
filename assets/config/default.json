@@ -1,13 +1,14 @@
 {
     "output": {
-        "width": 1024,
-        "height": 1024,
+        "width": 1280,
+        "height": 720,
         "samples": 128
     },
     "rendering": {
+        "disable_bvh": false,
         "max_bounces": 5,
         "max_bvh_triangles": 32,
         "block_size": 8,
-        "num_threads": 16
+        "num_threads": 8
     }
 }

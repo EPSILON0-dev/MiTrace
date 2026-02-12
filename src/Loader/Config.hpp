@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
 #include <nlohmann/json_fwd.hpp>
+#include <string>
 
 class Config
 {
@@ -26,8 +26,8 @@ class Config
 
         struct
         {
-            std::string filename = "";
-            std::string config = "";
+            std::string filename;
+            std::string config;
         } input;
     };
 
@@ -41,6 +41,8 @@ class Config
    private:
     Config() = default;
     ~Config() = default;
+
+   public:
     Config(const Config&&) = delete;
     Config& operator=(const Config&&) = delete;
     Config(const Config&) = delete;
@@ -49,7 +51,7 @@ class Config
    private:
     static std::vector<std::string> SplitPath(const std::string& path);
     template <typename T>
-    void LoadFromJson(const nlohmann::json& jsonObj, const std::string& path, T &prop);
+    void LoadFromJson(const nlohmann::json& jsonObj, const std::string& path, T& prop);
     void LoadFromFile(const std::string& filepath);
 
    public:

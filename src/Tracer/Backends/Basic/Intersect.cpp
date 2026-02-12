@@ -52,8 +52,8 @@ static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, 
     Stack<uint32_t, 64> stack;
     stack.Push(0);
 
-    auto positions = meshInstance.GetMesh().GetPositions();
-    auto bvh = meshInstance.GetMesh().GetBVH();
+    const auto& positions = meshInstance.GetMesh().GetPositions();
+    const auto& bvh = meshInstance.GetMesh().GetBVH();
 
     while (!stack.Empty())
     {
@@ -107,15 +107,15 @@ std::optional<RayHit> IntersectMeshInstance(
 
     // Transform the ray to local space
     Ray localRay;
-    auto modelToWorld = meshInstance.GetTransform();
-    auto invModelToWorld = glm::inverse(modelToWorld);
+    const auto& modelToWorld = meshInstance.GetTransform();
+    const auto invModelToWorld = glm::inverse(modelToWorld);
     localRay.origin = glm::vec3(invModelToWorld * glm::vec4(ray.origin, 1.0f));
     localRay.direction =
         glm::normalize(glm::vec3(invModelToWorld * glm::vec4(ray.direction, 0.0f)));
 
     // Find the closest triangle intersection
     float dist = std::numeric_limits<float>::max();
-    glm::vec2 baryCoord = glm::vec2(0.0f);
+    auto baryCoord = glm::vec2(0.0f);
     size_t triangleIndex = 0;
     if (meshInstance.GetMesh().HasBVH())
     {

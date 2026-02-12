@@ -13,7 +13,7 @@
 #include "Tracer/RenderBuffer.hpp"
 #include "Tracer/Tracer.hpp"
 
-void StatThread(const Tracer& tracer, bool& shouldStop)
+static void StatThread(const Tracer& tracer, bool& shouldStop)
 {
     using std::chrono::milliseconds;
     using std::chrono::seconds;
@@ -21,13 +21,15 @@ void StatThread(const Tracer& tracer, bool& shouldStop)
     using std::chrono::time_point;
     using std::this_thread::sleep_for;
 
+    /*
     const float updatePercentage = 10.0f;
-    const int updateIntervalMs = 1000;
     const int maxUpdateIntervalMs = 30000;
+    */
+    const int updateIntervalMs = 1000;
     const int minUpdateIntervalMs = 3000;
 
     time_point<system_clock> lastUpdateTime = system_clock::now();
-    float lastProgress = 0.0f;
+    // float lastProgress = 0.0f;
     while (!shouldStop && !tracer.IsDone())
     {
         sleep_for(milliseconds(updateIntervalMs));
@@ -35,19 +37,21 @@ void StatThread(const Tracer& tracer, bool& shouldStop)
         if (now - lastUpdateTime < milliseconds(minUpdateIntervalMs)) continue;
 
         auto stats = tracer.GetStats();
-        if (stats.progress - lastProgress >= updatePercentage ||
-            now - lastUpdateTime >= milliseconds(maxUpdateIntervalMs) || true)
+
+        // if (stats.progress - lastProgress >= updatePercentage ||
+        //     now - lastUpdateTime >= milliseconds(maxUpdateIntervalMs) || true)
         {
             spdlog::info(
                 "Progress: {:.2f}%, Time Elapsed: {:.1f}s, Estimated Time Remaining: {:.1f}s",
                 stats.progress * 100.0f, stats.timeElapsed, stats.estimatedTimeRemaining);
-            lastProgress = stats.progress;
+            // lastProgress = stats.progress;
             lastUpdateTime = now;
         }
     }
 }
 
-void RenderThread(std::shared_ptr<RenderBuffer> texture, const char* gltfFilePath, bool& shouldStop)
+static void RenderThread(
+    const std::shared_ptr<RenderBuffer>& texture, const char* gltfFilePath, bool& shouldStop)
 {
     using std::chrono::milliseconds;
     using std::chrono::seconds;

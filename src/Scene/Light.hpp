@@ -23,8 +23,8 @@ class Light
             spdlog::warn("Only point lights are supported, but got a different type");
     }
 
-    inline glm::vec3 GetPosition() const noexcept { return position; }
-    inline glm::vec3 GetColor() const noexcept { return color; }
+    glm::vec3 GetPosition() const noexcept { return position; }
+    glm::vec3 GetColor() const noexcept { return color; }
 };
 
 }  // namespace Scene

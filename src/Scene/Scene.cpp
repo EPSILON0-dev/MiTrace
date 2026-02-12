@@ -12,7 +12,7 @@ void Scene::Scene::CopyLoaderMeshInstances(const Loader::Scene& scene)
     std::map<const Loader::Mesh*, std::shared_ptr<Mesh>> meshMap;
     for (const auto& meshInstance : scene.meshInstances)
     {
-        const auto meshPtr = meshInstance.mesh.get();
+        const auto& meshPtr = meshInstance.mesh.get();
         if (!meshMap.contains(meshPtr))
         {
             meshMap[meshPtr] = std::make_shared<Mesh>(*meshPtr);

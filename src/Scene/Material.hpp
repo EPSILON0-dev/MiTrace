@@ -51,11 +51,6 @@ class Material
    public:
     Material()
         : name_("empty"),
-          baseColorTexture_(Texture()),
-          metallicRoughnessTexture_(Texture()),
-          normalTexture_(Texture()),
-          occlusionTexture_(Texture()),
-          emissiveTexture_(Texture()),
           baseColorFactor_(1.0f),
           emissiveFactor_(0.0f),
           normalScale_(1.0f),

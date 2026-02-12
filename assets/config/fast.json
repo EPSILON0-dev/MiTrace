@@ -1,8 +1,8 @@
 {
     "output": {
-        "width": 200,
-        "height": 150,
-        "samples": 256
+        "width": 128,
+        "height": 72,
+        "samples": 8
     },
     "rendering": {
         "disable_bvh": false,

@@ -18,8 +18,11 @@ BVHTreeNode::BVHTreeNode(const std::vector<glm::vec3>& allTriangles,
 }
 
 BVHTreeNode::BVHTreeNode(const std::vector<glm::vec3>& allTriangles,
-    const std::vector<uint32_t>& triangleIndices, const AABB& aabb, int depth)
-    : allTriangles_(allTriangles), allTriangleIndices_(triangleIndices), aabb_(aabb), depth_(depth)
+    const std::vector<uint32_t>& triangleIndices, AABB aabb, int depth)
+    : allTriangles_(allTriangles),
+      allTriangleIndices_(triangleIndices),
+      aabb_(std::move(aabb)),
+      depth_(depth)
 {
 }
 
@@ -73,7 +76,8 @@ BVHTreeNode::SplitIndices BVHTreeNode::SplitTriangles(SplitAxis axis, float spli
         const auto aabbmin = glm::min(v0, glm::min(v1, v2));
         const auto aabbmax = glm::max(v0, glm::max(v1, v2));
 
-        bool inLeft = false, inRight = false;
+        bool inLeft = false;
+        bool inRight = false;
         switch (axis)
         {
             case SplitAxis::X:
@@ -98,7 +102,7 @@ BVHTreeNode::SplitIndices BVHTreeNode::SplitTriangles(SplitAxis axis, float spli
 }
 
 // Lower is better
-float BVHTreeNode::ComputeSplitScore(SplitIndices split) const
+float BVHTreeNode::ComputeSplitScore(SplitIndices& split) const
 {
     // Give a huuuge score to splits that don't actually split (all triangles on one side)
     if (split.first.size() == allTriangleIndices_.size() ||
@@ -110,7 +114,7 @@ float BVHTreeNode::ComputeSplitScore(SplitIndices split) const
            static_cast<float>(allTriangleIndices_.size());
 }
 
-void BVHTreeNode::Subdivide(int maxTrianglesPerLeaf, int maxDepth)
+void BVHTreeNode::Subdivide(unsigned maxTrianglesPerLeaf, unsigned maxDepth)
 {
     // Skip already subdivided nodes or leaf nodes with few triangles
     if (allTriangleIndices_.size() <= static_cast<size_t>(maxTrianglesPerLeaf)) return;
@@ -190,7 +194,8 @@ void BVHTreeNode::Subdivide(int maxTrianglesPerLeaf, int maxDepth)
     }
 }
 
-BVHTree::BVHTree(const std::vector<glm::vec3>& triangles, int maxTrianglesPerLeaf, int maxDepth)
+BVHTree::BVHTree(
+    const std::vector<glm::vec3>& triangles, unsigned maxTrianglesPerLeaf, unsigned maxDepth)
     : allTriangles_(triangles)
 {
     std::vector<uint32_t> triangleIndices(triangles.size() / 3);
@@ -226,7 +231,7 @@ void BVH::FlattenRecursive(const BVHTreeNode& node)
     bvhNode.SetInnerNode(firstIndices, secondIndices);
 }
 
-BVH::BVH(const Mesh& mesh, int maxTrianglesPerNode, int maxDepth)
+BVH::BVH(const Mesh& mesh, unsigned maxTrianglesPerNode, unsigned maxDepth)
 {
     BVHTree tree(mesh.GetPositions(), maxTrianglesPerNode, maxDepth);
     FlattenRecursive(*tree.GetRoot());

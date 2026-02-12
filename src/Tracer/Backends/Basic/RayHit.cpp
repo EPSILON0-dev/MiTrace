@@ -3,7 +3,7 @@
 #include "Scene/Mesh.hpp"
 
 RayHitGeometryInfo::RayHitGeometryInfo(const RayHit& rayHit) noexcept
-    : RayHit(rayHit), Flags{0, 0, 0, 0}
+    : RayHit(rayHit), Flags{false, false, false, false}
 {
     const auto& mesh = meshInstance->GetMesh();
     const auto& transform = meshInstance->GetTransform();

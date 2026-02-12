@@ -38,12 +38,11 @@ GLTF::~GLTF() = default;
 const std::vector<uint8_t>& GLTF::GetBufferData(size_t bufferIndex)
 {
     // If we found it in the cache, return it
-    if (loadedBuffers_.find(bufferIndex) != loadedBuffers_.end())
-        return loadedBuffers_.at(bufferIndex);
+    if (loadedBuffers_.contains(bufferIndex)) return loadedBuffers_.at(bufferIndex);
 
     // Check for data URI buffers (not supported)
     const auto& bufferData = (*gltfData_)["buffers"][bufferIndex];
-    if (bufferData["uri"].get<std::string>().rfind("data:", 0) == 0)
+    if (bufferData["uri"].get<std::string>().starts_with("data:"))
         throw std::runtime_error("Data URI buffers are not supported");
 
     // Open the buffer file
@@ -54,7 +53,7 @@ const std::vector<uint8_t>& GLTF::GetBufferData(size_t bufferIndex)
             std::format("Failed to open buffer file: {}", bufferPath.string()));
 
     // Read the buffer data
-    size_t byteLength = bufferData["byteLength"].get<size_t>();
+    auto byteLength = bufferData["byteLength"].get<uint32_t>();
     std::vector<uint8_t> bufferBytes(byteLength);
     bufferFile.read(reinterpret_cast<char*>(bufferBytes.data()), byteLength);
     if (!bufferFile)
@@ -75,7 +74,7 @@ GLTF::Accessor GLTF::ParseAccessor(size_t accessorIndex)
     accessor.byteOffset = accessorData.value("byteOffset", 0);
     accessor.count = accessorData["count"].get<size_t>();
 
-    size_t componentType = accessorData["componentType"].get<size_t>();
+    auto componentType = accessorData["componentType"].get<uint32_t>();
     auto attributeType = accessorData["type"].get<std::string>();
 
     static const std::map<std::string, AttributeType> typeComponentCounts = {
@@ -97,12 +96,12 @@ GLTF::Accessor GLTF::ParseAccessor(size_t accessorIndex)
         throw std::runtime_error("Unsupported attribute type for loading data");
     }
 
-    static const std::map<size_t, ComponentType> componentTypes = {
+    static const std::map<uint32_t, ComponentType> componentTypes = {
         {5126, ComponentType::Float},          // FLOAT
         {5123, ComponentType::UnsignedShort},  // UNSIGNED SHORT
         {5125, ComponentType::UnsignedInt}     // UNSIGNED INT
     };
-    static const std::map<size_t, size_t> componentSizes = {
+    static const std::map<uint32_t, size_t> componentSizes = {
         {5126, sizeof(float)},     // FLOAT
         {5123, sizeof(uint16_t)},  // UNSIGNED SHORT
         {5125, sizeof(uint32_t)}   // UNSIGNED INT
@@ -200,7 +199,7 @@ std::vector<uint32_t> GLTF::LoadMeshIndices(size_t accessor)
 
             auto indices = std::vector<uint32_t>();
             indices.reserve(shortIndices.size());
-            std::transform(shortIndices.begin(), shortIndices.end(), std::back_inserter(indices),
+            std::ranges::transform(shortIndices, std::back_inserter(indices),
                 [](uint16_t index) { return static_cast<uint32_t>(index); });
             return indices;
         }
@@ -254,7 +253,7 @@ glm::mat4 GLTF::ComputeNodeTransform(size_t nodeIndex) const
 {
     const auto& nodeData = (*gltfData_)["nodes"][nodeIndex];
 
-    glm::mat4 transform = glm::mat4(1.0f);
+    auto transform = glm::mat4(1.0f);
     if (nodeData.contains("matrix"))
     {
         transform = glm::make_mat4(nodeData["matrix"].get<std::vector<float>>().data());
@@ -286,7 +285,7 @@ glm::mat4 GLTF::ComputeNodeTransform(size_t nodeIndex) const
 std::shared_ptr<Mesh> GLTF::LoadMesh(size_t meshIndex, size_t primitiveIndex)
 {
     // If we found it in the cache, return it
-    if (loadedMeshes_.find(std::pair(meshIndex, primitiveIndex)) != loadedMeshes_.end())
+    if (loadedMeshes_.contains(std::pair(meshIndex, primitiveIndex)))
         return loadedMeshes_.at(std::pair(meshIndex, primitiveIndex));
 
     // Create a new mesh builder
@@ -391,7 +390,7 @@ Material GLTF::LoadMeshMaterial(size_t meshIndex, size_t primitiveIndex)
     const auto& primitiveData = (*gltfData_)["meshes"][meshIndex]["primitives"][primitiveIndex];
 
     // If no material is specified, return a default material
-    if (!primitiveData.contains("material")) return Material();
+    if (!primitiveData.contains("material")) return Material{};
 
     size_t materialIndex = primitiveData["material"].get<size_t>();
     return LoadMaterial(materialIndex);
@@ -400,7 +399,7 @@ Material GLTF::LoadMeshMaterial(size_t meshIndex, size_t primitiveIndex)
 std::shared_ptr<Image> GLTF::LoadImage(size_t imageIndex)
 {
     // Return from cache if already loaded
-    if (loadedImages_.find(imageIndex) != loadedImages_.end()) return loadedImages_.at(imageIndex);
+    if (loadedImages_.contains(imageIndex)) return loadedImages_.at(imageIndex);
 
     // Get the path
     auto& imageData = (*gltfData_)["images"][imageIndex];
@@ -414,7 +413,8 @@ std::shared_ptr<Image> GLTF::LoadImage(size_t imageIndex)
     fclose(f);
 
     // Move the loaded image data into the Image object
-    if (!pixels) throw std::runtime_error(std::format("Failed to load image: {}", path.string()));
+    if (pixels == nullptr)
+        throw std::runtime_error(std::format("Failed to load image: {}", path.string()));
     image->pixels = std::shared_ptr<uint8_t[]>(pixels, stbi_image_free);
     image->name = imageData.value("name", "Unnamed_Image");
 
@@ -429,6 +429,12 @@ std::shared_ptr<Image> GLTF::LoadImage(size_t imageIndex)
 Material GLTF::LoadMaterial(size_t materialIndex)
 {
     const auto& materialData = (*gltfData_)["materials"][materialIndex];
+    if (!materialData.contains("pbrMetallicRoughness"))
+    {
+        spdlog::warn("Non-standard material found, falling back to default");
+        return Material{};
+    }
+
     const auto& pbrData = materialData["pbrMetallicRoughness"];
     Material material;
 
@@ -838,7 +844,7 @@ Scene GLTF::LoadScene(size_t sceneIndex, const glm::mat4& transform)
 
     // Load lights
     auto lights = LoadSceneLights(sceneIndex, transform);
-    for (auto& light : lights) scene.lights.push_back(std::move(light));
+    for (auto& light : lights) scene.lights.push_back(light);
 
     // Load environment texture if present
     auto envTexture = LoadSceneEnvironmentTexture();

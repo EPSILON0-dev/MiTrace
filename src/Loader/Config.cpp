@@ -8,7 +8,7 @@
 #include <nlohmann/json.hpp>
 #include <sstream>
 
-static constexpr char helpMessage[] =
+static const std::string helpMessage =
     "Usage: RayTracing [options]\n"
     "Options:\n"
     "  -f,  --file        <file>     Specify the scene file to load.\n"

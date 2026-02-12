@@ -14,6 +14,12 @@ outputs/
 *.ini
 *.bak
 *.log
+callgrind.out.*
 
 # Don't ask...
 src/format
+
+# Only default configs
+assets/config/*
+!assets/config/default.json
+!assets/config/fast.json

@@ -15,9 +15,9 @@ namespace Preview
 class PreviewTexture
 {
    private:
-    unsigned int textureID_ = 0;
-    int width_ = 0;
-    int height_ = 0;
+    unsigned textureID_ = 0;
+    unsigned width_ = 0;
+    unsigned height_ = 0;
 
    public:
     PreviewTexture(unsigned width, unsigned height, const unsigned char* rgbPixelsU8);
@@ -30,9 +30,9 @@ class PreviewTexture
     PreviewTexture(PreviewTexture&& other) noexcept = default;
     PreviewTexture& operator=(PreviewTexture&& other) noexcept = default;
 
-    unsigned int GetID() const { return textureID_; }
-    int GetWidth() const { return width_; }
-    int GetHeight() const { return height_; }
+    auto GetID() const { return textureID_; }
+    auto GetWidth() const { return width_; }
+    auto GetHeight() const { return height_; }
 };
 
 class PreviewWindow

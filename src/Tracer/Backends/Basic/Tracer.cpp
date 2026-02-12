@@ -3,7 +3,6 @@
 #include <spdlog/spdlog.h>
 
 #include <cmath>
-#include <glm/fwd.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/intersect.hpp>
 
@@ -19,8 +18,8 @@ Ray BasicTracer::GenerateCameraRay(float u, float v, float aspectRatio) const no
     const auto& cam = scene_.GetCamera();
 
     float fovScale = tanf(cam.GetFov() * 0.5f);
-    float px = (2.0f * u - 1.0f) * fovScale;
-    float py = (2.0f * v - 1.0f) * fovScale / aspectRatio;
+    float px = (2.0f * u - 1.0f) * fovScale * aspectRatio;
+    float py = (2.0f * v - 1.0f) * fovScale;
 
     glm::vec4 rayOriginCameraSpace = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
     glm::vec4 rayDirectionCameraSpace = glm::normalize(glm::vec4(px, -py, -1.0f, 0.0f));
@@ -28,23 +27,22 @@ Ray BasicTracer::GenerateCameraRay(float u, float v, float aspectRatio) const no
     glm::vec4 rayOriginWorldSpace = cam.GetCameraToWorld() * rayOriginCameraSpace;
     glm::vec4 rayDirectionWorldSpace = cam.GetCameraToWorld() * rayDirectionCameraSpace;
 
-    return Ray(glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace)));
+    return {glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace))};
 }
 
 static const float pulloutEpsilon = 0.0001f;
 
 BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
-    : imageBuffer_(imageBuffer), scene_(scene), rd_(), rng_(rd_())
+    : imageBuffer_(std::move(imageBuffer)), scene_(scene), rng_(rd_())
 {
 }
 
-std::optional<RayHit> BasicTracer::TraceScene(
-    const Ray& ray, const Scene::Scene& scene, bool anyHit) noexcept
+std::optional<RayHit> BasicTracer::TraceScene(const Ray& ray, bool anyHit) noexcept
 {
     float lowestDistance = std::numeric_limits<float>::max();
     std::optional<RayHit> bestHit = std::nullopt;
 
-    for (const auto& meshInstance : scene.GetMeshInstances())
+    for (const auto& meshInstance : scene_.GetMeshInstances())
     {
         if (const auto hit = IntersectMeshInstance(ray, meshInstance); hit.has_value())
         {
@@ -72,7 +70,8 @@ glm::vec3 BasicTracer::GenerateHemisphereDirection(const glm::vec3& normal) noex
     return (glm::dot(dir, normal) > 0.0f) ? dir : -dir;
 }
 
-glm::vec3 BasicTracer::ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept
+[[maybe_unused]] static glm::vec3 ComputeNormal(
+    const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept
 {
     // FIXME currently broken
     glm::vec3 tangent, bitangent;
@@ -95,31 +94,31 @@ Ray BasicTracer::ReflectSpecular(
     const auto dirSpecular = glm::normalize(glm::reflect(hit.direction, normal));
     const auto dir = glm::normalize(glm::mix(dirSpecular, dirDiffuse, roughness));
     const auto pos = hit.origin + hit.direction * hit.distance + pulloutEpsilon * normal;
-    return Ray(pos, dir);
+    return {pos, dir};
 }
 
 Ray BasicTracer::ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept
 {
     const auto dir = glm::normalize(GenerateHemisphereDirection(normal));
     const auto pos = hit.origin + hit.direction * hit.distance + pulloutEpsilon * normal;
-    return Ray(pos, dir);
+    return {pos, dir};
 }
 
 glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
 {
     constexpr int bounceArraySize = 16;
-    int maxBounces = Config::GetConfig().rendering.maxBounces;
+    auto maxBounces = Config::GetConfig().rendering.maxBounces;
 
     std::uniform_real_distribution<float> randomFloat(0.0f, 1.0f);
 
     Bounce bounces[bounceArraySize];
-    int bounceCount = 0;
+    unsigned bounceCount = 0;
     Ray newRay, currentRay = ray;
     glm::vec3 totalEnergy(1.0f);
 
     for (bounceCount = 0; bounceCount < maxBounces; ++bounceCount)
     {
-        const auto hit = TraceScene(currentRay, scene_);
+        const auto hit = TraceScene(currentRay);
         if (!hit.has_value())
         {
             ++bounceCount;
@@ -167,7 +166,7 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
 
     // Accumulate color from bounces
     glm::vec3 totalLight(0.0f), currentEnergy(1.0f);
-    for (int i = 0; i < bounceCount; i++)
+    for (unsigned i = 0; i < bounceCount; i++)
     {
         const auto& bounce = bounces[i];
 
@@ -177,7 +176,7 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
             const auto lightColor = light.GetColor();
             const glm::vec3 lightDir = light.GetPosition() - bounce.hitInfo.worldPosition;
             const Ray shadowRay(bounce.hitInfo.worldPosition + lightDir * pulloutEpsilon, lightDir);
-            const auto shadowHit = TraceScene(shadowRay, scene_);
+            const auto shadowHit = TraceScene(shadowRay);
 
             float metalness = bounce.materialPoint.metallic;
             float roughness = bounce.materialPoint.roughness;
@@ -207,7 +206,7 @@ void BasicTracer::RenderBlock(const Block& block)
     const auto imageWidth = config.image.width;
     const auto imageHeight = config.image.height;
     const auto imageSamples = config.image.samples;
-    const auto aspectRatio = static_cast<float>(imageWidth) / imageHeight;
+    const auto aspectRatio = static_cast<float>(imageWidth) / static_cast<float>(imageHeight);
     const auto pixelSize = glm::vec2(1.0f) / glm::vec2(imageWidth, imageHeight);
 
     std::uniform_real_distribution<float> xDist(0.0f, pixelSize.x);
@@ -302,8 +301,10 @@ Tracer::Stats BasicTracer::GetStats() const
     using std::chrono::system_clock;
 
     Stats stats;
-    stats.progress = 1.0f - static_cast<float>(blocks_.size()) / initialQueueSize_;
-    stats.timeElapsed = duration_cast<seconds>(system_clock::now() - startTime_).count();
+    stats.progress =
+        1.0f - static_cast<float>(blocks_.size()) / static_cast<float>(initialQueueSize_);
+    stats.timeElapsed =
+        static_cast<float>(duration_cast<seconds>(system_clock::now() - startTime_).count());
     stats.estimatedTimeRemaining = (stats.timeElapsed / stats.progress) * (1.0f - stats.progress);
     stats.raysTraced = 0;  // TODO
     return stats;
