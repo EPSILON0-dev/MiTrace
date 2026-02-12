@@ -8,7 +8,7 @@
         "disable_bvh": false,
         "max_bounces": 5,
         "max_bvh_triangles": 32,
-        "block_size": 8,
+        "block_size": 16,
         "num_threads": 8
     }
 }

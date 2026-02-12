@@ -35,6 +35,7 @@ Mesh::Mesh(const Loader::Mesh& mesh)
 
     bool generateBVH = !config.rendering.disableBVH;
     generateBVH &= GetTriangleCount() > config.rendering.maxBVHTriangles;
+    // TODO Do something better than a fixed value here
     if (generateBVH) bvh_ = BVH(*this, config.rendering.maxBVHTriangles, 30);
 }
 

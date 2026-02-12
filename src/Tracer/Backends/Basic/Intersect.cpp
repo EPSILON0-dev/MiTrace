@@ -48,7 +48,7 @@ static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, 
     const Scene::MeshInstance& meshInstance, float& dist, glm::vec2& baryCoord,
     size_t& triangleIndex) noexcept
 {
-    // Theoretically should be enough
+    // TODO Do something better than a fixed-size stack here
     Stack<uint32_t, 64> stack;
     stack.Push(0);
 
@@ -59,9 +59,10 @@ static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, 
     {
         auto nodeIndex = stack.Pop();
         const auto& node = bvh.GetNodes()[nodeIndex];
+        const auto nodeDist = IntersectRayAABB(localRay, node.GetAABB());
 
-        // If we missed completely, skip this node
-        if (IntersectRayAABB(localRay, node.GetAABB()) < 0.0f) continue;
+        // Skip this node if we missed completely or already got a closer hit
+        if (nodeDist < 0.0f || nodeDist > dist) continue;
 
         // If it's a leaf, check the triangles
         if (node.IsLeaf())

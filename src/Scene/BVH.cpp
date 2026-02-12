@@ -194,6 +194,13 @@ void BVHTreeNode::Subdivide(unsigned maxTrianglesPerLeaf, unsigned maxDepth)
     }
 }
 
+unsigned BVHTreeNode::GetMaxDepthRecursive() const
+{
+    if (IsLeaf()) return 1;
+    return 1 + std::max(GetChildren().first->GetMaxDepthRecursive(),
+                   GetChildren().second->GetMaxDepthRecursive());
+}
+
 BVHTree::BVHTree(
     const std::vector<glm::vec3>& triangles, unsigned maxTrianglesPerLeaf, unsigned maxDepth)
     : allTriangles_(triangles)
@@ -236,6 +243,7 @@ BVH::BVH(const Mesh& mesh, unsigned maxTrianglesPerNode, unsigned maxDepth)
     BVHTree tree(mesh.GetPositions(), maxTrianglesPerNode, maxDepth);
     FlattenRecursive(*tree.GetRoot());
 
-    spdlog::debug("Generated BVH for mesh {}, total nodes: {}, effective triangles: {}, up from {}",
-        mesh.GetName(), nodes_.size(), indices_.size(), tree.GetTriangleCount());
+    spdlog::debug("Generated BVH for mesh {}, nodes: {}, depth: {}, triangles: {}, indices: {}",
+        mesh.GetName(), nodes_.size(), tree.GetRoot()->GetMaxDepthRecursive(),
+        tree.GetTriangleCount(), indices_.size());
 }

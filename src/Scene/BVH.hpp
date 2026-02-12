@@ -49,6 +49,7 @@ class BVHTreeNode
     {
         return {children_.first.get(), children_.second.get()};
     }
+    unsigned GetMaxDepthRecursive() const;
 
     void Subdivide(unsigned maxTrianglesPerLeaf = 8, unsigned maxDepth = 32);
 };
