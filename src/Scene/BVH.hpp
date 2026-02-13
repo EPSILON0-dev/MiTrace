@@ -126,7 +126,9 @@ class BVH
     std::vector<uint32_t> indices_;
 
    private:
-    void FlattenRecursive(const BVHTreeNode& node);
+    std::pair<size_t, size_t> AppendIndices(const BVHTreeNode& node);
+    std::pair<size_t, size_t> FlattenRecursive(const BVHTreeNode& nodeA, const BVHTreeNode& nodeB);
+    void Flatten(const BVHTreeNode& root);
 
    public:
     BVH() = default;

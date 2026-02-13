@@ -211,37 +211,70 @@ BVHTree::BVHTree(
     root_->Subdivide(maxTrianglesPerLeaf, maxDepth - 1);
 }
 
-void BVH::FlattenRecursive(const BVHTreeNode& node)
+std::pair<size_t, size_t> BVH::AppendIndices(const BVHTreeNode& node)
 {
-    if (node.IsLeaf())
-    {
-        nodes_.emplace_back();
-        auto& bvhNode = nodes_.back();
-        bvhNode.SetAABB(node.GetAABB());
-        bvhNode.SetLeaf(indices_.size(), node.GetTriangleIndices().size());
-        indices_.insert(
-            indices_.end(), node.GetTriangleIndices().begin(), node.GetTriangleIndices().end());
-        return;
-    }
+    size_t index = indices_.size();
+    indices_.insert(
+        indices_.end(), node.GetTriangleIndices().begin(), node.GetTriangleIndices().end());
+    size_t count = node.GetTriangleIndices().size();
+    return {index, count};
+}
 
-    size_t currentIndex = nodes_.size();
+std::pair<size_t, size_t> BVH::FlattenRecursive(const BVHTreeNode& nodeA, const BVHTreeNode& nodeB)
+{
+    size_t indexA = nodes_.size();
+    size_t indexB = nodes_.size() + 1;
+
+    nodes_.emplace_back();
     nodes_.emplace_back();
 
-    auto children = node.GetChildren();
-    auto firstIndices = nodes_.size();
-    FlattenRecursive(*children.first);
-    auto secondIndices = nodes_.size();
-    FlattenRecursive(*children.second);
+    nodes_[indexA].SetAABB(nodeA.GetAABB());
+    nodes_[indexB].SetAABB(nodeB.GetAABB());
 
-    auto& bvhNode = nodes_[currentIndex];
-    bvhNode.SetAABB(node.GetAABB());
-    bvhNode.SetInnerNode(firstIndices, secondIndices);
+    if (nodeA.IsLeaf())
+    {
+        auto [index, count] = AppendIndices(nodeA);
+        nodes_[indexA].SetLeaf(index, count);
+    }
+    else
+    {
+        auto [childA, childB] = nodeA.GetChildren();
+        auto [childAIndex, childBIndex] = FlattenRecursive(*childA, *childB);
+        nodes_[indexA].SetInnerNode(childAIndex, childBIndex);
+    }
+
+    if (nodeB.IsLeaf())
+    {
+        auto [index, count] = AppendIndices(nodeB);
+        nodes_[indexB].SetLeaf(index, count);
+    }
+    else
+    {
+        auto [childA, childB] = nodeB.GetChildren();
+        auto [childAIndex, childBIndex] = FlattenRecursive(*childA, *childB);
+        nodes_[indexB].SetInnerNode(childAIndex, childBIndex);
+    }
+
+    return {indexA, indexB};
+}
+
+void BVH::Flatten(const BVHTreeNode& root)
+{
+    // Children of each node are placed next to each other in the final array, so we can just push
+    // them in pairs. This helps cache locality a bit when traversing the BVH.
+    nodes_.emplace_back();
+    nodes_.emplace_back();
+
+    auto [childA, childB] = root.GetChildren();
+    auto [childAIndex, childBIndex] = FlattenRecursive(*childA, *childB);
+    nodes_[0].SetAABB(root.GetAABB());
+    nodes_[0].SetInnerNode(childAIndex, childBIndex);
 }
 
 BVH::BVH(const Mesh& mesh, unsigned maxTrianglesPerNode, unsigned maxDepth)
 {
     BVHTree tree(mesh.GetPositions(), maxTrianglesPerNode, maxDepth);
-    FlattenRecursive(*tree.GetRoot());
+    Flatten(*tree.GetRoot());
 
     spdlog::debug("Generated BVH for mesh {}, nodes: {}, depth: {}, triangles: {}, indices: {}",
         mesh.GetName(), nodes_.size(), tree.GetRoot()->GetMaxDepthRecursive(),

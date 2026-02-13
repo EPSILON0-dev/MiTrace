@@ -53,6 +53,7 @@ static void StatThread(const Tracer& tracer, bool& shouldStop)
 static void RenderThread(
     const std::shared_ptr<RenderBuffer>& texture, const char* gltfFilePath, bool& shouldStop)
 {
+    using std::chrono::duration_cast;
     using std::chrono::milliseconds;
     using std::chrono::seconds;
     using std::chrono::steady_clock;
@@ -73,11 +74,15 @@ static void RenderThread(
 
     spdlog::info("Starting render...");
     std::thread statThread(StatThread, std::cref(tracer), std::ref(shouldStop));
+    auto startTime = system_clock::now();
     tracer.StartRender();
     tracer.WaitForRender();
+    auto endTime = system_clock::now();
+    auto renderDuration = duration_cast<milliseconds>(endTime - startTime).count();
+    auto renderSeconds = static_cast<float>(renderDuration) / 1000.0f;
+    spdlog::info("Render completed in {:.2f} seconds.", renderSeconds);
     shouldStop = true;
     statThread.join();
-    spdlog::info("Render completed.");
 
     auto now = std::chrono::system_clock::now();
     auto filename = std::format("outputs/render_{:%d%m%Y_%H%M}.png", now);

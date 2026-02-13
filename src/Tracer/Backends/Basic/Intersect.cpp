@@ -17,9 +17,8 @@ static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, 
     return glm::compMax(tmin3) <= glm::compMin(tmax3) ? glm::compMin(tmax3) : -1.0f;
 }
 
-[[maybe_unused]] static void IntersectTrianglesLinear(const Ray& localRay,
-    const Scene::MeshInstance& meshInstance, float& dist, glm::vec2& baryCoord,
-    size_t& triangleIndex) noexcept
+static void IntersectTrianglesLinear(const Ray& localRay, const Scene::MeshInstance& meshInstance,
+    float& dist, glm::vec2& baryCoord, size_t& triangleIndex) noexcept
 {
     auto positions = meshInstance.GetMesh().GetPositions();
     for (size_t i = 0; i < positions.size(); i += 3)
@@ -44,26 +43,34 @@ static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, 
     }
 }
 
-[[maybe_unused]] static void IntersectTrianglesBVH(const Ray& localRay,
-    const Scene::MeshInstance& meshInstance, float& dist, glm::vec2& baryCoord,
-    size_t& triangleIndex) noexcept
+static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance& meshInstance,
+    float& dist, glm::vec2& baryCoord, size_t& triangleIndex) noexcept
 {
+    struct StackEntry
+    {
+        uint32_t nodeIndex;
+        float dist;
+    };
+
     // TODO Do something better than a fixed-size stack here
     const float minDelta = 0.1f;
-    Stack<uint32_t, 64> stack;
-    stack.Push(0);
+    auto rootNode = meshInstance.GetMesh().GetBVH().GetNodes()[0];
+    auto rootDist = IntersectRayAABB(localRay, rootNode.GetAABB());
+    Stack<StackEntry, 64> stack;
+    stack.Push({0, rootDist});
 
     const auto& positions = meshInstance.GetMesh().GetPositions();
     const auto& bvh = meshInstance.GetMesh().GetBVH();
 
     while (!stack.Empty())
     {
-        auto nodeIndex = stack.Pop();
-        const auto& node = bvh.GetNodes()[nodeIndex];
-        const auto nodeDist = IntersectRayAABB(localRay, node.GetAABB());
+        auto entry = stack.Pop();
+        const auto& node = bvh.GetNodes()[entry.nodeIndex];
+        const auto nodeDist = entry.dist;
 
-        // Skip this node if we missed completely or already got a closer hit
-        if (nodeDist < 0.0f || nodeDist > dist + minDelta) continue;
+        // Skip this node if already got a closer hit
+        // NOTE: There's no need to check for miss here
+        if (nodeDist > dist + minDelta) continue;
 
         // If it's a leaf, check the triangles
         if (node.IsLeaf())
@@ -95,8 +102,34 @@ static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, 
         // Else keep descending
         else
         {
-            stack.Push(node.GetChildA());
-            stack.Push(node.GetChildB());
+            auto &childA = bvh.GetNodes()[node.GetChildA()];
+            auto &childB = bvh.GetNodes()[node.GetChildB()];
+            auto childADist = IntersectRayAABB(localRay, childA.GetAABB());
+            auto childBDist = IntersectRayAABB(localRay, childB.GetAABB());
+            auto pushA = (childADist >= 0.0f && childADist <= dist + minDelta);
+            auto pushB = (childBDist >= 0.0f && childBDist <= dist + minDelta);
+            if (pushA && pushB)
+            {
+                // Push the closer one first
+                if (childADist < childBDist)
+                {
+                    stack.Push({node.GetChildB(), childBDist});
+                    stack.Push({node.GetChildA(), childADist});
+                }
+                else
+                {
+                    stack.Push({node.GetChildA(), childADist});
+                    stack.Push({node.GetChildB(), childBDist});
+                }
+            }
+            else if (pushA)
+            {
+                stack.Push({node.GetChildA(), childADist});
+            }
+            else if (pushB)
+            {
+                stack.Push({node.GetChildB(), childBDist});
+            }
         }
     }
 }
