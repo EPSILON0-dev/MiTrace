@@ -13,6 +13,8 @@
 #include "Scene/Mesh.hpp"
 #include "Tracer.hpp"
 
+static const float pulloutEpsilon = 0.0001f;
+
 Ray BasicTracer::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
 {
     const auto& cam = scene_.GetCamera();
@@ -29,8 +31,6 @@ Ray BasicTracer::GenerateCameraRay(float u, float v, float aspectRatio) const no
 
     return {glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace))};
 }
-
-static const float pulloutEpsilon = 0.0001f;
 
 BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
     : imageBuffer_(std::move(imageBuffer)), scene_(scene), rng_(rd_())
@@ -127,7 +127,8 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
 
         const auto geom = RayHitGeometryInfo(*hit);
         const auto& matRef = hit->meshInstance->GetMaterial();
-        const auto mat = matRef.SampleMaterial(geom.TexCoord0);
+        auto mat = matRef.SampleMaterial(geom.TexCoord0);
+        mat.baseColor = mat.baseColor * 0.96f + 0.04f;
 
         bounces[bounceCount].incomingRay = ray;
         bounces[bounceCount].hitInfo = *hit;
