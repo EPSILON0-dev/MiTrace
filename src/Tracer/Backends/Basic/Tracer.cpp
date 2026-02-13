@@ -261,6 +261,7 @@ void BasicTracer::StartRender()
     const auto imageWidth = config.image.width;
     const auto imageHeight = config.image.height;
     const auto numThreads = config.rendering.numThreads;
+    const auto cpuAffinity = config.rendering.cpuAffinity;
 
     // Prepare blocks for rendering
     for (unsigned y = 0; y < imageHeight; y += blockSize)
@@ -275,6 +276,21 @@ void BasicTracer::StartRender()
     }
     initialQueueSize_ = blocks_.size();
     spdlog::info("Generated {} jobs of size {}x{}", blocks_.size(), blockSize, blockSize);
+
+    // Warn about thread count
+    if (numThreads > std::thread::hardware_concurrency())
+    {
+        spdlog::warn(
+            "Configured thread count ({}) exceeds hardware concurrency ({}). This may lead to "
+            "performance degradation.",
+            numThreads, std::thread::hardware_concurrency());
+    }
+
+    // Set CPU affinity if enabled
+    if (cpuAffinity)
+    {
+        spdlog::warn("CPU affinity is not implemented  yet.");
+    }
 
     // Start and join worker threads
     startTime_ = std::chrono::system_clock::now();

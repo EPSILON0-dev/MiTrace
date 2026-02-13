@@ -22,6 +22,7 @@ class Config
             unsigned maxBVHTriangles = 32;
             unsigned blockSize = 8;
             unsigned numThreads = 8;
+            bool cpuAffinity = true;
         } rendering;
 
         struct
