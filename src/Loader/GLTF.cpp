@@ -531,8 +531,7 @@ Light GLTF::LoadPointLight(size_t lightIndex) const
     else
         light.color = glm::vec3(1.0f);
     light.intensity = lightData.value("intensity", 1.0f);
-    light.range = lightData.value("range", 0.0f);
-    light.pointSize = lightData.value("size", 0.0f);
+    light.pointSize = lightData.value("size", 0.1f);
     return light;
 }
 
@@ -562,7 +561,6 @@ Light GLTF::LoadSpotLight(size_t lightIndex) const
     else
         light.color = glm::vec3(1.0f);
     light.intensity = lightData.value("intensity", 1.0f);
-    light.range = lightData.value("range", 0.0f);
     light.pointSize = lightData.value("size", 0.0f);
     light.spotInnerConeAngle = lightData["spot"].value("innerConeAngle", 0.0f);
     light.spotOuterConeAngle = lightData["spot"].value("outerConeAngle", glm::quarter_pi<float>());
@@ -583,7 +581,6 @@ Light GLTF::LoadAreaLight(size_t lightIndex) const
     else
         light.color = glm::vec3(1.0f);
     light.intensity = lightData.value("intensity", 1.0f);
-    light.range = lightData.value("range", 0.0f);
     light.areaSize = glm::make_vec2(lightData["area_size"].get<std::vector<float>>().data());
     return light;
 }

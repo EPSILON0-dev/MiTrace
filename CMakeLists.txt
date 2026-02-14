@@ -108,12 +108,13 @@ endif()
 set(SRC_FILES
     src/main.cpp
     src/Loader/GLTF.cpp
-    src/Loader/Config.cpp
+    src/CLI/Config.cpp
     src/Preview/Preview.cpp 
     src/Scene/BVH.cpp
     src/Scene/Image.cpp
     src/Scene/Mesh.cpp
     src/Scene/Scene.cpp
+    src/Platform/Platform.cpp
     src/Common/STB_Impl.cpp
     ${BACKEND_BASIC_SRC_FILES}
     ${IMGUI_BACKEND_FILES}

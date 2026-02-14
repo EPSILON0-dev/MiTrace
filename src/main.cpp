@@ -6,7 +6,7 @@
 #include <memory>
 #include <thread>
 
-#include "Loader/Config.hpp"
+#include "CLI/Config.hpp"
 #include "Loader/GLTF.hpp"
 #include "Preview/Preview.hpp"
 #include "Tracer/Backends/Basic/Tracer.hpp"

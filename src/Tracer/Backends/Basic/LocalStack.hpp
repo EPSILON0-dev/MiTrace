@@ -1,10 +1,12 @@
 #pragma once
 
+#include <array>
+
 template <typename T, int maxSize>
 class Stack
 {
    private:
-    T data_[maxSize];
+    std::array<T, maxSize> data_;
     int count_ = 0;
 
    public:

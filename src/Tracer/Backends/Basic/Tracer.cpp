@@ -1,14 +1,16 @@
-#include <chrono>
+#include "glm/fwd.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <spdlog/spdlog.h>
 
+#include <chrono>
 #include <cmath>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/intersect.hpp>
 
 #include "BRDF.hpp"
+#include "CLI/Config.hpp"
 #include "Intersect.hpp"
-#include "Loader/Config.hpp"
+#include "Platform/Platform.hpp"
 #include "RayHit.hpp"
 #include "Scene/Mesh.hpp"
 #include "Tracer.hpp"
@@ -58,7 +60,7 @@ std::optional<RayHit> BasicTracer::TraceScene(const Ray& ray, bool anyHit) noexc
     return bestHit;
 }
 
-glm::vec3 BasicTracer::GenerateHemisphereDirection(const glm::vec3& normal) noexcept
+glm::vec3 BasicTracer::GenerateRandomDirection() noexcept
 {
     std::uniform_real_distribution<float> phi(0.0f, 2.0f * glm::pi<float>());
     std::uniform_real_distribution<float> theta(-glm::half_pi<float>(), glm::half_pi<float>());
@@ -66,25 +68,24 @@ glm::vec3 BasicTracer::GenerateHemisphereDirection(const glm::vec3& normal) noex
     const float u = phi(rng_);
     const float v = theta(rng_);
 
-    const glm::vec3 dir = glm::normalize(glm::vec3(cosf(u) * cosf(v), sinf(v), sinf(u) * cosf(v)));
+    return glm::normalize(glm::vec3(cosf(u) * cosf(v), sinf(v), sinf(u) * cosf(v)));
+}
+
+glm::vec3 BasicTracer::GenerateHemisphereDirection(const glm::vec3& normal) noexcept
+{
+    const auto dir = GenerateRandomDirection();
     return (glm::dot(dir, normal) > 0.0f) ? dir : -dir;
 }
 
 [[maybe_unused]] static glm::vec3 ComputeNormal(
-    const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept
+    const glm::vec3& surfNorm, const glm::vec3& surfTan, const glm::vec3& texNorm) noexcept
 {
-    // FIXME currently broken
-    glm::vec3 tangent, bitangent;
-    glm::vec3 n = glm::normalize(surfNorm);
-    if (std::abs(n.x) > std::abs(n.z))
-        tangent = glm::normalize(glm::vec3(-n.y, n.x, 0.0f));
-    else
-        tangent = glm::normalize(glm::vec3(0.0f, -n.z, n.y));
-    bitangent = glm::cross(n, tangent);
+    const auto normal = glm::normalize(surfNorm);
+    const auto tangent = glm::normalize(surfTan);
+    const auto bitangent = glm::cross(normal, tangent);
 
-    glm::mat3 tbn = glm::mat3(tangent, bitangent, n);
-    glm::vec3 mappedNormal = texNorm * 2.0f - glm::vec3(1.0f);
-    return glm::normalize(tbn * mappedNormal);
+    const auto tbn = glm::mat3(tangent, bitangent, normal);
+    return glm::normalize(tbn * texNorm);
 }
 
 Ray BasicTracer::ReflectSpecular(
@@ -137,7 +138,9 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
         const auto fresnel = BRDF::FresnelSchlick(
             glm::max(glm::dot(-currentRay.direction, geom.Normal), 0.0f), mat.metallic);
 
-        const auto normal = geom.Normal;  // TODO ComputeNormal(geom.Normal, mat.normal);
+        const auto normal = geom.Flags.HasTangent
+                                ? ComputeNormal(geom.Normal, geom.Tangent, mat.normal)
+                                : geom.Normal;
         float energyTransfer = 1.0f;
         if (randomFloat(rng_) > fresnel)
         {
@@ -174,8 +177,10 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
         for (const auto& light : scene_.GetLights())
         {
             // For now we assume that all lights are point lights
+            const auto lightPos =
+                light.GetPosition() + GenerateRandomDirection() * light.GetPointSize();
             const auto lightColor = light.GetColor();
-            const glm::vec3 lightDir = light.GetPosition() - bounce.hitInfo.worldPosition;
+            const glm::vec3 lightDir = lightPos - bounce.hitInfo.worldPosition;
             const Ray shadowRay(bounce.hitInfo.worldPosition + lightDir * pulloutEpsilon, lightDir);
             const auto shadowHit = TraceScene(shadowRay);
 
@@ -215,8 +220,8 @@ void BasicTracer::RenderBlock(const Block& block)
 
     auto renderPixel = [&](int x, int y)
     {
-        const auto baseU = (static_cast<float>(x) + 0.5f) * pixelSize.x;
-        const auto baseV = (static_cast<float>(y) + 0.5f) * pixelSize.y;
+        const auto baseU = static_cast<float>(x) * pixelSize.x;
+        const auto baseV = static_cast<float>(y) * pixelSize.y;
         glm::vec3 color(0.0f);
 
         for (unsigned s = 0; s < imageSamples; ++s)
@@ -286,17 +291,35 @@ void BasicTracer::StartRender()
             numThreads, std::thread::hardware_concurrency());
     }
 
-    // Set CPU affinity if enabled
-    if (cpuAffinity)
-    {
-        spdlog::warn("CPU affinity is not implemented  yet.");
-    }
-
     // Start and join worker threads
     startTime_ = std::chrono::system_clock::now();
     for (unsigned i = 0; i < numThreads; ++i)
         workers_.emplace_back(&BasicTracer::WorkerThread, this);
     spdlog::info("Started {} worker threads", numThreads);
+
+    // Set CPU affinity if enabled
+    if (cpuAffinity)
+    {
+        if (numThreads > std::thread::hardware_concurrency())
+        {
+            spdlog::warn(
+                "Unable to set CPU affinity for all worker threads due to thread count exceeding "
+                "hardware concurrency.");
+        }
+        else
+        {
+            // This is calculated to spread threads across cores as evenly as possible,
+            // if there are 2 threads and 4 cores, we want them to use core 0 and 2, which on
+            // hyperthreaded CPUs will often be on different physical cores/
+            auto numCores = std::thread::hardware_concurrency();
+            auto coreOffset = numCores / numThreads;
+            for (unsigned i = 0; i < numThreads; ++i)
+            {
+                Platform::SetThreadAffinity(workers_[i], i * coreOffset);
+            }
+            spdlog::info("Set CPU affinity for worker threads");
+        }
+    }
 }
 
 void BasicTracer::WaitForRender()

@@ -91,16 +91,15 @@ struct MeshInstance
 
 struct Light
 {
-    LightType type;
+    LightType type = LightType::Point;
     glm::mat4 transform;
     glm::vec3 color;
-    float intensity;
-    float range;
-    float pointSize;
-    float directionalAngle;
-    float spotInnerConeAngle;
-    float spotOuterConeAngle;
-    glm::vec2 areaSize;
+    float intensity = 1.0f;
+    float pointSize = 0.1f;
+    float directionalAngle = 0.0f;
+    float spotInnerConeAngle = 0.0f;
+    float spotOuterConeAngle = 0.0f;
+    glm::vec2 areaSize = glm::vec2(1.0f);
 };
 
 struct Camera

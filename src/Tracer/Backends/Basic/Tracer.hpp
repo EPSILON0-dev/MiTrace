@@ -46,6 +46,7 @@ class BasicTracer : public Tracer
    private:
     Ray GenerateCameraRay(float u, float v, float aspectRatio) const noexcept;
     std::optional<RayHit> TraceScene(const Ray& ray, bool anyHit = false) noexcept;
+    glm::vec3 GenerateRandomDirection() noexcept;
     glm::vec3 GenerateHemisphereDirection(const glm::vec3& normal) noexcept;
     Ray ReflectSpecular(const RayHit& hit, const glm::vec3& normal, float roughness) noexcept;
     Ray ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept;

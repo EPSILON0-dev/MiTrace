@@ -2,7 +2,7 @@
 
 #include <numeric>
 
-#include "Loader/Config.hpp"
+#include "CLI/Config.hpp"
 
 using namespace Scene;
 
