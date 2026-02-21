@@ -418,7 +418,7 @@ std::shared_ptr<Image> GLTF::LoadImage(size_t imageIndex)
     image->pixels = std::shared_ptr<uint8_t[]>(pixels, stbi_image_free);
     image->name = imageData.value("name", "Unnamed_Image");
 
-    spdlog::trace("Loaded new image \"{}\" ({}x{}, {} channels)", image->name, image->width,
+    spdlog::debug("Loaded new image \"{}\" ({}x{}, {} channels)", image->name, image->width,
         image->height, image->channels);
 
     // Emplace in cache and return
@@ -465,7 +465,7 @@ Material GLTF::LoadMaterial(size_t materialIndex)
     // Load normal texture if present
     if (materialData.contains("normalTexture"))
         material.normalTexture = LoadTexture(materialData["normalTexture"]["index"].get<size_t>());
-    material.normalScale = materialData.value("normalTexture", 1.0f);
+    material.normalScale = materialData.value("normalScale", 1.0f);
 
     // Load occlusion texture if present
     if (materialData.contains("occlusionTexture"))

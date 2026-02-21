@@ -138,9 +138,10 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
         const auto fresnel = BRDF::FresnelSchlick(
             glm::max(glm::dot(-currentRay.direction, geom.Normal), 0.0f), mat.metallic);
 
-        const auto normal = geom.Flags.HasTangent
-                                ? ComputeNormal(geom.Normal, geom.Tangent, mat.normal)
-                                : geom.Normal;
+        // const auto normal = geom.Flags.HasTangent
+        // ? ComputeNormal(geom.Normal, geom.Tangent, mat.normal)
+        // : geom.Normal;
+        const auto normal = geom.Normal;
         float energyTransfer = 1.0f;
         if (randomFloat(rng_) > fresnel)
         {

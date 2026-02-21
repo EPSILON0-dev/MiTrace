@@ -2,14 +2,14 @@
     "output": {
         "width": 1280,
         "height": 720,
-        "samples": 128
+        "samples": 256
     },
     "rendering": {
         "disable_bvh": false,
         "max_bounces": 5,
         "max_bvh_triangles": 32,
         "block_size": 16,
-        "num_threads": 8,
+        "num_threads": 0,
         "cpu_affinity": true
     }
 }
