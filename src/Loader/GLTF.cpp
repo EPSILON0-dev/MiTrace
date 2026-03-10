@@ -2,6 +2,7 @@
 
 #include <spdlog/spdlog.h>
 #include <stb_image.h>
+#include <sys/types.h>
 
 #include <format>
 #include <fstream>
@@ -405,12 +406,32 @@ std::shared_ptr<Image> GLTF::LoadImage(size_t imageIndex)
     auto& imageData = (*gltfData_)["images"][imageIndex];
     if (!imageData.contains("uri")) throw std::runtime_error("Only URI-based images are supported");
     auto path = basePath_ / imageData["uri"].get<std::string>();
+    auto isFloatImage = path.extension() == ".hdr" || path.extension() == ".exr";
 
     // Load image
     auto image = std::make_shared<Image>();
-    FILE* f = fopen(path.string().c_str(), "rb");
-    uint8_t* pixels = stbi_load_from_file(f, &image->width, &image->height, &image->channels, 3);
-    fclose(f);
+    uint8_t* pixels = nullptr;
+    if (isFloatImage)
+    {
+        spdlog::warn("Loading float image \"{}\" as U8, dynamic range may be lost.",
+            path.filename().string());
+        FILE* f = fopen(path.string().c_str(), "rb");
+        const size_t pixelCount = image->width * image->height * 3;
+        float* floatPixels =
+            stbi_loadf_from_file(f, &image->width, &image->height, &image->channels, 3);
+        pixels = new uint8_t[pixelCount];
+        for (size_t i = 0; i < pixelCount; ++i)
+        {
+            pixels[i] = static_cast<uint8_t>(std::clamp(floatPixels[i] * 255.0f, 0.0f, 255.0f));
+        }
+        fclose(f);
+    }
+    else
+    {
+        FILE* f = fopen(path.string().c_str(), "rb");
+        pixels = stbi_load_from_file(f, &image->width, &image->height, &image->channels, 3);
+        fclose(f);
+    }
 
     // Move the loaded image data into the Image object
     if (pixels == nullptr)

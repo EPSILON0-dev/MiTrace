@@ -32,10 +32,8 @@ class Image
         data_ = image.pixels;
         name_ = image.name;
 
-        if (channels_ != 3)
-        {
-            throw std::runtime_error("Only RGB images are supported");
-        }
+        // Alpha is dropped on load anyway
+        // if (channels_ != 3) throw std::runtime_error("Only RGB images are supported");
     }
 
     auto GetWidth() const noexcept { return width_; }

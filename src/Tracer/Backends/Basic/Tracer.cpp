@@ -114,12 +114,13 @@ glm::vec3 BasicTracer::GenerateHemisphereDirection(const glm::vec3& normal) noex
     return (glm::dot(dir, normal) > 0.0f) ? dir : -dir;
 }
 
-[[maybe_unused]] static glm::vec3 ComputeNormal(
-    const glm::vec3& surfNorm, const glm::vec3& surfTan, const glm::vec3& texNorm) noexcept
+static glm::vec3 ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept
 {
     const auto normal = glm::normalize(surfNorm);
-    const auto tangent = glm::normalize(surfTan);
-    const auto bitangent = glm::cross(normal, tangent);
+    const auto up =
+        (glm::abs(normal.y) < 0.9f) ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+    const auto tangent = glm::normalize(glm::cross(normal, up));
+    const auto bitangent = glm::normalize(glm::cross(tangent, normal));
 
     const auto tbn = glm::mat3(tangent, bitangent, normal);
     return glm::normalize(tbn * texNorm);
@@ -175,10 +176,9 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
         const auto fresnel = BRDF::FresnelSchlick(
             glm::max(glm::dot(-currentRay.direction, geom.Normal), 0.0f), mat.metallic);
 
-        // const auto normal = geom.Flags.HasTangent
-        // ? ComputeNormal(geom.Normal, geom.Tangent, mat.normal)
-        // : geom.Normal;
-        const auto normal = geom.Normal;
+        // const auto normal = ComputeNormal(geom.Normal, glm::vec3(0.0f, 0.0f, 1.0f));
+        const auto normal = ComputeNormal(geom.Normal, mat.normal);
+        // const auto normal = geom.Normal;
         float energyTransfer = 1.0f;
         if (randomFloat(rng_) > fresnel)
         {
@@ -224,7 +224,7 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
 
             float metalness = bounce.materialPoint.metallic;
             float roughness = bounce.materialPoint.roughness;
-            float lightDivisor = 150.0f;
+            float lightDivisor = 1000.0f;
             float brdf = BRDF::BRDF(glm::normalize(lightDir), -bounce.incomingRay.direction,
                 bounce.effectiveNormal, roughness, metalness);
             float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir) + 1.0f);

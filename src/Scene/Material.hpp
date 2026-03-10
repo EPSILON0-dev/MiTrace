@@ -86,11 +86,11 @@ class Material
                    : glm::vec4(baseColorFactor_);
     }
 
-    float GetMetallic(const glm::vec2& texCoord) const noexcept
+    glm::vec3 GetOcclusion(const glm::vec2& texCoord) const noexcept
     {
-        return metallicRoughnessTexture_.IsValid()
-                   ? metallicRoughnessTexture_.Sample(texCoord).r * metallicFactor_
-                   : metallicFactor_;
+        return occlusionTexture_.IsValid()
+                   ? glm::vec3(occlusionTexture_.Sample(texCoord).r) * occlusionStrength_
+                   : glm::vec3(1.0f);
     }
 
     float GetRoughness(const glm::vec2& texCoord) const noexcept
@@ -100,10 +100,17 @@ class Material
                    : roughnessFactor_;
     }
 
+    float GetMetallic(const glm::vec2& texCoord) const noexcept
+    {
+        return metallicRoughnessTexture_.IsValid()
+                   ? metallicRoughnessTexture_.Sample(texCoord).b * metallicFactor_
+                   : metallicFactor_;
+    }
+
     glm::vec3 GetNormal(const glm::vec2& texCoord) const noexcept
     {
         return normalTexture_.IsValid()
-                   ? glm::vec3(normalTexture_.Sample(texCoord)) * normalScale_
+                   ? glm::normalize(glm::vec3(normalTexture_.Sample(texCoord)) * normalScale_ * 2.0f - 1.0f)
                    : glm::vec3(0.0f, 0.0f, 1.0f);
     }
 
@@ -112,13 +119,6 @@ class Material
         return emissiveTexture_.IsValid()
                    ? glm::vec3(emissiveTexture_.Sample(texCoord)) * emissiveFactor_
                    : emissiveFactor_;
-    }
-
-    glm::vec3 GetOcclusion(const glm::vec2& texCoord) const noexcept
-    {
-        return occlusionTexture_.IsValid()
-                   ? glm::vec3(occlusionTexture_.Sample(texCoord)) * occlusionStrength_
-                   : glm::vec3(1.0f);
     }
 
     MaterialPoint SampleMaterial(const glm::vec2& texCoord) const noexcept

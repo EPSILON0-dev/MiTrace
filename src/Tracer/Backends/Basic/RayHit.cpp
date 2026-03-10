@@ -26,12 +26,14 @@ RayHitGeometryInfo::RayHitGeometryInfo(const RayHit& rayHit) noexcept
 
     Normal = glm::normalize(transform * glm::vec4(interpolate(mesh.GetNormals(), true), 0.0f));
 
+    /*
     if (!mesh.GetTangents().empty())
     {
         Tangent = glm::normalize(
             transform * glm::vec4(glm::vec3(interpolate(mesh.GetTangents(), true)), 0.0f));
         Flags.HasTangent = true;
     }
+    */
 
     if (!mesh.GetTexCoord0().empty())
     {

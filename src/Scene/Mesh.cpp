@@ -28,7 +28,8 @@ Mesh::Mesh(const Loader::Mesh& mesh)
     name_ = mesh.name;
     positions_ = UnpackVector(mesh.positions, mesh.indices);
     normals_ = UnpackVector(mesh.normals, mesh.indices);
-    tangents_ = UnpackVector(mesh.tangents, mesh.indices);
+    // Ignore tangents for now
+    // tangents_ = UnpackVector(mesh.tangents, mesh.indices);
     texCoord0_ = UnpackVector(mesh.texCoord0, mesh.indices);
     texCoord1_ = UnpackVector(mesh.texCoord1, mesh.indices);
     color0_ = UnpackVector(mesh.color0, mesh.indices);
