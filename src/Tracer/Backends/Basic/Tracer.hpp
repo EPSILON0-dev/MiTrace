@@ -44,6 +44,9 @@ class BasicTracer : public Tracer
     bool renderKilled_ = false;
 
    private:
+    void CheckCameraAspectRatio(float renderAspectRatio) const noexcept;
+    Ray GeneratePerspectiveRay(float u, float v, float aspectRatio) const noexcept;
+    Ray GenerateOrthogonalRay(float u, float v, float aspectRatio) const noexcept;
     Ray GenerateCameraRay(float u, float v, float aspectRatio) const noexcept;
     std::optional<RayHit> TraceScene(const Ray& ray, bool anyHit = false) noexcept;
     glm::vec3 GenerateRandomDirection() noexcept;

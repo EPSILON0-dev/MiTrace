@@ -17,7 +17,17 @@
 
 static const float pulloutEpsilon = 0.0001f;
 
-Ray BasicTracer::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
+void BasicTracer::CheckCameraAspectRatio(float renderAspectRatio) const noexcept
+{
+    if (fabsf(scene_.GetCamera().GetAspectRatio() - renderAspectRatio) < 0.01f) return;
+
+    spdlog::warn(
+        "Camera aspect ratio ({}) does not match render aspect ratio ({}). This may lead to "
+        "distorted renders.",
+        scene_.GetCamera().GetAspectRatio(), renderAspectRatio);
+}
+
+Ray BasicTracer::GeneratePerspectiveRay(float u, float v, float aspectRatio) const noexcept
 {
     const auto& cam = scene_.GetCamera();
 
@@ -34,9 +44,36 @@ Ray BasicTracer::GenerateCameraRay(float u, float v, float aspectRatio) const no
     return {glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace))};
 }
 
+Ray BasicTracer::GenerateOrthogonalRay(float u, float v, float aspectRatio) const noexcept
+{
+    const auto& cam = scene_.GetCamera();
+
+    float px = (2.0f * u - 1.0f) * cam.GetOrthogonalSize().x * aspectRatio / cam.GetAspectRatio();
+    float py = (2.0f * v - 1.0f) * cam.GetOrthogonalSize().y;
+
+    glm::vec4 rayOriginCameraSpace = glm::vec4(px, -py, 0.0f, 1.0f);
+    glm::vec4 rayDirectionCameraSpace = glm::normalize(glm::vec4(0.0f, 0.0f, -1.0f, 0.0f));
+
+    glm::vec4 rayOriginWorldSpace = cam.GetCameraToWorld() * rayOriginCameraSpace;
+    glm::vec4 rayDirectionWorldSpace = cam.GetCameraToWorld() * rayDirectionCameraSpace;
+
+    return {glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace))};
+}
+
+Ray BasicTracer::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
+{
+    const auto& cam = scene_.GetCamera();
+    return cam.GetType() == Scene::Camera::Type::Perspective
+               ? GeneratePerspectiveRay(u, v, aspectRatio)
+               : GenerateOrthogonalRay(u, v, aspectRatio);
+}
+
 BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
     : imageBuffer_(std::move(imageBuffer)), scene_(scene), rng_(rd_())
 {
+    const auto aspect = static_cast<float>(imageBuffer_->GetWidth()) /
+                        static_cast<float>(imageBuffer_->GetHeight());
+    CheckCameraAspectRatio(aspect);
 }
 
 std::optional<RayHit> BasicTracer::TraceScene(const Ray& ray, bool anyHit) noexcept
@@ -187,7 +224,7 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
 
             float metalness = bounce.materialPoint.metallic;
             float roughness = bounce.materialPoint.roughness;
-            float lightDivisor = 350.0f;
+            float lightDivisor = 150.0f;
             float brdf = BRDF::BRDF(glm::normalize(lightDir), -bounce.incomingRay.direction,
                 bounce.effectiveNormal, roughness, metalness);
             float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir) + 1.0f);

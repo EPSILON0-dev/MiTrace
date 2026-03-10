@@ -106,8 +106,8 @@ struct Camera
 {
     CameraType type;
     glm::mat4 cameraToWorld;
-    float perspectiveFovY;
-    float orthogonalSizeY;
+    float perspectiveFov;
+    glm::vec2 orthogonalMag;
     float aspectRatio;
 };
 

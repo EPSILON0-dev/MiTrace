@@ -499,23 +499,37 @@ Camera GLTF::LoadCamera(size_t cameraIndex) const
     const auto& cameraData = (*gltfData_)["cameras"][cameraIndex];
 
     std::string type = cameraData["type"].get<std::string>();
-    if (type != "perspective")
-        throw std::runtime_error(std::format("Unsupported camera type in GLTF: {}", type));
-
-    const auto& perspectiveData = cameraData["perspective"];
-    float yfov = perspectiveData["yfov"].get<float>();
-
-    float aspectRatio = perspectiveData.value("aspectRatio", 1.0f);
+    float fovy = 0.0f, magx = 0.0f, magy = 0.0f, aspectRatio = 1.0f;
+    CameraType cameraType;
+    if (type == "perspective")
+    {
+        const auto& perspectiveData = cameraData["perspective"];
+        fovy = perspectiveData["yfov"].get<float>();
+        aspectRatio = perspectiveData.value("aspectRatio", 1.0f);
+        cameraType = CameraType::Perspective;
+    }
+    else if (type == "orthographic")
+    {
+        const auto& orthographicData = cameraData["orthographic"];
+        magx = orthographicData["xmag"].get<float>();
+        magy = orthographicData["ymag"].get<float>();
+        aspectRatio = magx / magy;
+        cameraType = CameraType::Orthogonal;
+    }
+    else
+    {
+        throw std::runtime_error("Unsupported camera type in GLTF");
+    }
 
     // We don't need these parameters
     // float znear = perspectiveData["znear"].get<float>();
     // float zfar = perspectiveData.value("zfar", 1000.0f);
 
     return Camera{
-        .type = CameraType::Perspective,
+        .type = cameraType,
         .cameraToWorld = glm::identity<glm::mat4>(),
-        .perspectiveFovY = yfov,
-        .orthogonalSizeY = 0.0f,
+        .perspectiveFov = fovy,
+        .orthogonalMag = glm::vec2(magx, magy),
         .aspectRatio = aspectRatio,
     };
 }
