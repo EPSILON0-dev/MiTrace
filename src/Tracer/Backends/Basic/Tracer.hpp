@@ -34,10 +34,10 @@ class BasicTracer : public Tracer
     };
 
    private:
+    static thread_local std::random_device rd;
+    static thread_local std::mt19937 rng;
     std::shared_ptr<RenderBuffer> imageBuffer_;
     const Scene::Scene& scene_;
-    std::random_device rd_;
-    std::mt19937 rng_;
     std::queue<Block> blocks_;
     unsigned int initialQueueSize_ = 0;
     std::mutex blockMutex_;
@@ -50,10 +50,11 @@ class BasicTracer : public Tracer
     Ray GeneratePerspectiveRay(float u, float v, float aspectRatio) const noexcept;
     Ray GenerateOrthogonalRay(float u, float v, float aspectRatio) const noexcept;
     Ray GenerateCameraRay(float u, float v, float aspectRatio) const noexcept;
-    Ray ReflectSpecular(const RayHit& hit, const glm::vec3& normal, float roughness) noexcept;
-    Ray ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept;
-    glm::vec3 GenerateRandomDirection() noexcept;
-    glm::vec3 GenerateHemisphereDirection(const glm::vec3& normal) noexcept;
+    static Ray ReflectSpecular(
+        const RayHit& hit, const glm::vec3& normal, float roughness) noexcept;
+    static Ray ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept;
+    static glm::vec3 GenerateRandomDirection() noexcept;
+    static glm::vec3 GenerateHemisphereDirection(const glm::vec3& normal) noexcept;
     glm::vec3 ProcessRay(const Ray& ray) noexcept;
     void RenderBlock(const Block& block);
     void WorkerThread();

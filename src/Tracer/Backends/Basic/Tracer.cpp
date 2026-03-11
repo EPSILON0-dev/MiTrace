@@ -17,6 +17,9 @@
 using namespace BasicBackend;
 static const float pulloutEpsilon = 0.0001f;
 
+thread_local std::random_device BasicTracer::rd;
+thread_local std::mt19937 BasicTracer::rng;
+
 void BasicTracer::CheckCameraAspectRatio(float renderAspectRatio) const noexcept
 {
     if (fabsf(scene_.GetCamera().GetAspectRatio() - renderAspectRatio) < 0.01f) return;
@@ -69,7 +72,7 @@ Ray BasicTracer::GenerateCameraRay(float u, float v, float aspectRatio) const no
 }
 
 BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
-    : imageBuffer_(std::move(imageBuffer)), scene_(scene), rng_(rd_())
+    : imageBuffer_(std::move(imageBuffer)), scene_(scene)
 {
     const auto aspect = static_cast<float>(imageBuffer_->GetWidth()) /
                         static_cast<float>(imageBuffer_->GetHeight());
@@ -81,8 +84,8 @@ glm::vec3 BasicTracer::GenerateRandomDirection() noexcept
     std::uniform_real_distribution<float> phi(0.0f, 2.0f * glm::pi<float>());
     std::uniform_real_distribution<float> theta(-glm::half_pi<float>(), glm::half_pi<float>());
 
-    const float u = phi(rng_);
-    const float v = theta(rng_);
+    const float u = phi(rng);
+    const float v = theta(rng);
 
     return glm::normalize(glm::vec3(cosf(u) * cosf(v), sinf(v), sinf(u) * cosf(v)));
 }
@@ -157,7 +160,7 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
 
         const auto normal = ComputeNormal(geom.Normal, mat.normal);
         float energyTransfer = 1.0f;
-        if (randomFloat(rng_) > fresnel)
+        if (randomFloat(rng) > fresnel)
         {
             newRay = ReflectDiffuse(*hit, normal);
             energyTransfer = BasicBackend::BRDF::BRDF(
@@ -241,8 +244,8 @@ void BasicTracer::RenderBlock(const Block& block)
 
         for (unsigned s = 0; s < imageSamples; ++s)
         {
-            const auto u = baseU + xDist(rng_);
-            const auto v = baseV + yDist(rng_);
+            const auto u = baseU + xDist(rng);
+            const auto v = baseV + yDist(rng);
             const Ray ray = GenerateCameraRay(u, v, aspectRatio);
             color += ProcessRay(ray);
         }
