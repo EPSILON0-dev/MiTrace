@@ -8,6 +8,7 @@
 
 #include "Ray.hpp"
 #include "Scene/Scene.hpp"
+#include "Tracer/Backends/Basic/Camera.hpp"
 #include "Tracer/RenderBuffer.hpp"
 #include "Tracer/Tracer.hpp"
 
@@ -38,6 +39,7 @@ class BasicTracer : public Tracer
     static thread_local std::mt19937 rng;
     std::shared_ptr<RenderBuffer> imageBuffer_;
     const Scene::Scene& scene_;
+    const BasicBackend::BasicCamera cam_;
     std::queue<Block> blocks_;
     unsigned int initialQueueSize_ = 0;
     std::mutex blockMutex_;
@@ -46,10 +48,6 @@ class BasicTracer : public Tracer
     bool renderKilled_ = false;
 
    private:
-    void CheckCameraAspectRatio(float renderAspectRatio) const noexcept;
-    Ray GeneratePerspectiveRay(float u, float v, float aspectRatio) const noexcept;
-    Ray GenerateOrthogonalRay(float u, float v, float aspectRatio) const noexcept;
-    Ray GenerateCameraRay(float u, float v, float aspectRatio) const noexcept;
     static Ray ReflectSpecular(
         const RayHit& hit, const glm::vec3& normal, float roughness) noexcept;
     static Ray ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept;

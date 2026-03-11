@@ -20,63 +20,12 @@ static const float pulloutEpsilon = 0.0001f;
 thread_local std::random_device BasicTracer::rd;
 thread_local std::mt19937 BasicTracer::rng;
 
-void BasicTracer::CheckCameraAspectRatio(float renderAspectRatio) const noexcept
-{
-    if (fabsf(scene_.GetCamera().GetAspectRatio() - renderAspectRatio) < 0.01f) return;
-
-    spdlog::warn(
-        "Camera aspect ratio ({}) does not match render aspect ratio ({}). This may lead to "
-        "distorted renders.",
-        scene_.GetCamera().GetAspectRatio(), renderAspectRatio);
-}
-
-Ray BasicTracer::GeneratePerspectiveRay(float u, float v, float aspectRatio) const noexcept
-{
-    const auto& cam = scene_.GetCamera();
-
-    float fovScale = tanf(cam.GetFov() * 0.5f);
-    float px = (2.0f * u - 1.0f) * fovScale * aspectRatio;
-    float py = (2.0f * v - 1.0f) * fovScale;
-
-    glm::vec4 rayOriginCameraSpace = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-    glm::vec4 rayDirectionCameraSpace = glm::normalize(glm::vec4(px, -py, -1.0f, 0.0f));
-
-    glm::vec4 rayOriginWorldSpace = cam.GetCameraToWorld() * rayOriginCameraSpace;
-    glm::vec4 rayDirectionWorldSpace = cam.GetCameraToWorld() * rayDirectionCameraSpace;
-
-    return {glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace))};
-}
-
-Ray BasicTracer::GenerateOrthogonalRay(float u, float v, float aspectRatio) const noexcept
-{
-    const auto& cam = scene_.GetCamera();
-
-    float px = (2.0f * u - 1.0f) * cam.GetOrthogonalSize().x * aspectRatio / cam.GetAspectRatio();
-    float py = (2.0f * v - 1.0f) * cam.GetOrthogonalSize().y;
-
-    glm::vec4 rayOriginCameraSpace = glm::vec4(px, -py, 0.0f, 1.0f);
-    glm::vec4 rayDirectionCameraSpace = glm::normalize(glm::vec4(0.0f, 0.0f, -1.0f, 0.0f));
-
-    glm::vec4 rayOriginWorldSpace = cam.GetCameraToWorld() * rayOriginCameraSpace;
-    glm::vec4 rayDirectionWorldSpace = cam.GetCameraToWorld() * rayDirectionCameraSpace;
-
-    return {glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace))};
-}
-
-Ray BasicTracer::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
-{
-    const auto& cam = scene_.GetCamera();
-    return cam.GetType() == Scene::Camera::Type::Perspective
-               ? GeneratePerspectiveRay(u, v, aspectRatio)
-               : GenerateOrthogonalRay(u, v, aspectRatio);
-}
-
 BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
-    : imageBuffer_(std::move(imageBuffer)), scene_(scene)
+    : imageBuffer_(std::move(imageBuffer)), scene_(scene), cam_(scene.GetCamera())
 {
     const auto aspect = static_cast<float>(imageBuffer_->GetWidth()) /
                         static_cast<float>(imageBuffer_->GetHeight());
-    CheckCameraAspectRatio(aspect);
+    cam_.CheckCameraAspectRatio(aspect);
 }
 
 glm::vec3 BasicTracer::GenerateRandomDirection() noexcept
@@ -246,7 +195,7 @@ void BasicTracer::RenderBlock(const Block& block)
         {
             const auto u = baseU + xDist(rng);
             const auto v = baseV + yDist(rng);
-            const Ray ray = GenerateCameraRay(u, v, aspectRatio);
+            const Ray ray = cam_.GenerateCameraRay(u, v, aspectRatio);
             color += ProcessRay(ray);
         }
         color /= static_cast<float>(imageSamples);

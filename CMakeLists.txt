@@ -98,6 +98,7 @@ endif()
 # Basic Backend
 if (ENABLE_BACKEND_BASIC)
     set (BACKEND_BASIC_SRC_FILES
+        src/Tracer/Backends/Basic/Camera.cpp
         src/Tracer/Backends/Basic/Intersect.cpp
         src/Tracer/Backends/Basic/Ray.cpp
         src/Tracer/Backends/Basic/Tracer.cpp
