@@ -8,5 +8,5 @@
 namespace BasicBackend
 {
 std::optional<RayHit> IntersectScene(
-    const Ray& ray, const Scene::Scene& scene, bool anyHit) noexcept;
+    const Ray& ray, const Scene::Scene& scene) noexcept;
 };  // namespace BasicBackend

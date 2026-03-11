@@ -229,7 +229,7 @@ static std::optional<RayHit> IntersectMeshInstance(
 }
 
 std::optional<RayHit> BasicBackend::IntersectScene(
-    const Ray& ray, const Scene::Scene& scene, bool anyHit) noexcept
+    const Ray& ray, const Scene::Scene& scene) noexcept
 {
     float lowestDistance = std::numeric_limits<float>::max();
     std::optional<RayHit> bestHit = std::nullopt;
@@ -238,7 +238,6 @@ std::optional<RayHit> BasicBackend::IntersectScene(
     {
         if (const auto hit = IntersectMeshInstance(ray, meshInstance); hit.has_value())
         {
-            if (anyHit) break;
             if (hit->distance < lowestDistance)
             {
                 lowestDistance = hit->distance;

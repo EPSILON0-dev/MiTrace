@@ -11,7 +11,6 @@
 #include "CLI/Config.hpp"
 #include "Intersect.hpp"
 #include "Platform/Platform.hpp"
-#include "Scene/Mesh.hpp"
 #include "Tracer.hpp"
 
 using namespace BasicBackend;
@@ -88,7 +87,7 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
 
     for (bounceCount = 0; bounceCount < maxBounces; ++bounceCount)
     {
-        const auto hit = BasicBackend::IntersectScene(currentRay, scene_, false);
+        const auto hit = BasicBackend::IntersectScene(currentRay, scene_);
         if (!hit.has_value())
         {
             ++bounceCount;
@@ -149,7 +148,7 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
             const auto lightColor = light.GetColor();
             const glm::vec3 lightDir = lightPos - bounce.hitInfo.worldPosition;
             const Ray shadowRay(bounce.hitInfo.worldPosition + lightDir * pulloutEpsilon, lightDir);
-            const auto shadowHit = BasicBackend::IntersectScene(shadowRay, scene_, true);
+            const auto shadowHit = BasicBackend::IntersectScene(shadowRay, scene_);
 
             float metalness = bounce.materialPoint.metallic;
             float roughness = bounce.materialPoint.roughness;
