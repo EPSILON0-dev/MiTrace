@@ -142,12 +142,14 @@ if (ENABLE_PREVIEW_GUI)
 endif()
 
 target_compile_options(RayTracing PRIVATE
-    $<$<CONFIG:Release>:-Ofast -march=${TARGET_ARCH}>
-    $<$<CONFIG:RelWithDebInfo>:-Ofast -g -march=${TARGET_ARCH}>
+    $<$<CONFIG:Release>:-Ofast -flto -march=${TARGET_ARCH}>
+    $<$<CONFIG:RelWithDebInfo>:-Ofast -g -flto -march=${TARGET_ARCH}>
     $<$<CONFIG:Debug>:-O0 -g -fsanitize=address,undefined>
     -pthread -Wall -Wextra -Wpedantic -Werror
 )
 
 target_link_options(RayTracing PRIVATE
+    $<$<CONFIG:Release>:-flto=auto>
+    $<$<CONFIG:RelWithDebInfo>:-flto=auto>
     $<$<CONFIG:Debug>:-fsanitize=address,undefined>
 )
