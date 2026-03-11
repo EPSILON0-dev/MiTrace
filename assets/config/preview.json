@@ -1,12 +1,12 @@
 {
     "output": {
-        "width": 128,
-        "height": 72,
-        "samples": 8
+        "width": 1280,
+        "height": 720,
+        "samples": 16
     },
     "rendering": {
         "disable_bvh": false,
-        "max_bounces": 4,
+        "max_bounces": 5,
         "max_bvh_triangles": 32,
         "max_bvh_depth": 32,
         "block_size": 16,

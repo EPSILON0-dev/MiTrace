@@ -95,7 +95,7 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
         uint32_t nodeIndex;
         float dist;
     };
-    static thread_local Stack<StackEntry> stack(Config::GetConfig().rendering.maxBVHDepth);
+    static thread_local Stack<StackEntry> stack(Config::GetConfig().rendering.maxBVHDepth * 2 + 4);
 
     const float minDelta = 0.1f;
     auto rootNode = meshInstance.GetMesh().GetBVH().GetNodes()[0];

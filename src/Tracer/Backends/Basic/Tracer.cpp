@@ -16,8 +16,8 @@
 using namespace BasicBackend;
 static const float pulloutEpsilon = 0.0001f;
 
-thread_local std::random_device BasicTracer::rd;
-thread_local std::mt19937 BasicTracer::rng;
+std::random_device BasicTracer::rd;
+thread_local std::mt19937 BasicTracer::rng(BasicTracer::rd());
 
 BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
     : imageBuffer_(std::move(imageBuffer)), scene_(scene), cam_(scene.GetCamera())
@@ -180,6 +180,8 @@ void BasicTracer::RenderBlock(const Block& block)
     const auto imageSamples = config.image.samples;
     const auto aspectRatio = static_cast<float>(imageWidth) / static_cast<float>(imageHeight);
     const auto pixelSize = glm::vec2(1.0f) / glm::vec2(imageWidth, imageHeight);
+
+    rng.seed(rd());
 
     std::uniform_real_distribution<float> xDist(0.0f, pixelSize.x);
     std::uniform_real_distribution<float> yDist(0.0f, pixelSize.y);

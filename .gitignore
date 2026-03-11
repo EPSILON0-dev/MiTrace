@@ -21,5 +21,6 @@ src/format
 
 # Only default configs
 assets/config/*
+!assets/config/preview.json
 !assets/config/default.json
 !assets/config/fast.json
