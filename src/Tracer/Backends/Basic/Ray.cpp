@@ -1,6 +1,8 @@
-#include "RayHit.hpp"
+#include "Ray.hpp"
 
 #include "Scene/Mesh.hpp"
+
+using namespace BasicBackend;
 
 RayHitGeometryInfo::RayHitGeometryInfo(const RayHit& rayHit) noexcept
     : RayHit(rayHit), Flags{false, false, false, false}

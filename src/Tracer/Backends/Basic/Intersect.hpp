@@ -3,8 +3,10 @@
 #include <optional>
 
 #include "Ray.hpp"
-#include "RayHit.hpp"
-#include "Scene/Mesh.hpp"
+#include "Scene/Scene.hpp"
 
-std::optional<RayHit> IntersectMeshInstance(
-    const Ray& ray, const Scene::MeshInstance& meshInstance) noexcept;
+namespace BasicBackend
+{
+std::optional<RayHit> IntersectScene(
+    const Ray& ray, const Scene::Scene& scene, bool anyHit) noexcept;
+};  // namespace BasicBackend

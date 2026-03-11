@@ -78,6 +78,7 @@ void Config::LoadFromFile(const std::string& filepath)
     LoadFromJson(json, "rendering.num_threads", options_.rendering.numThreads);
     LoadFromJson(json, "rendering.cpu_affinity", options_.rendering.cpuAffinity);
     LoadFromJson(json, "rendering.max_bvh_triangles", options_.rendering.maxBVHTriangles);
+    LoadFromJson(json, "rendering.max_bvh_depth", options_.rendering.maxBVHDepth);
     LoadFromJson(json, "rendering.block_size", options_.rendering.blockSize);
 }
 

@@ -20,6 +20,7 @@ class Config
             bool disableBVH = false;
             unsigned maxBounces = 5;
             unsigned maxBVHTriangles = 32;
+            unsigned maxBVHDepth = 16;
             unsigned blockSize = 8;
             unsigned numThreads = 8;
             bool cpuAffinity = true;

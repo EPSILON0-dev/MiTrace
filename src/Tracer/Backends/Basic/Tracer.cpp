@@ -11,10 +11,10 @@
 #include "CLI/Config.hpp"
 #include "Intersect.hpp"
 #include "Platform/Platform.hpp"
-#include "RayHit.hpp"
 #include "Scene/Mesh.hpp"
 #include "Tracer.hpp"
 
+using namespace BasicBackend;
 static const float pulloutEpsilon = 0.0001f;
 
 void BasicTracer::CheckCameraAspectRatio(float renderAspectRatio) const noexcept
@@ -74,27 +74,6 @@ BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene:
     const auto aspect = static_cast<float>(imageBuffer_->GetWidth()) /
                         static_cast<float>(imageBuffer_->GetHeight());
     CheckCameraAspectRatio(aspect);
-}
-
-std::optional<RayHit> BasicTracer::TraceScene(const Ray& ray, bool anyHit) noexcept
-{
-    float lowestDistance = std::numeric_limits<float>::max();
-    std::optional<RayHit> bestHit = std::nullopt;
-
-    for (const auto& meshInstance : scene_.GetMeshInstances())
-    {
-        if (const auto hit = IntersectMeshInstance(ray, meshInstance); hit.has_value())
-        {
-            if (anyHit) break;
-            if (hit->distance < lowestDistance)
-            {
-                lowestDistance = hit->distance;
-                bestHit = *hit;
-            }
-        }
-    }
-
-    return bestHit;
 }
 
 glm::vec3 BasicTracer::GenerateRandomDirection() noexcept
@@ -157,7 +136,7 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
 
     for (bounceCount = 0; bounceCount < maxBounces; ++bounceCount)
     {
-        const auto hit = TraceScene(currentRay);
+        const auto hit = BasicBackend::IntersectScene(currentRay, scene_, false);
         if (!hit.has_value())
         {
             ++bounceCount;
@@ -173,17 +152,15 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
         bounces[bounceCount].hitInfo = *hit;
         bounces[bounceCount].materialPoint = mat;
 
-        const auto fresnel = BRDF::FresnelSchlick(
+        const auto fresnel = BasicBackend::BRDF::FresnelSchlick(
             glm::max(glm::dot(-currentRay.direction, geom.Normal), 0.0f), mat.metallic);
 
-        // const auto normal = ComputeNormal(geom.Normal, glm::vec3(0.0f, 0.0f, 1.0f));
         const auto normal = ComputeNormal(geom.Normal, mat.normal);
-        // const auto normal = geom.Normal;
         float energyTransfer = 1.0f;
         if (randomFloat(rng_) > fresnel)
         {
             newRay = ReflectDiffuse(*hit, normal);
-            energyTransfer = BRDF::BRDF(
+            energyTransfer = BasicBackend::BRDF::BRDF(
                 newRay.direction, -currentRay.direction, normal, mat.roughness, mat.metallic);
         }
         else
@@ -220,13 +197,13 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
             const auto lightColor = light.GetColor();
             const glm::vec3 lightDir = lightPos - bounce.hitInfo.worldPosition;
             const Ray shadowRay(bounce.hitInfo.worldPosition + lightDir * pulloutEpsilon, lightDir);
-            const auto shadowHit = TraceScene(shadowRay);
+            const auto shadowHit = BasicBackend::IntersectScene(shadowRay, scene_, true);
 
             float metalness = bounce.materialPoint.metallic;
             float roughness = bounce.materialPoint.roughness;
             float lightDivisor = 1000.0f;
-            float brdf = BRDF::BRDF(glm::normalize(lightDir), -bounce.incomingRay.direction,
-                bounce.effectiveNormal, roughness, metalness);
+            float brdf = BasicBackend::BRDF::BRDF(glm::normalize(lightDir),
+                -bounce.incomingRay.direction, bounce.effectiveNormal, roughness, metalness);
             float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir) + 1.0f);
             float lightEnergy = brdf * distanceFalloff / lightDivisor;
 

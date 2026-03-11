@@ -1,10 +1,54 @@
+#include "CLI/Config.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
-#include "Intersect.hpp"
-
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/intersect.hpp>
 
-#include "LocalStack.hpp"
+#include "Intersect.hpp"
+
+using namespace BasicBackend;
+
+namespace
+{
+
+template <typename T>
+class Stack
+{
+   private:
+    std::vector<T> data_;
+    size_t maxSize_;
+
+   public:
+    Stack(size_t maxSize)
+    {
+        maxSize_ = maxSize;
+        data_.reserve(maxSize_);
+    }
+
+    T Pop()
+    {
+        if (data_.size() > 0)
+        {
+            auto val = data_.back();
+            data_.pop_back();
+            return val;
+        }
+
+        return T{};
+    }
+
+    void Push(const T& value)
+    {
+        if (data_.size() < maxSize_ - 1) data_.push_back(value);
+    }
+
+    int Size() const { return data_.size(); }
+    bool Empty() const { return !data_.size(); }
+    void Clear() { data_.clear(); }
+
+    T& Top() { return data_.back(); }
+};
+
+}  // namespace
 
 static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, glm::vec3>& aabb)
 {
@@ -51,12 +95,12 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
         uint32_t nodeIndex;
         float dist;
     };
+    static thread_local Stack<StackEntry> stack(Config::GetConfig().rendering.maxBVHDepth);
 
-    // TODO Do something better than a fixed-size stack here
     const float minDelta = 0.1f;
     auto rootNode = meshInstance.GetMesh().GetBVH().GetNodes()[0];
     auto rootDist = IntersectRayAABB(localRay, rootNode.GetAABB());
-    Stack<StackEntry, 64> stack;
+    stack.Clear();
     stack.Push({0, rootDist});
 
     const auto& positions = meshInstance.GetMesh().GetPositions();
@@ -102,8 +146,8 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
         // Else keep descending
         else
         {
-            auto &childA = bvh.GetNodes()[node.GetChildA()];
-            auto &childB = bvh.GetNodes()[node.GetChildB()];
+            auto& childA = bvh.GetNodes()[node.GetChildA()];
+            auto& childB = bvh.GetNodes()[node.GetChildB()];
             auto childADist = IntersectRayAABB(localRay, childA.GetAABB());
             auto childBDist = IntersectRayAABB(localRay, childB.GetAABB());
             auto pushA = (childADist >= 0.0f && childADist <= dist + minDelta);
@@ -134,7 +178,7 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
     }
 }
 
-std::optional<RayHit> IntersectMeshInstance(
+static std::optional<RayHit> IntersectMeshInstance(
     const Ray& ray, const Scene::MeshInstance& meshInstance) noexcept
 {
     // First, check intersection with world AABB
@@ -182,4 +226,26 @@ std::optional<RayHit> IntersectMeshInstance(
     {
         return std::nullopt;
     }
+}
+
+std::optional<RayHit> BasicBackend::IntersectScene(
+    const Ray& ray, const Scene::Scene& scene, bool anyHit) noexcept
+{
+    float lowestDistance = std::numeric_limits<float>::max();
+    std::optional<RayHit> bestHit = std::nullopt;
+
+    for (const auto& meshInstance : scene.GetMeshInstances())
+    {
+        if (const auto hit = IntersectMeshInstance(ray, meshInstance); hit.has_value())
+        {
+            if (anyHit) break;
+            if (hit->distance < lowestDistance)
+            {
+                lowestDistance = hit->distance;
+                bestHit = *hit;
+            }
+        }
+    }
+
+    return bestHit;
 }

@@ -99,7 +99,7 @@ endif()
 if (ENABLE_BACKEND_BASIC)
     set (BACKEND_BASIC_SRC_FILES
         src/Tracer/Backends/Basic/Intersect.cpp
-        src/Tracer/Backends/Basic/RayHit.cpp
+        src/Tracer/Backends/Basic/Ray.cpp
         src/Tracer/Backends/Basic/Tracer.cpp
     )
 endif()

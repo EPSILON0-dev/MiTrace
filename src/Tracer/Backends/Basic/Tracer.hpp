@@ -7,13 +7,15 @@
 #include <random>
 
 #include "Ray.hpp"
-#include "RayHit.hpp"
 #include "Scene/Scene.hpp"
 #include "Tracer/RenderBuffer.hpp"
 #include "Tracer/Tracer.hpp"
 
 class BasicTracer : public Tracer
 {
+    using Ray = BasicBackend::Ray;
+    using RayHit = BasicBackend::RayHit;
+
    private:
     struct Bounce
     {
@@ -48,11 +50,10 @@ class BasicTracer : public Tracer
     Ray GeneratePerspectiveRay(float u, float v, float aspectRatio) const noexcept;
     Ray GenerateOrthogonalRay(float u, float v, float aspectRatio) const noexcept;
     Ray GenerateCameraRay(float u, float v, float aspectRatio) const noexcept;
-    std::optional<RayHit> TraceScene(const Ray& ray, bool anyHit = false) noexcept;
-    glm::vec3 GenerateRandomDirection() noexcept;
-    glm::vec3 GenerateHemisphereDirection(const glm::vec3& normal) noexcept;
     Ray ReflectSpecular(const RayHit& hit, const glm::vec3& normal, float roughness) noexcept;
     Ray ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept;
+    glm::vec3 GenerateRandomDirection() noexcept;
+    glm::vec3 GenerateHemisphereDirection(const glm::vec3& normal) noexcept;
     glm::vec3 ProcessRay(const Ray& ray) noexcept;
     void RenderBlock(const Block& block);
     void WorkerThread();

@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
-namespace BRDF
+namespace BasicBackend::BRDF
 {
 
 static float FresnelSchlick(float cosTheta, float f0) noexcept
@@ -81,4 +81,4 @@ float CookTorrance(float NdotL, float NdotV, float NdotH, float roughness, float
     return brdf;
 }
 
-}  // namespace BRDF
+}  // namespace BasicBackend::BRDF
