@@ -80,6 +80,9 @@ void Config::LoadFromFile(const std::string& filepath)
     LoadFromJson(json, "rendering.max_bvh_triangles", options_.rendering.maxBVHTriangles);
     LoadFromJson(json, "rendering.max_bvh_depth", options_.rendering.maxBVHDepth);
     LoadFromJson(json, "rendering.block_size", options_.rendering.blockSize);
+
+    if (options_.rendering.numThreads <= 0)
+        options_.rendering.numThreads = std::thread::hardware_concurrency();
 }
 
 void Config::LoadConfig(int argc, char** argv)

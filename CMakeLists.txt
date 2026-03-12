@@ -115,6 +115,8 @@ set(SRC_FILES
     src/Scene/Image.cpp
     src/Scene/Mesh.cpp
     src/Scene/Scene.cpp
+    src/Scene/Camera.cpp
+    src/Scene/Texture.cpp
     src/Platform/Platform.cpp
     src/Common/STB_Impl.cpp
     ${BACKEND_BASIC_SRC_FILES}
@@ -152,4 +154,5 @@ target_link_options(RayTracing PRIVATE
     $<$<CONFIG:Release>:-flto=auto>
     $<$<CONFIG:RelWithDebInfo>:-flto=auto>
     $<$<CONFIG:Debug>:-fsanitize=address,undefined>
+    -lpthread
 )

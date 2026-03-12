@@ -50,16 +50,13 @@ struct Mesh
 
 struct Image
 {
-    int width;
-    int height;
-    int channels;
     std::string name;
-    std::shared_ptr<uint8_t[]> pixels;
+    std::string path;
 };
 
 struct Texture
 {
-    std::shared_ptr<Image> image;
+    Image image;
     SamplerFilter filter;
 };
 

@@ -20,18 +20,12 @@ class Image
 
    private:
     int width_, height_, channels_;
-    std::string name_;
+    std::string name_, path_;
     std::shared_ptr<uint8_t[]> data_;
 
    public:
-    Image(const Loader::Image& image)
+    Image(const Loader::Image& image) : name_(image.name), path_(image.path), data_(nullptr)
     {
-        width_ = image.width;
-        height_ = image.height;
-        channels_ = image.channels;
-        data_ = image.pixels;
-        name_ = image.name;
-
         // Alpha is dropped on load anyway
         // if (channels_ != 3) throw std::runtime_error("Only RGB images are supported");
     }
@@ -43,6 +37,8 @@ class Image
     const auto& GetName() const noexcept { return name_; }
 
     void SetName(const std::string& name) { name_ = name; }
+    void Load();
+    bool IsValid() const noexcept { return data_ != nullptr; }
 
    private:
     glm::vec4 SamplePixel(int x, int y) const noexcept;

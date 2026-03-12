@@ -28,11 +28,6 @@ class Scene
    public:
     Scene(const Loader::Scene& scene);
 
-    // void AddMeshInstance(const MeshInstance& meshInstance) noexcept;
-    // void AddMeshInstances(const std::vector<MeshInstance>& meshInstances) noexcept;
-    // void AddLight(const Light& light) noexcept;
-    // void AddLights(const std::vector<Light>& lights) noexcept;
-
     void SetEnvironmentTexture(const Texture& texture) noexcept { environmentTexture_ = texture; }
     void SetCamera(const Camera& camera) noexcept { camera_ = camera; }
 

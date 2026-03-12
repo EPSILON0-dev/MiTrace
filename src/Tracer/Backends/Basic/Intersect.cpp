@@ -1,4 +1,4 @@
-#include "CLI/Config.hpp"
+// #include "CLI/Config.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/intersect.hpp>
@@ -6,49 +6,6 @@
 #include "Intersect.hpp"
 
 using namespace BasicBackend;
-
-namespace
-{
-
-template <typename T>
-class Stack
-{
-   private:
-    std::vector<T> data_;
-    size_t maxSize_;
-
-   public:
-    Stack(size_t maxSize)
-    {
-        maxSize_ = maxSize;
-        data_.reserve(maxSize_);
-    }
-
-    T Pop()
-    {
-        if (data_.size() > 0)
-        {
-            auto val = data_.back();
-            data_.pop_back();
-            return val;
-        }
-
-        return T{};
-    }
-
-    void Push(const T& value)
-    {
-        if (data_.size() < maxSize_ - 1) data_.push_back(value);
-    }
-
-    int Size() const { return data_.size(); }
-    bool Empty() const { return !data_.size(); }
-    void Clear() { data_.clear(); }
-
-    T& Top() { return data_.back(); }
-};
-
-}  // namespace
 
 static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, glm::vec3>& aabb)
 {
@@ -90,25 +47,26 @@ static void IntersectTrianglesLinear(const Ray& localRay, const Scene::MeshInsta
 static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance& meshInstance,
     float& dist, glm::vec2& baryCoord, size_t& triangleIndex) noexcept
 {
-    struct StackEntry
+    struct alignas(8) StackEntry
     {
         uint32_t nodeIndex;
         float dist;
     };
-    static thread_local Stack<StackEntry> stack(Config::GetConfig().rendering.maxBVHDepth * 2 + 4);
+    static thread_local std::vector<StackEntry> stack;
 
     const float minDelta = 0.1f;
     auto rootNode = meshInstance.GetMesh().GetBVH().GetNodes()[0];
     auto rootDist = IntersectRayAABB(localRay, rootNode.GetAABB());
-    stack.Clear();
-    stack.Push({0, rootDist});
+    stack.clear();
+    stack.push_back({0, rootDist});
 
     const auto& positions = meshInstance.GetMesh().GetPositions();
     const auto& bvh = meshInstance.GetMesh().GetBVH();
 
-    while (!stack.Empty())
+    while (!stack.empty())
     {
-        auto entry = stack.Pop();
+        auto entry = stack.back();
+        stack.pop_back();
         const auto& node = bvh.GetNodes()[entry.nodeIndex];
         const auto nodeDist = entry.dist;
 
@@ -157,22 +115,22 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
                 // Push the closer one first
                 if (childADist < childBDist)
                 {
-                    stack.Push({node.GetChildB(), childBDist});
-                    stack.Push({node.GetChildA(), childADist});
+                    stack.push_back({node.GetChildB(), childBDist});
+                    stack.push_back({node.GetChildA(), childADist});
                 }
                 else
                 {
-                    stack.Push({node.GetChildA(), childADist});
-                    stack.Push({node.GetChildB(), childBDist});
+                    stack.push_back({node.GetChildA(), childADist});
+                    stack.push_back({node.GetChildB(), childBDist});
                 }
             }
             else if (pushA)
             {
-                stack.Push({node.GetChildA(), childADist});
+                stack.push_back({node.GetChildA(), childADist});
             }
             else if (pushB)
             {
-                stack.Push({node.GetChildB(), childBDist});
+                stack.push_back({node.GetChildB(), childBDist});
             }
         }
     }

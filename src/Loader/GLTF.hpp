@@ -54,7 +54,6 @@ class GLTF
     std::unique_ptr<nlohmann::json> gltfData_;
     std::map<size_t, std::vector<uint8_t>> loadedBuffers_;
     std::map<size_t, std::shared_ptr<Material>> loadedMaterials_;
-    std::map<size_t, std::shared_ptr<Image>> loadedImages_;
     std::map<std::pair<size_t, size_t>, std::shared_ptr<Mesh>> loadedMeshes_;
 
    private:  // Helper methods
@@ -89,7 +88,6 @@ class GLTF
 
    public:  // Loaders
     using Mesh_sptr = std::shared_ptr<Mesh>;
-    using TexImage_sptr = std::shared_ptr<Image>;
     using MeshInstance_vec = std::vector<MeshInstance>;
     using Light_vec = std::vector<Light>;
     using Camera_vec = std::vector<Camera>;
@@ -98,7 +96,7 @@ class GLTF
 
     Mesh_sptr LoadMesh(size_t meshIndex, size_t primitiveIndex = 0);
     Material LoadMeshMaterial(size_t meshIndex, size_t primitiveIndex = 0);
-    TexImage_sptr LoadImage(size_t imageIndex);
+    Image LoadImage(size_t imageIndex);
     Material LoadMaterial(size_t materialIndex);
     Texture LoadTexture(size_t textureIndex);
     Camera LoadCamera(size_t cameraIndex) const;

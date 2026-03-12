@@ -234,8 +234,7 @@ void BasicTracer::StartRender()
     const auto imageWidth = config.image.width;
     const auto imageHeight = config.image.height;
     const auto cpuAffinity = config.rendering.cpuAffinity;
-    const auto numThreads = config.rendering.numThreads ? config.rendering.numThreads
-                                                        : std::thread::hardware_concurrency();
+    const auto numThreads = config.rendering.numThreads;
 
     // Prepare blocks for rendering
     for (unsigned y = 0; y < imageHeight; y += blockSize)

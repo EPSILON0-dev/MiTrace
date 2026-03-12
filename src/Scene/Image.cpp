@@ -1,6 +1,10 @@
 #include "Image.hpp"
 
+#include <spdlog/spdlog.h>
+#include <stb/stb_image.h>
+
 #include <glm/gtc/constants.hpp>
+#include <stdexcept>
 
 using namespace Scene;
 
@@ -68,4 +72,33 @@ glm::vec4 Image::SampleEquirectangular(
     float v = phi / glm::pi<float>();
 
     return Sample(glm::vec2(u, v), filter);
+}
+
+void Image::Load()
+{
+    if (path_ == "") return;
+
+    const auto isFloatImage = path_.ends_with(".hdr") || path_.ends_with(".exr");
+    const auto basename = path_.substr(path_.rfind('/') + 1);
+
+    uint8_t* pixels = nullptr;
+    if (isFloatImage)
+    {
+        spdlog::error("Cannot load float image {}", basename);
+        throw std::runtime_error("Cannot load float image");
+    }
+    else
+    {
+        FILE* f = fopen(path_.c_str(), "rb");
+        pixels = stbi_load_from_file(f, &width_, &height_, &channels_, 3);
+        fclose(f);
+    }
+
+    // Move the loaded image data into the Image object
+    if (pixels == nullptr)
+        throw std::runtime_error(std::format("Failed to load image: {}", basename));
+    data_ = std::shared_ptr<uint8_t[]>(pixels, stbi_image_free);
+
+    spdlog::debug(
+        "Loaded new image \"{}\" ({}x{}, {} channels)", basename, width_, height_, channels_);
 }

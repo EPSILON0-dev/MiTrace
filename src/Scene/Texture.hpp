@@ -1,5 +1,8 @@
 #pragma once
 
+#include <memory>
+#include <map>
+
 #include "Image.hpp"
 #include "Loader/Types.hpp"
 
@@ -9,18 +12,13 @@ namespace Scene
 class Texture
 {
    private:
+    static std::map<std::string, std::shared_ptr<Image>> imageCache;
+    std::shared_ptr<Image> image_;
     Image::FilterMode filterMode_;
-    std::optional<Image> image_;
 
    public:
-    Texture() : filterMode_(Image::FilterMode::Nearest), image_(std::nullopt) {}
-    Texture(const Loader::Texture& texture)
-    {
-        filterMode_ = texture.filter == Loader::SamplerFilter::Linear ? Image::FilterMode::Linear
-                                                                      : Image::FilterMode::Nearest;
-        image_ = std::nullopt;
-        if (texture.image != nullptr) image_ = Image(*texture.image);
-    }
+    Texture() : image_(nullptr), filterMode_(Image::FilterMode::Nearest) {}
+    Texture(const Loader::Texture& texture);
 
    public:
     glm::vec4 Sample(const glm::vec2& uv) const noexcept
@@ -33,7 +31,10 @@ class Texture
         return image_->SampleEquirectangular(direction, filterMode_);
     };
 
-    bool IsValid() const noexcept { return image_.has_value(); }
+    bool IsValid() const noexcept { return image_->IsValid(); }
+
+    static void LoadCachedImages();
+    static void ClearCache() noexcept { imageCache.clear(); }
 };
 
 }  // namespace Scene

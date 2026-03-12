@@ -214,8 +214,8 @@ std::vector<uint32_t> GLTF::LoadMeshIndices(size_t accessor)
 Texture GLTF::LoadTexture(size_t textureIndex)
 {
     const auto& textureData = (*gltfData_)["textures"][textureIndex];
-    size_t imageIndex = textureData["source"].get<size_t>();
-    auto imagePtr = LoadImage(imageIndex);
+    const auto imageIndex = textureData["source"].get<size_t>();
+    const auto& image = LoadImage(imageIndex);
 
     // Check the coord set
     if (textureData.contains("texCoord"))
@@ -247,7 +247,7 @@ Texture GLTF::LoadTexture(size_t textureIndex)
         }
     }
 
-    return Texture{.image = imagePtr, .filter = filterMode};
+    return Texture{.image = image, .filter = filterMode};
 }
 
 glm::mat4 GLTF::ComputeNodeTransform(size_t nodeIndex) const
@@ -397,53 +397,15 @@ Material GLTF::LoadMeshMaterial(size_t meshIndex, size_t primitiveIndex)
     return LoadMaterial(materialIndex);
 }
 
-std::shared_ptr<Image> GLTF::LoadImage(size_t imageIndex)
+Image GLTF::LoadImage(size_t imageIndex)
 {
-    // Return from cache if already loaded
-    if (loadedImages_.contains(imageIndex)) return loadedImages_.at(imageIndex);
-
     // Get the path
     auto& imageData = (*gltfData_)["images"][imageIndex];
     if (!imageData.contains("uri")) throw std::runtime_error("Only URI-based images are supported");
-    auto path = basePath_ / imageData["uri"].get<std::string>();
-    auto isFloatImage = path.extension() == ".hdr" || path.extension() == ".exr";
 
-    // Load image
-    auto image = std::make_shared<Image>();
-    uint8_t* pixels = nullptr;
-    if (isFloatImage)
-    {
-        spdlog::warn("Loading float image \"{}\" as U8, dynamic range may be lost.",
-            path.filename().string());
-        FILE* f = fopen(path.string().c_str(), "rb");
-        const size_t pixelCount = image->width * image->height * 3;
-        float* floatPixels =
-            stbi_loadf_from_file(f, &image->width, &image->height, &image->channels, 3);
-        pixels = new uint8_t[pixelCount];
-        for (size_t i = 0; i < pixelCount; ++i)
-        {
-            pixels[i] = static_cast<uint8_t>(std::clamp(floatPixels[i] * 255.0f, 0.0f, 255.0f));
-        }
-        fclose(f);
-    }
-    else
-    {
-        FILE* f = fopen(path.string().c_str(), "rb");
-        pixels = stbi_load_from_file(f, &image->width, &image->height, &image->channels, 3);
-        fclose(f);
-    }
-
-    // Move the loaded image data into the Image object
-    if (pixels == nullptr)
-        throw std::runtime_error(std::format("Failed to load image: {}", path.string()));
-    image->pixels = std::shared_ptr<uint8_t[]>(pixels, stbi_image_free);
-    image->name = imageData.value("name", "Unnamed_Image");
-
-    spdlog::debug("Loaded new image \"{}\" ({}x{}, {} channels)", image->name, image->width,
-        image->height, image->channels);
-
-    // Emplace in cache and return
-    loadedImages_.emplace(imageIndex, image);
+    Image image;
+    image.name = imageData.value("name", "Unnamed_Image");
+    image.path = basePath_ / imageData["uri"].get<std::string>();
     return image;
 }
 
@@ -896,7 +858,6 @@ void GLTF::Cleanup()
 {
     size_t droppedBuffers = loadedBuffers_.size();
     [[maybe_unused]] size_t initialMaterialCount = loadedMaterials_.size();
-    [[maybe_unused]] size_t initialImagesCount = loadedImages_.size();
     [[maybe_unused]] size_t initialMeshCount = loadedMeshes_.size();
 
     loadedBuffers_.clear();
@@ -904,12 +865,10 @@ void GLTF::Cleanup()
     // Drop materials, images and meshes that only have one reference (the one in the loader)
     auto usedCheck = [](const auto& pair) { return (pair.second.use_count() > 1); };
     CleanupMap(loadedMaterials_, usedCheck);
-    CleanupMap(loadedImages_, usedCheck);
     CleanupMap(loadedMeshes_, usedCheck);
 
     spdlog::debug(
-        "GLTF Loader cleaned up unused resources, dropped {} buffers, {} materials, {} images, and "
-        "{} meshes",
+        "GLTF Loader cleaned up unused resources, dropped {} buffers, {} materials, and {} meshes",
         droppedBuffers, initialMaterialCount - loadedMaterials_.size(),
-        initialImagesCount - loadedImages_.size(), initialMeshCount - loadedMeshes_.size());
+        initialMeshCount - loadedMeshes_.size());
 }
