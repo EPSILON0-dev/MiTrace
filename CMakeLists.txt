@@ -10,7 +10,7 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "" CACHE STRING "" FORCE)
 set(CMAKE_C_FLAGS_DEBUG "" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_DEBUG "" CACHE STRING "" FORCE)
 
-project(RayTracing)
+project(MiTrace)
 
 set(ENABLE_PREVIEW_GUI ON CACHE BOOL "Enable Preview GUI")
 set(ENABLE_BACKEND_BASIC ON CACHE BOOL "Enable Basic Backend")
@@ -123,34 +123,34 @@ set(SRC_FILES
     ${IMGUI_BACKEND_FILES}
 )
 
-add_executable(RayTracing ${SRC_FILES})
+add_executable(MiTrace ${SRC_FILES})
 
-target_link_libraries(RayTracing PRIVATE spdlog)
-target_include_directories(RayTracing PRIVATE src)
+target_link_libraries(MiTrace PRIVATE spdlog)
+target_include_directories(MiTrace PRIVATE src)
 
-target_include_directories(RayTracing PRIVATE ${nlohmann_json_SOURCE_DIR}/include)
-target_include_directories(RayTracing PRIVATE ${spdlog_SOURCE_DIR})
-target_include_directories(RayTracing PRIVATE ${glm_SOURCE_DIR})
-target_include_directories(RayTracing PRIVATE ${stb_SOURCE_DIR})
+target_include_directories(MiTrace PRIVATE ${nlohmann_json_SOURCE_DIR}/include)
+target_include_directories(MiTrace PRIVATE ${spdlog_SOURCE_DIR})
+target_include_directories(MiTrace PRIVATE ${glm_SOURCE_DIR})
+target_include_directories(MiTrace PRIVATE ${stb_SOURCE_DIR})
 
 if (ENABLE_BACKEND_BASIC)
-    target_compile_definitions(RayTracing PRIVATE ENABLE_BACKEND_BASIC=1)
+    target_compile_definitions(MiTrace PRIVATE ENABLE_BACKEND_BASIC=1)
 endif()
 
 if (ENABLE_PREVIEW_GUI)
-    target_compile_definitions(RayTracing PRIVATE ENABLE_PREVIEW_GUI=1)
-    target_include_directories(RayTracing PRIVATE ${imgui_SOURCE_DIR}/backends)
-    target_link_libraries(RayTracing PRIVATE imgui glfw GL)
+    target_compile_definitions(MiTrace PRIVATE ENABLE_PREVIEW_GUI=1)
+    target_include_directories(MiTrace PRIVATE ${imgui_SOURCE_DIR}/backends)
+    target_link_libraries(MiTrace PRIVATE imgui glfw GL)
 endif()
 
-target_compile_options(RayTracing PRIVATE
+target_compile_options(MiTrace PRIVATE
     $<$<CONFIG:Release>:-Ofast -flto -march=${TARGET_ARCH}>
     $<$<CONFIG:RelWithDebInfo>:-Ofast -g -flto -march=${TARGET_ARCH}>
     $<$<CONFIG:Debug>:-O0 -g -fsanitize=address,undefined>
     -pthread -Wall -Wextra -Wpedantic -Werror
 )
 
-target_link_options(RayTracing PRIVATE
+target_link_options(MiTrace PRIVATE
     $<$<CONFIG:Release>:-flto=auto>
     $<$<CONFIG:RelWithDebInfo>:-flto=auto>
     $<$<CONFIG:Debug>:-fsanitize=address,undefined>

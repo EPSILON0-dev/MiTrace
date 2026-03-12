@@ -75,6 +75,16 @@ Ray BasicTracer::ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noex
 
 glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
 {
+    struct Bounce
+    {
+        Ray incomingRay;
+        Ray outgoingRay;
+        RayHit hitInfo;
+        Scene::Material::MaterialPoint materialPoint;
+        glm::vec3 effectiveNormal;
+        glm::vec3 energyTransfer;
+    };
+
     constexpr int bounceArraySize = 16;
     auto maxBounces = Config::GetConfig().rendering.maxBounces;
 

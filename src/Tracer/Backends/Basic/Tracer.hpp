@@ -18,16 +18,6 @@ class BasicTracer : public Tracer
     using RayHit = BasicBackend::RayHit;
 
    private:
-    struct Bounce
-    {
-        Ray incomingRay;
-        Ray outgoingRay;
-        RayHit hitInfo;
-        Scene::Material::MaterialPoint materialPoint;
-        glm::vec3 effectiveNormal;
-        glm::vec3 energyTransfer;
-    };
-
     struct Block
     {
         glm::ivec2 offset;
