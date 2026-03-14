@@ -23,6 +23,7 @@ class Config
             unsigned maxBVHDepth = 16;
             unsigned blockSize = 8;
             unsigned numThreads = 8;
+            float terminateEnergy = 0.01f;
             bool cpuAffinity = true;
         } rendering;
 

@@ -73,113 +73,99 @@ Ray BasicTracer::ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noex
     return {pos, dir};
 }
 
-glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
+void BasicTracer::GeneratePath(const Ray& ray, std::vector<PathStep>& pathVec, size_t maxBounces,
+    float terminateEnergy) const noexcept
 {
-    struct Bounce
-    {
-        Ray incomingRay;
-        Ray outgoingRay;
-        RayHit hitInfo;
-        Scene::Material::MaterialPoint materialPoint;
-        glm::vec3 effectiveNormal;
-        glm::vec3 energyTransfer;
-    };
-
-    constexpr int bounceArraySize = 16;
-    auto maxBounces = Config::GetConfig().rendering.maxBounces;
-
     std::uniform_real_distribution<float> randomFloat(0.0f, 1.0f);
-
-    Bounce bounces[bounceArraySize];
-    unsigned bounceCount = 0;
-    Ray newRay, currentRay = ray;
+    Ray currentRay = ray, newRay;
     glm::vec3 totalEnergy(1.0f);
+    pathVec.clear();
 
-    for (bounceCount = 0; bounceCount < maxBounces; ++bounceCount)
+    while (pathVec.size() < maxBounces)
     {
+        // Get the hit
+        PathStep step;
         const auto hit = BasicBackend::IntersectScene(currentRay, scene_);
-        if (!hit.has_value())
-        {
-            ++bounceCount;
-            break;
-        }
+        if (!hit.has_value()) break;
 
+        // Read and store the geometry info
         const auto geom = RayHitGeometryInfo(*hit);
         const auto& matRef = hit->meshInstance->GetMaterial();
         auto mat = matRef.SampleMaterial(geom.TexCoord0);
         mat.baseColor = mat.baseColor * 0.96f + 0.04f;
+        step.ray = ray;
+        step.hitPos = hit->worldPosition;
+        step.baseColor = mat.baseColor;
+        step.roughness = mat.roughness;
+        step.metallic = mat.metallic;
+        step.normal = ComputeNormal(geom.Normal, mat.normal);
 
-        bounces[bounceCount].incomingRay = ray;
-        bounces[bounceCount].hitInfo = *hit;
-        bounces[bounceCount].materialPoint = mat;
-
+        // Compute the bounce direction and energy transfer
         const auto fresnel = BasicBackend::BRDF::FresnelSchlick(
-            glm::max(glm::dot(-currentRay.direction, geom.Normal), 0.0f), mat.metallic);
-
-        const auto normal = ComputeNormal(geom.Normal, mat.normal);
-        float energyTransfer = 1.0f;
+            glm::max(glm::dot(-currentRay.direction, step.normal), 0.0f), mat.metallic);
         if (randomFloat(rng) > fresnel)
         {
-            newRay = ReflectDiffuse(*hit, normal);
-            energyTransfer = BasicBackend::BRDF::BRDF(
-                newRay.direction, -currentRay.direction, normal, mat.roughness, mat.metallic);
+            newRay = ReflectDiffuse(*hit, step.normal);
+            step.energy = BasicBackend::BRDF::BRDF(newRay.direction, -currentRay.direction,
+                              step.normal, mat.roughness, mat.metallic) *
+                          step.baseColor;
         }
         else
         {
-            newRay = ReflectSpecular(*hit, normal, mat.roughness);
+            newRay = ReflectSpecular(*hit, step.normal, mat.roughness);
+            step.energy = step.baseColor * glm::vec3(1.0f);
         }
-        // TODO Divide the sample by the PDF
 
-        bounces[bounceCount].effectiveNormal = normal;
-        bounces[bounceCount].energyTransfer = glm::vec3(mat.baseColor) * energyTransfer;
-        bounces[bounceCount].outgoingRay = newRay;
+        // Store the new ray and energy transfer for the next bounce
+        pathVec.push_back(step);
         currentRay = newRay;
 
         // Terminate early
-        totalEnergy *= bounces[bounceCount].energyTransfer;
-        if (glm::length(totalEnergy) < 0.01f)
-        {
-            ++bounceCount;
-            break;
-        }
+        totalEnergy *= step.energy;
+        if (glm::length(totalEnergy) < terminateEnergy) break;
     }
+}
+
+glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
+{
+    static thread_local std::vector<PathStep> path;
+    const auto& config = Config::GetConfig();
+    GeneratePath(ray, path, config.rendering.maxBounces, config.rendering.terminateEnergy);
 
     // Accumulate color from bounces
     glm::vec3 totalLight(0.0f), currentEnergy(1.0f);
-    for (unsigned i = 0; i < bounceCount; i++)
+    for (const auto& step : path)
     {
-        const auto& bounce = bounces[i];
-
         for (const auto& light : scene_.GetLights())
         {
             // For now we assume that all lights are point lights
             const auto lightPos =
                 light.GetPosition() + GenerateRandomDirection() * light.GetPointSize();
             const auto lightColor = light.GetColor();
-            const glm::vec3 lightDir = lightPos - bounce.hitInfo.worldPosition;
-            const Ray shadowRay(bounce.hitInfo.worldPosition + lightDir * pulloutEpsilon, lightDir);
+            const glm::vec3 lightDir = lightPos - step.hitPos;
+            const Ray shadowRay(step.hitPos + lightDir * pulloutEpsilon, lightDir);
             const auto shadowHit = BasicBackend::IntersectScene(shadowRay, scene_);
 
-            float metalness = bounce.materialPoint.metallic;
-            float roughness = bounce.materialPoint.roughness;
+            float metalness = step.metallic;
+            float roughness = step.roughness;
             float lightDivisor = 1000.0f;
-            float brdf = BasicBackend::BRDF::BRDF(glm::normalize(lightDir),
-                -bounce.incomingRay.direction, bounce.effectiveNormal, roughness, metalness);
+            float brdf = BasicBackend::BRDF::BRDF(
+                glm::normalize(lightDir), -step.ray.direction, step.normal, roughness, metalness);
             float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir) + 1.0f);
             float lightEnergy = brdf * distanceFalloff / lightDivisor;
 
             if (!shadowHit.has_value() || shadowHit->distance > glm::length(lightDir))
             {
-                totalLight += currentEnergy * lightEnergy *
-                              glm::vec3(bounce.materialPoint.baseColor) * lightColor;
+                totalLight += currentEnergy * lightEnergy * glm::vec3(step.baseColor) * lightColor;
             }
         }
 
-        currentEnergy *= bounce.energyTransfer;
+        currentEnergy *= step.energy;
     }
 
+    return totalLight;
     // Hopefully will reduce fireflies
-    return glm::clamp(totalLight, glm::vec3(0.0f), glm::vec3(5.0f));
+    // return glm::clamp(totalLight, glm::vec3(0.0f), glm::vec3(5.0f));
 }
 
 void BasicTracer::RenderBlock(const Block& block)

@@ -26,7 +26,7 @@ class Material
         float roughness;
         glm::vec3 normal;
         glm::vec3 emissive;
-        glm::vec3 occlusion;
+        float occlusion;
     };
 
    private:
@@ -86,11 +86,11 @@ class Material
                    : glm::vec4(baseColorFactor_);
     }
 
-    glm::vec3 GetOcclusion(const glm::vec2& texCoord) const noexcept
+    float GetOcclusion(const glm::vec2& texCoord) const noexcept
     {
         return occlusionTexture_.IsValid()
-                   ? glm::vec3(occlusionTexture_.Sample(texCoord).r) * occlusionStrength_
-                   : glm::vec3(1.0f);
+                   ? occlusionTexture_.Sample(texCoord).r * occlusionStrength_
+                   : 1.0f;
     }
 
     float GetRoughness(const glm::vec2& texCoord) const noexcept
@@ -110,7 +110,8 @@ class Material
     glm::vec3 GetNormal(const glm::vec2& texCoord) const noexcept
     {
         return normalTexture_.IsValid()
-                   ? glm::normalize(glm::vec3(normalTexture_.Sample(texCoord)) * normalScale_ * 2.0f - 1.0f)
+                   ? glm::normalize(
+                         glm::vec3(normalTexture_.Sample(texCoord)) * normalScale_ * 2.0f - 1.0f)
                    : glm::vec3(0.0f, 0.0f, 1.0f);
     }
 

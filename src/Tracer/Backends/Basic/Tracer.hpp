@@ -24,6 +24,18 @@ class BasicTracer : public Tracer
         glm::ivec2 size;
     };
 
+    struct PathStep
+    {
+        Ray ray;
+        glm::vec3 hitPos;
+        glm::vec3 baseColor;
+        float metallic;
+        float roughness;
+        glm::vec3 normal;
+        glm::vec3 energy;
+        bool didHit;
+    };
+
    private:
     static std::random_device rd;
     static thread_local std::mt19937 rng;
@@ -43,6 +55,8 @@ class BasicTracer : public Tracer
     static Ray ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept;
     static glm::vec3 GenerateRandomDirection() noexcept;
     static glm::vec3 GenerateHemisphereDirection(const glm::vec3& normal) noexcept;
+    void GeneratePath(const Ray& ray, std::vector<PathStep>& pathVec, size_t maxBounces,
+        float terminateEnergy = 0.01f) const noexcept;
     glm::vec3 ProcessRay(const Ray& ray) noexcept;
     void RenderBlock(const Block& block);
     void WorkerThread();
