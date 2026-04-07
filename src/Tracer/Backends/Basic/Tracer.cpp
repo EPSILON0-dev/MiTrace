@@ -106,15 +106,15 @@ void BasicTracer::GeneratePath(const Ray& ray, std::vector<PathStep>& pathVec, s
         if (randomFloat(rng) > fresnel)
         {
             newRay = ReflectDiffuse(*hit, step.normal);
-            step.energy = BasicBackend::BRDF::BRDF(newRay.direction, -currentRay.direction,
-                              step.normal, mat.roughness, mat.metallic) *
-                          step.baseColor;
         }
         else
         {
             newRay = ReflectSpecular(*hit, step.normal, mat.roughness);
-            step.energy = step.baseColor * glm::vec3(1.0f);
         }
+        step.energy = BasicBackend::BRDF::BRDF(newRay.direction, -currentRay.direction, step.normal,
+                          mat.roughness, mat.metallic) *
+                      step.baseColor;
+        // TODO Divide step energy by a PDF
 
         // Store the new ray and energy transfer for the next bounce
         pathVec.push_back(step);
@@ -136,6 +136,8 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
     glm::vec3 totalLight(0.0f), currentEnergy(1.0f);
     for (const auto& step : path)
     {
+        // TODO Use better light selection than "we greedy, check all"
+        // TODO Possibly add an optimization structure that preoptimizes light reach area
         for (const auto& light : scene_.GetLights())
         {
             // For now we assume that all lights are point lights
@@ -146,6 +148,7 @@ glm::vec3 BasicTracer::ProcessRay(const Ray& ray) noexcept
             const Ray shadowRay(step.hitPos + lightDir * pulloutEpsilon, lightDir);
             const auto shadowHit = BasicBackend::IntersectScene(shadowRay, scene_);
 
+            // TODO combine into one BRDF function
             float metalness = step.metallic;
             float roughness = step.roughness;
             float lightDivisor = 1000.0f;
@@ -182,6 +185,7 @@ void BasicTracer::RenderBlock(const Block& block)
     std::uniform_real_distribution<float> xDist(0.0f, pixelSize.x);
     std::uniform_real_distribution<float> yDist(0.0f, pixelSize.y);
 
+    // TODO Create temporary "subbuffer" to avoid writing to the main one all of the time
     auto renderPixel = [&](int x, int y)
     {
         const auto baseU = static_cast<float>(x) * pixelSize.x;
@@ -310,7 +314,7 @@ Tracer::Stats BasicTracer::GetStats() const
     stats.timeElapsed =
         static_cast<float>(duration_cast<seconds>(system_clock::now() - startTime_).count());
     stats.estimatedTimeRemaining = (stats.timeElapsed / stats.progress) * (1.0f - stats.progress);
-    stats.raysTraced = 0;  // TODO
+    stats.raysTraced = 0;  // TODO Find an efficient way to count traced rays
     return stats;
 }
 

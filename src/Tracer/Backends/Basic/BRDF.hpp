@@ -58,7 +58,7 @@ float CookTorrance(float NdotL, float NdotV, float NdotH, float roughness, float
     float roughness, float metallic) noexcept
 {
     // Roughness hack
-    // roughness = glm::max(roughness, 0.05f);
+    roughness = glm::max(roughness, 0.05f);
 
     glm::vec3 h = glm::normalize(V + L);
 

@@ -13,6 +13,8 @@
 #include "Tracer/RenderBuffer.hpp"
 #include "Tracer/Tracer.hpp"
 
+// TODO Fix the shitty main file architecture
+
 static void StatThread(const Tracer& tracer, bool& shouldStop)
 {
     using std::chrono::milliseconds;

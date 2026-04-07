@@ -15,6 +15,9 @@
 
 #include "Loader/Types.hpp"
 
+// TODO Add support for offset and scale for textures
+// Implement a proper "no such file" exception
+
 using namespace Loader;
 
 GLTF::GLTF(const std::filesystem::path& filePath)

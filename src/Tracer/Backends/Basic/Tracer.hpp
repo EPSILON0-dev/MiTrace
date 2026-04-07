@@ -47,7 +47,7 @@ class BasicTracer : public Tracer
     std::mutex blockMutex_;
     std::vector<std::thread> workers_;
     std::chrono::time_point<std::chrono::system_clock> startTime_;
-    bool renderKilled_ = false;
+    volatile std::atomic<bool> renderKilled_ = false;
 
    private:
     static Ray ReflectSpecular(
