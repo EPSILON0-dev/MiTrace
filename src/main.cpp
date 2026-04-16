@@ -84,7 +84,8 @@ static void RenderThread(
     auto endTime = system_clock::now();
     auto renderDuration = duration_cast<milliseconds>(endTime - startTime).count();
     auto renderSeconds = static_cast<float>(renderDuration) / 1000.0f;
-    spdlog::info("Render completed in {:.2f} seconds.", renderSeconds);
+    spdlog::info("Render completed in {:.2f} seconds, rays traced: {}, samples traced: {}",
+        renderSeconds, tracer.GetStats().raysTraced, tracer.GetStats().samplesTraced);
     shouldStop = true;
     statThread.join();
 

@@ -6,14 +6,21 @@
 namespace BasicBackend::BRDF
 {
 
-static float FresnelSchlick(float cosTheta, float f0) noexcept
+static glm::vec3 FresnelSchlick(float cosTheta, const glm::vec3& f0) noexcept
 {
-    float f = glm::clamp(f0 * (1.0f - 0.04f) + 0.04f, 0.0f, 1.0f);
-    return f + (1.0f - f) * glm::pow(1.0f - cosTheta, 5.0f);
+    cosTheta = glm::clamp(cosTheta, 0.0f, 1.0f);
+    return f0 + (glm::vec3(1.0f) - f0) * glm::pow(glm::vec3(1.0f - cosTheta), glm::vec3(5.0f));
+}
+
+static glm::vec3 BaseReflectivity(const glm::vec3& baseColor, float metallic) noexcept
+{
+    metallic = glm::clamp(metallic, 0.0f, 1.0f);
+    return glm::mix(glm::vec3(0.04f), baseColor, metallic);
 }
 
 static float DistributionGGX(float gotNH, float roughness) noexcept
 {
+    gotNH = glm::clamp(gotNH, 0.0f, 1.0f);
     float a = roughness * roughness;
     float a2 = a * a;
     float dotNH2 = gotNH * gotNH;
@@ -26,6 +33,7 @@ static float DistributionGGX(float gotNH, float roughness) noexcept
 
 static float GeometrySchlickGGX(float dotNV, float roughness) noexcept
 {
+    dotNV = glm::clamp(dotNV, 0.0f, 1.0f);
     float r = (roughness + 1.0f);
     float k = (r * r) / 8.0f;
 
@@ -40,45 +48,51 @@ static float GeometrySmith(float dotNV, float dotNL, float roughness) noexcept
     return ggx1 * ggx2;
 }
 
-/*
-float CookTorrance(float NdotL, float NdotV, float NdotH, float roughness, float metalness) noexcept
+static glm::vec3 EvaluateBRDF(const glm::vec3& L, const glm::vec3& V, const glm::vec3& N,
+    const glm::vec3& baseColor, float roughness, float metallic) noexcept
 {
-    float d = DistributionGGX(NdotH, roughness);
-    float g = GeometrySmith(NdotV, NdotL, roughness);
-    float f = FresnelSchlick(NdotL, metalness);
-
-    float numerator = d * g * f;
-    float denominator = 4.0f * NdotV * NdotL + 0.001f;  // Prevent division by zero
-
-    return numerator / denominator;
-}
-*/
-
-[[maybe_unused]] static float BRDF(const glm::vec3& L, const glm::vec3& V, const glm::vec3& N,
-    float roughness, float metallic) noexcept
-{
-    // Roughness hack
     roughness = glm::max(roughness, 0.05f);
-
-    glm::vec3 h = glm::normalize(V + L);
 
     float dotNL = glm::max(glm::dot(N, L), 0.0f);
     float dotNV = glm::max(glm::dot(N, V), 0.0f);
+    if (dotNL <= 0.0f || dotNV <= 0.0f) return glm::vec3(0.0f);
+
+    glm::vec3 h = glm::normalize(V + L);
     float dotNH = glm::max(glm::dot(N, h), 0.0f);
     float dotHV = glm::max(glm::dot(h, V), 0.0f);
 
-    float f = FresnelSchlick(dotHV, metallic);
+    const glm::vec3 f0 = BaseReflectivity(baseColor, metallic);
+    glm::vec3 f = FresnelSchlick(dotHV, f0);
     float d = DistributionGGX(dotNH, roughness);
     float g = GeometrySmith(dotNV, dotNL, roughness);
 
-    float ks = f;
-    float kd = (1.0f - ks) * (1.0f - metallic);
+    glm::vec3 ks = f;
+    glm::vec3 kd = (glm::vec3(1.0f) - ks) * (1.0f - metallic);
 
-    float specular = (d * g * f) / glm::max(4.0f * dotNV * dotNL, 0.001f);
-    float diffuse = dotNL;
+    glm::vec3 diffuse = kd * baseColor / glm::pi<float>();
+    glm::vec3 specular = (d * g * f) / glm::max(4.0f * dotNV * dotNL, 0.001f);
 
-    float brdf = glm::max(kd * diffuse + ks * specular, 0.0f);
-    return brdf;
+    return glm::max(diffuse + specular, glm::vec3(0.0f));
+}
+
+static float DiffusePdf(const glm::vec3& L, const glm::vec3& N) noexcept
+{
+    return glm::max(glm::dot(N, L), 0.0f) / glm::pi<float>();
+}
+
+static float SpecularPdf(
+    const glm::vec3& L, const glm::vec3& V, const glm::vec3& N, float roughness) noexcept
+{
+    const float dotNL = glm::max(glm::dot(N, L), 0.0f);
+    const float dotNV = glm::max(glm::dot(N, V), 0.0f);
+    if (dotNL <= 0.0f || dotNV <= 0.0f) return 0.0f;
+
+    const glm::vec3 h = glm::normalize(V + L);
+    const float dotNH = glm::max(glm::dot(N, h), 0.0f);
+    const float dotVH = glm::max(glm::dot(V, h), 0.0f);
+    if (dotVH <= 0.0f) return 0.0f;
+
+    return DistributionGGX(dotNH, glm::max(roughness, 0.05f)) * dotNH / (4.0f * dotVH);
 }
 
 }  // namespace BasicBackend::BRDF
