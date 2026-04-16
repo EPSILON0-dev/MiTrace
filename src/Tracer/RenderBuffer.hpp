@@ -1,8 +1,3 @@
-/**
- * @file RenderBuffer.hpp
- *
- * Render buffer for storing pixel color data during rendering.
- */
 #pragma once
 
 #include <stb_image_write.h>
@@ -10,12 +5,15 @@
 #include <glm/glm.hpp>
 #include <memory>
 
+// Note: We can more or less assume that no 2 threads will be writing to the same pixel at the same
+// time, since each block is only rendered by one thread, so we don't need to worry about
+// synchronization here
 class RenderBuffer
 {
    private:
     unsigned int width_ = 0;
     unsigned int height_ = 0;
-    std::unique_ptr<glm::vec3[]> pixels_;  // RGBA format
+    std::unique_ptr<glm::vec3[]> pixels_;  // RGB format
 
    public:
     RenderBuffer(unsigned width, unsigned height)
@@ -23,59 +21,14 @@ class RenderBuffer
     {
     }
 
-    void SetPixel(unsigned x, unsigned y, const glm::vec3& color)
-    {
-        if (x >= width_ || y >= height_) return;
-        unsigned int index = (y * width_ + x);
-        pixels_[index] = color;
-    }
-
-    void GetPixel(unsigned x, unsigned y, glm::vec3& color) const
-    {
-        if (x >= width_ || y >= height_) return;
-        unsigned int index = (y * width_ + x);
-        color = pixels_[index];
-    }
-
-    void AddColorAt(unsigned x, unsigned y, const glm::vec3& color)
-    {
-        if (x >= width_ || y >= height_) return;
-        unsigned int index = (y * width_ + x);
-        pixels_[index] += color;
-    }
-
-    static uint8_t FloatToU8(float v) noexcept
-    {
-        return static_cast<uint8_t>(glm::clamp(v * 255.0f, 0.0f, 255.0f));
-    }
-
-    std::shared_ptr<uint8_t[]> GetPixelsRGB8() const
-    {
-        std::shared_ptr<uint8_t[]> rgbPixels(new uint8_t[width_ * height_ * 3]);
-
-        for (unsigned int y = 0; y < height_; ++y)
-        {
-            for (unsigned int x = 0; x < width_; ++x)
-            {
-                unsigned int index = (y * width_ + x);
-                rgbPixels[(index * 3) + 0] = FloatToU8(pixels_[index].r);
-                rgbPixels[(index * 3) + 1] = FloatToU8(pixels_[index].g);
-                rgbPixels[(index * 3) + 2] = FloatToU8(pixels_[index].b);
-            }
-        }
-
-        return rgbPixels;
-    }
-
     unsigned int GetWidth() const { return width_; }
     unsigned int GetHeight() const { return height_; }
 
-    void SaveToFile(const std::string& filename) const
-    {
-        auto rgbPixels = GetPixelsRGB8();
-        // 1 means success, there's no define for it
-        if (stbi_write_png(filename.c_str(), static_cast<int>(width_), static_cast<int>(height_), 3,
-                rgbPixels.get(), static_cast<int>(width_ * 3)) != 1)
-            throw std::runtime_error("Failed to save image to file");
-    }
+    void GetPixel(unsigned x, unsigned y, glm::vec3& color) const;
+    void SetPixel(unsigned x, unsigned y, const glm::vec3& color);
+    void AddColorAt(unsigned x, unsigned y, const glm::vec3& color);
+    void DrawSubBuffer(RenderBuffer& subBuffer, unsigned offsetX, unsigned offsetY);
+    std::shared_ptr<uint8_t[]> GetPixelsRGB8() const;
+    void SaveToFilePNG(const std::string& filename) const;
+    void SaveToFileEXR(const std::string& filename) const;
 };

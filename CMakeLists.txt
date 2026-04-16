@@ -117,6 +117,7 @@ set(SRC_FILES
     src/Scene/Scene.cpp
     src/Scene/Camera.cpp
     src/Scene/Texture.cpp
+    src/Tracer/RenderBuffer.cpp
     src/Platform/Platform.cpp
     src/Common/STB_Impl.cpp
     ${BACKEND_BASIC_SRC_FILES}

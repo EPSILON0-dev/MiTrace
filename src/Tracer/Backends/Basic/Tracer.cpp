@@ -1,3 +1,4 @@
+#include <memory>
 #include "glm/fwd.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <spdlog/spdlog.h>
@@ -190,7 +191,7 @@ void BasicTracer::RenderBlock(const Block& block)
     std::uniform_real_distribution<float> xDist(0.0f, pixelSize.x);
     std::uniform_real_distribution<float> yDist(0.0f, pixelSize.y);
 
-    // TODO Create temporary "subbuffer" to avoid writing to the main one all of the time
+    auto blockBuffer = std::make_unique<RenderBuffer>(block.size.x, block.size.y);
     auto renderPixel = [&](int x, int y)
     {
         const auto baseU = static_cast<float>(x) * pixelSize.x;
@@ -205,7 +206,7 @@ void BasicTracer::RenderBlock(const Block& block)
             color += ProcessRay(jobData, ray);
         }
         color /= static_cast<float>(imageSamples);
-        imageBuffer_->SetPixel(x, y, color);
+        blockBuffer->SetPixel(x - block.offset.x, y - block.offset.y, color);
     };
 
     for (int y = block.offset.y; y < block.offset.y + block.size.y; ++y)
@@ -215,6 +216,8 @@ void BasicTracer::RenderBlock(const Block& block)
             renderPixel(x, y);
         }
     }
+
+    imageBuffer_->DrawSubBuffer(*blockBuffer, block.offset.x, block.offset.y);
 
     samplesTraced_ += jobData.samplesTraced;
     raysTraced_ += jobData.raysTraced;
