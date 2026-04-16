@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 class Tracer
 {
    public:
@@ -8,7 +10,8 @@ class Tracer
         float progress;
         float timeElapsed;
         float estimatedTimeRemaining;
-        unsigned raysTraced;
+        size_t raysTraced;
+        size_t samplesTraced;
     };
 
    public:

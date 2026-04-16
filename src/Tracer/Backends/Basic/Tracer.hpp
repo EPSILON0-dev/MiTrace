@@ -5,6 +5,7 @@
 #include <mutex>
 #include <queue>
 #include <random>
+#include <atomic>
 
 #include "Ray.hpp"
 #include "Scene/Scene.hpp"
@@ -36,9 +37,18 @@ class BasicTracer : public Tracer
         bool didHit;
     };
 
+    struct JobPersistentData
+    {
+        std::vector<PathStep> pathBuffer;
+        std::mt19937 rng;
+        size_t raysTraced = 0;
+        size_t samplesTraced = 0;
+    };
+
    private:
+    std::atomic<size_t> raysTraced_{0};
+    std::atomic<size_t> samplesTraced_{0};
     static std::random_device rd;
-    static thread_local std::mt19937 rng;
     std::shared_ptr<RenderBuffer> imageBuffer_;
     const Scene::Scene& scene_;
     const BasicBackend::BasicCamera cam_;
@@ -50,14 +60,16 @@ class BasicTracer : public Tracer
     volatile std::atomic<bool> renderKilled_ = false;
 
    private:
-    static Ray ReflectSpecular(
-        const RayHit& hit, const glm::vec3& normal, float roughness) noexcept;
-    static Ray ReflectDiffuse(const RayHit& hit, const glm::vec3& normal) noexcept;
-    static glm::vec3 GenerateRandomDirection() noexcept;
-    static glm::vec3 GenerateHemisphereDirection(const glm::vec3& normal) noexcept;
-    void GeneratePath(const Ray& ray, std::vector<PathStep>& pathVec, size_t maxBounces,
-        float terminateEnergy = 0.01f) const noexcept;
-    glm::vec3 ProcessRay(const Ray& ray) noexcept;
+    static Ray ReflectSpecular(JobPersistentData& jobData, const RayHit& hit,
+        const glm::vec3& normal, float roughness) noexcept;
+    static Ray ReflectDiffuse(
+        JobPersistentData& jobData, const RayHit& hit, const glm::vec3& normal) noexcept;
+    static glm::vec3 GenerateRandomDirection(JobPersistentData& jobData) noexcept;
+    static glm::vec3 GenerateHemisphereDirection(
+        JobPersistentData& jobData, const glm::vec3& normal) noexcept;
+    void GeneratePath(JobPersistentData& jobData, const Ray& ray, std::vector<PathStep>& pathVec,
+        size_t maxBounces, float terminateEnergy = 0.01f) const noexcept;
+    glm::vec3 ProcessRay(JobPersistentData& jobData, const Ray& ray) noexcept;
     void RenderBlock(const Block& block);
     void WorkerThread();
 

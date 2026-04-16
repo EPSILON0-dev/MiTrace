@@ -47,6 +47,7 @@ readability-*,
 -readability-qualified-auto,
 -readability-avoid-nested-conditional-operator,
 -readability-isolate-declaration,
+-modernize-pass-by-value,
 '
 HeaderFilterRegex: '.*'
 WarningsAsErrors: '*'

@@ -44,8 +44,10 @@ static void StatThread(const Tracer& tracer, bool& shouldStop)
         //     now - lastUpdateTime >= milliseconds(maxUpdateIntervalMs) || true)
         {
             spdlog::info(
-                "Progress: {:.2f}%, Time Elapsed: {:.1f}s, Estimated Time Remaining: {:.1f}s",
-                stats.progress * 100.0f, stats.timeElapsed, stats.estimatedTimeRemaining);
+                "Progress: {:.2f}%, Time Elapsed: {:.1f}s, Estimated Time Remaining: {:.1f}s, Rays "
+                "Traced: {}, Samples Traced: {}",
+                stats.progress * 100.0f, stats.timeElapsed, stats.estimatedTimeRemaining,
+                stats.raysTraced, stats.samplesTraced);
             // lastProgress = stats.progress;
             lastUpdateTime = now;
         }
