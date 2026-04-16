@@ -58,6 +58,8 @@ struct Texture
 {
     Image image;
     SamplerFilter filter;
+    glm::vec2 offset = glm::vec2(0.0f);
+    glm::vec2 scale = glm::vec2(1.0f);
 };
 
 struct Material

@@ -71,6 +71,7 @@ class GLTF
         size_t accessorIndex, AttributeType expectedType, ComponentType expectedComponentType);
     std::vector<uint32_t> LoadMeshIndices(size_t accessor);
     glm::mat4 ComputeNodeTransform(size_t nodeIndex) const;
+    Texture LoadTextureInfo(const nlohmann::json& textureInfoData);
 
     Light LoadPointLight(size_t lightIndex) const;
     Light LoadDirectionalLight(size_t lightIndex) const;

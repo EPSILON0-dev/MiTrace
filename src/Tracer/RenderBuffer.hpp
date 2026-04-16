@@ -30,5 +30,5 @@ class RenderBuffer
     void DrawSubBuffer(RenderBuffer& subBuffer, unsigned offsetX, unsigned offsetY);
     std::shared_ptr<uint8_t[]> GetPixelsRGB8() const;
     void SaveToFilePNG(const std::string& filename) const;
-    void SaveToFileEXR(const std::string& filename) const;
+    void SaveToFileHDR(const std::string& filename) const;
 };

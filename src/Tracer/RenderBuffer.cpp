@@ -66,7 +66,7 @@ void RenderBuffer::SaveToFilePNG(const std::string& filename) const
         throw std::runtime_error("Failed to save image to file");
 }
 
-void RenderBuffer::SaveToFileEXR(const std::string& filename) const
+void RenderBuffer::SaveToFileHDR(const std::string& filename) const
 {
     // 1 means success, there's no define for it
     if (stbi_write_hdr(filename.c_str(), static_cast<int>(width_), static_cast<int>(height_), 3,

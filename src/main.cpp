@@ -89,8 +89,8 @@ static void RenderThread(
     statThread.join();
 
     auto now = std::chrono::system_clock::now();
-    auto filename = std::format("outputs/render_{:%d%m%Y_%H%M}.exr", now);
-    texture->SaveToFileEXR(filename);
+    auto filename = std::format("outputs/render_{:%d%m%Y_%H%M}.hdr", now);
+    texture->SaveToFileHDR(filename);
     spdlog::info("Saved rendered image to '{}'", filename);
 }
 

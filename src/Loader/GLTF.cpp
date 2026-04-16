@@ -220,13 +220,6 @@ Texture GLTF::LoadTexture(size_t textureIndex)
     const auto imageIndex = textureData["source"].get<size_t>();
     const auto& image = LoadImage(imageIndex);
 
-    // Check the coord set
-    if (textureData.contains("texCoord"))
-    {
-        size_t texCoordSet = textureData["texCoord"].get<size_t>();
-        if (texCoordSet != 0) throw std::runtime_error("Only TEXCOORD_0 is supported");
-    }
-
     SamplerFilter filterMode = SamplerFilter::Linear;
     const static std::map<size_t, SamplerFilter> filterModeMap = {
         {9728, SamplerFilter::Nearest},  // NEAREST
@@ -251,6 +244,34 @@ Texture GLTF::LoadTexture(size_t textureIndex)
     }
 
     return Texture{.image = image, .filter = filterMode};
+}
+
+Texture GLTF::LoadTextureInfo(const nlohmann::json& textureInfoData)
+{
+    Texture texture = LoadTexture(textureInfoData["index"].get<size_t>());
+
+    if (textureInfoData.value("texCoord", 0U) != 0)
+        throw std::runtime_error("Only TEXCOORD_0 is supported for texture info");
+
+    if (textureInfoData.contains("extensions") &&
+        textureInfoData["extensions"].contains("KHR_texture_transform"))
+    {
+        const auto& transformData = textureInfoData["extensions"]["KHR_texture_transform"];
+
+        if (transformData.contains("rotation"))
+            throw std::runtime_error("KHR_texture_transform rotation is not supported");
+        if (transformData.contains("texCoord"))
+            throw std::runtime_error("KHR_texture_transform texCoord override is not supported");
+
+        if (transformData.contains("offset"))
+            texture.offset =
+                glm::make_vec2(transformData["offset"].get<std::vector<float>>().data());
+        if (transformData.contains("scale"))
+            texture.scale =
+                glm::make_vec2(transformData["scale"].get<std::vector<float>>().data());
+    }
+
+    return texture;
 }
 
 glm::mat4 GLTF::ComputeNodeTransform(size_t nodeIndex) const
@@ -426,7 +447,7 @@ Material GLTF::LoadMaterial(size_t materialIndex)
 
     // Load emissive texture and factor
     if (pbrData.contains("emissiveTexture"))
-        material.emissiveTexture = LoadTexture(pbrData["emissiveTexture"]["index"].get<size_t>());
+        material.emissiveTexture = LoadTextureInfo(pbrData["emissiveTexture"]);
     material.emissiveFactor =
         pbrData.contains("emissiveFactor")
             ? glm::make_vec3(pbrData["emissiveFactor"].get<std::vector<float>>().data())
@@ -443,20 +464,18 @@ Material GLTF::LoadMaterial(size_t materialIndex)
 
     // Load textures if present
     if (pbrData.contains("baseColorTexture"))
-        material.baseColorTexture = LoadTexture(pbrData["baseColorTexture"]["index"].get<size_t>());
+        material.baseColorTexture = LoadTextureInfo(pbrData["baseColorTexture"]);
     if (pbrData.contains("metallicRoughnessTexture"))
-        material.metallicRoughnessTexture =
-            LoadTexture(pbrData["metallicRoughnessTexture"]["index"].get<size_t>());
+        material.metallicRoughnessTexture = LoadTextureInfo(pbrData["metallicRoughnessTexture"]);
 
     // Load normal texture if present
     if (materialData.contains("normalTexture"))
-        material.normalTexture = LoadTexture(materialData["normalTexture"]["index"].get<size_t>());
+        material.normalTexture = LoadTextureInfo(materialData["normalTexture"]);
     material.normalScale = materialData.value("normalScale", 1.0f);
 
     // Load occlusion texture if present
     if (materialData.contains("occlusionTexture"))
-        material.occlusionTexture =
-            LoadTexture(materialData["occlusionTexture"]["index"].get<size_t>());
+        material.occlusionTexture = LoadTextureInfo(materialData["occlusionTexture"]);
     material.occlusionStrength = materialData.value("occlusionStrength", 1.0f);
 
     // Load alpha properties
