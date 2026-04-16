@@ -1,19 +1,23 @@
-# BlenderBaker Extension Docs
+# MiTrace glTF Extensions
 
-This folder documents the custom glTF extensions emitted by BlenderBaker.
+This directory documents the custom glTF extensions used by MiTrace and the Blender exporter scaffold in `scripts/blender/exporter`.
 
-Included extensions:
+## Extensions
 
-- `EXT_light_attributes`
-- `EXT_baked_lighting`
-- `EXT_light_probes`
+- `EXT_light_attributes`: light metadata for punctual lights and exported area lights.
+- `EXT_sky`: root-level pointer to the exported sky texture.
 
-Excluded here:
+## Blender Exporter
 
-- `KHR_lights_punctual`, because it is an official Khronos extension rather than a BlenderBaker-specific one.
+The Blender add-on is named `MiTrace GLTF Exporter` and hooks into Blender's built-in `glTF 2.0` exporter.
 
-Notes:
+It currently exports:
 
-- These docs describe the exporter behavior implemented in `BlenderBaker.cs`.
-- Properties marked optional are omitted when the exporter has no value to write.
-- Document-level and node-level usage are described separately where applicable.
+- `EXT_light_attributes` on punctual lights.
+- Document-level `areaLights[]` plus node references for Blender area lights.
+- `EXT_sky` using the active world environment texture.
+
+## Files
+
+- `EXT_light_attributes.md`
+- `EXT_sky.md`

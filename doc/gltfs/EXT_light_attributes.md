@@ -2,12 +2,12 @@
 
 ## Purpose
 
-`EXT_light_attributes` is BlenderBaker's custom light metadata extension.
+`EXT_light_attributes` is MiTrace's custom light metadata extension.
 
-It is used in two places:
+It is used in three places:
 
-- On punctual light definitions inside `KHR_lights_punctual`, to carry Unity-specific metadata that glTF does not store natively.
-- At the glTF document level, to store exported Unity area lights, which are not represented by `KHR_lights_punctual`.
+- On punctual light definitions inside `KHR_lights_punctual`, to carry light metadata that glTF does not store natively.
+- At the glTF document level, to store exported area lights, which are not represented by `KHR_lights_punctual`.
 - On glTF nodes that reference a document-level exported area light.
 
 ## Where It Appears
@@ -83,8 +83,8 @@ Attached to a node representing the light transform.
 Fields:
 
 - `castsShadows`: `bool`, always written.
-- `temperature`: `float`, only written when `Light.useColorTemperature` is enabled.
-- `radius`: `float`, written when BlenderBaker can derive a shape radius from Unity light data.
+- `temperature`: `float`, only written when the exporter light temperature toggle is enabled.
+- `radius`: `float`, only written when a non-zero MiTrace radius value is configured on the Blender light.
 
 ### Document-level payload
 
@@ -111,7 +111,7 @@ Fields:
 - `name`: `string`, optional.
 - `shape`: `string`, required. Exporter currently writes `rectangle` or `disc`.
 - `color`: `float[3]`, optional RGB.
-- `intensity`: `float`, optional. Computed as `light.intensity * 1000 * Light Intensity Multiplier`.
+- `intensity`: `float`, optional. Exported from Blender light energy.
 - `temperature`: `float`, optional.
 - `radius`: `float`, optional.
 - `castsShadows`: `bool`, always written.
@@ -133,15 +133,15 @@ Fields:
 ## Exporter Behavior
 
 - Directional, point, and spot lights are exported through `KHR_lights_punctual` and receive this extension as extra metadata.
-- Unity area-like lights are detected by name from `Light.type`: `Area`, `Rectangle`, or `Disc`.
-- Area light size is read from Unity's serialized `m_AreaSize` field.
-- Radius is read from Unity's serialized `m_ShapeRadius` when available.
-- If `m_ShapeRadius` is missing but area size exists, radius falls back to half of the smaller area dimension.
+- Blender `AREA` lights are exported to the document-level `areaLights[]` payload.
+- Area light shape is mapped from Blender area light shapes: `RECTANGLE` and `SQUARE` become `rectangle`, while `DISK` and `ELLIPSE` become `disc`.
+- Area light size is read from Blender's area light dimensions.
+- Radius is exported from the MiTrace light properties panel when configured.
+- Temperature is exported from the MiTrace light properties panel when enabled.
 - Area lights are stored once at the document level, then referenced by index from the node.
 - `EXT_light_attributes` is added to `extensionsUsed` whenever any punctual or area light using this extension is exported.
 
 ## Limitations
 
-- The extension is BlenderBaker-specific and not part of the standard glTF ecosystem.
-- Area light support depends on Unity serialized light internals such as `m_AreaSize` and `m_ShapeRadius`.
+- The extension is MiTrace-specific and not part of the standard glTF ecosystem.
 - Only `rectangle` and `disc` shapes are currently emitted.

@@ -1,12 +1,12 @@
-# EXT\_sky
+# `EXT_sky`
 
 ## Overview
 
-This extensions adds an ability to store a pointer to a equirectengular sky texture for rendering skyboxes.
+`EXT_sky` stores a pointer to an equirectangular sky texture for skybox rendering.
 
 ## Sky Texture
 
-The `sky_texture` property was added to the root glTF object. It contains the index of the texture used as skybox.
+The `sky_texture` property is added to the root glTF object. It contains the index of the texture used as the skybox.
 
 ```json
 {
@@ -17,3 +17,14 @@ The `sky_texture` property was added to the root glTF object. It contains the in
     }
 }
 ```
+
+## Exporter Behavior
+
+- The Blender exporter reads the active world node tree.
+- The first reachable `Environment Texture` node connected to the active `World Output` surface is exported.
+- The referenced texture is written at the glTF root and `EXT_sky.sky_texture` points to its index.
+
+## Limitations
+
+- Only the active world environment texture is exported.
+- The extension stores a texture reference only. It does not describe sky intensity, rotation, or procedural world settings.

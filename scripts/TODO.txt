@@ -1,1 +1,0 @@
-TODO Write a blender exporter that includes info about area lights and environment textures (Custom extensions)
