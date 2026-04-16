@@ -1,18 +1,18 @@
-#include <memory>
-#include "glm/fwd.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
+#include "Tracer.hpp"
+
 #include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <cmath>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/intersect.hpp>
+#include <memory>
 
 #include "BRDF.hpp"
 #include "CLI/Config.hpp"
 #include "Intersect.hpp"
 #include "Platform/Platform.hpp"
-#include "Tracer.hpp"
 
 using namespace BasicBackend;
 static const float pulloutEpsilon = 0.0001f;
@@ -114,9 +114,9 @@ void BasicTracer::GeneratePath(JobPersistentData& jobData, const Ray& ray,
         {
             newRay = ReflectSpecular(jobData, *hit, step.normal, mat.roughness);
         }
-        step.energy = BasicBackend::BRDF::BRDF(newRay.direction, -currentRay.direction, step.normal,
-                          mat.roughness, mat.metallic) *
-                      step.baseColor;
+        float brdf = BasicBackend::BRDF::BRDF(
+            newRay.direction, -currentRay.direction, step.normal, mat.roughness, mat.metallic);
+        step.energy = glm::min(brdf * step.baseColor, glm::vec3(1.0f));
         // TODO Divide step energy by a PDF
 
         // Store the new ray and energy transfer for the next bounce

@@ -75,7 +75,7 @@ class GLTF
     Light LoadPointLight(size_t lightIndex) const;
     Light LoadDirectionalLight(size_t lightIndex) const;
     Light LoadSpotLight(size_t lightIndex) const;
-    Light LoadAreaLight(size_t lightIndex) const;
+    Light LoadAreaLight(size_t areaLightIndex) const;
 
    public:  // Rule of five
     GLTF(const std::filesystem::path& filePath);

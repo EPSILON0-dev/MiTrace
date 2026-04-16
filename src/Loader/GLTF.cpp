@@ -520,9 +520,19 @@ Camera GLTF::LoadCamera(size_t cameraIndex) const
     };
 }
 
+static const nlohmann::json& GetPunctualLightData(const nlohmann::json& gltfData, size_t lightIndex)
+{
+    return gltfData["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+}
+
+static const nlohmann::json& GetAreaLightData(const nlohmann::json& gltfData, size_t areaLightIndex)
+{
+    return gltfData["extensions"]["EXT_light_attributes"]["areaLights"][areaLightIndex];
+}
+
 Light GLTF::LoadPointLight(size_t lightIndex) const
 {
-    const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+    const auto& lightData = GetPunctualLightData(*gltfData_, lightIndex);
 
     Light light;
     light.type = LightType::Point;
@@ -537,7 +547,7 @@ Light GLTF::LoadPointLight(size_t lightIndex) const
 
 Light GLTF::LoadDirectionalLight(size_t lightIndex) const
 {
-    const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+    const auto& lightData = GetPunctualLightData(*gltfData_, lightIndex);
 
     Light light;
     light.type = LightType::Directional;
@@ -552,7 +562,7 @@ Light GLTF::LoadDirectionalLight(size_t lightIndex) const
 
 Light GLTF::LoadSpotLight(size_t lightIndex) const
 {
-    const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+    const auto& lightData = GetPunctualLightData(*gltfData_, lightIndex);
 
     Light light;
     light.type = LightType::Spot;
@@ -567,12 +577,16 @@ Light GLTF::LoadSpotLight(size_t lightIndex) const
     return light;
 }
 
-Light GLTF::LoadAreaLight(size_t lightIndex) const
+Light GLTF::LoadAreaLight(size_t areaLightIndex) const
 {
-    const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+    const auto& lightData = GetAreaLightData(*gltfData_, areaLightIndex);
 
-    if (!lightData.contains("area_size"))
-        throw std::runtime_error("Area light missing 'area_size' property");
+    if (!lightData.contains("shape"))
+        throw std::runtime_error("Area light missing 'shape' property");
+
+    const std::string shape = lightData["shape"].get<std::string>();
+    if (shape != "rectangle" && shape != "disc")
+        throw std::runtime_error(std::format("Unsupported area light shape: {}", shape));
 
     Light light;
     light.type = LightType::Area;
@@ -581,13 +595,26 @@ Light GLTF::LoadAreaLight(size_t lightIndex) const
     else
         light.color = glm::vec3(1.0f);
     light.intensity = lightData.value("intensity", 1.0f);
-    light.areaSize = glm::make_vec2(lightData["area_size"].get<std::vector<float>>().data());
+
+    if (shape == "rectangle")
+    {
+        const float width = lightData.value("width", 1.0f);
+        const float height = lightData.value("height", 1.0f);
+        light.areaSize = glm::vec2(width, height);
+    }
+    else
+    {
+        const float radius = lightData.value("radius", 0.5f);
+        const float diameter = radius * 2.0f;
+        light.areaSize = glm::vec2(diameter, diameter);
+    }
+
     return light;
 }
 
 Light GLTF::LoadLight(size_t lightIndex, const glm::mat4& transform)
 {
-    const auto& lightData = (*gltfData_)["extensions"]["KHR_lights_punctual"]["lights"][lightIndex];
+    const auto& lightData = GetPunctualLightData(*gltfData_, lightIndex);
 
     static const std::map<std::string, LightType> lightTypeMap = {
         {"point", LightType::Point},              // Point
@@ -708,6 +735,29 @@ std::vector<Light> GLTF::LoadNodeLights(size_t nodeIndex, const glm::mat4& trans
         {
             const auto error =
                 std::format("Failed to load light on node {}: {}", nodeIndex, e.what());
+            spdlog::error(error);
+            throw std::runtime_error(error);
+        }
+    }
+
+    if (nodeData.contains("extensions") && nodeData["extensions"].contains("EXT_light_attributes") &&
+        nodeData["extensions"]["EXT_light_attributes"].contains("areaLight"))
+    {
+        try
+        {
+            auto areaLightIndex =
+                nodeData["extensions"]["EXT_light_attributes"]["areaLight"].get<size_t>();
+            auto light = LoadAreaLight(areaLightIndex);
+            light.transform = worldTransform;
+            lights.push_back(light);
+
+            spdlog::trace("Loaded area light {} on node {} ({})", areaLightIndex,
+                nodeData.value("name", "Unnamed_Node"), nodeIndex);
+        }
+        catch (const std::exception& e)
+        {
+            const auto error =
+                std::format("Failed to load area light on node {}: {}", nodeIndex, e.what());
             spdlog::error(error);
             throw std::runtime_error(error);
         }

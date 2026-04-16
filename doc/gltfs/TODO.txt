@@ -1,1 +1,0 @@
-Import the extensions used by the Unity GLTF exporter
