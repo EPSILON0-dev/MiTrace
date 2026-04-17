@@ -9,6 +9,7 @@ tmp/
 
 # Render outputs
 outputs/
+assets/**/*_render*
 
 # Random log/save/backup files
 *.ini
@@ -18,9 +19,3 @@ callgrind.out.*
 
 # Don't ask...
 src/format
-
-# Only default configs
-assets/config/*
-!assets/config/preview.json
-!assets/config/default.json
-!assets/config/fast.json

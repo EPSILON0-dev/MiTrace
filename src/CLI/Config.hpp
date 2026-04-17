@@ -4,8 +4,6 @@
 #include <nlohmann/json_fwd.hpp>
 #include <string>
 
-// TODO Implement a better config loader
-
 class Config
 {
    public:

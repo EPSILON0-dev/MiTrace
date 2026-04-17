@@ -10,7 +10,10 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "" CACHE STRING "" FORCE)
 set(CMAKE_C_FLAGS_DEBUG "" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_DEBUG "" CACHE STRING "" FORCE)
 
-project(MiTrace)
+project(MiTrace VERSION 0.1.0
+    DESCRIPTION "Path tracer written in C++20"
+    LANGUAGES CXX
+)
 
 set(ENABLE_PREVIEW_GUI ON CACHE BOOL "Enable Preview GUI")
 set(ENABLE_BACKEND_BASIC ON CACHE BOOL "Enable Basic Backend")
@@ -153,6 +156,8 @@ if (ENABLE_PREVIEW_GUI)
     target_include_directories(MiTrace PRIVATE ${imgui_SOURCE_DIR}/backends)
     target_link_libraries(MiTrace PRIVATE imgui glfw GL)
 endif()
+
+target_compile_definitions(MiTrace PRIVATE MITRACE_VERSION="${PROJECT_VERSION}")
 
 target_compile_options(MiTrace PRIVATE
     $<$<CONFIG:Release>:-Ofast -flto -march=${TARGET_ARCH}>

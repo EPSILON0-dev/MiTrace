@@ -110,8 +110,15 @@ static void RenderThread(const std::shared_ptr<RenderBuffer>& texture, const cha
     auto endTime = system_clock::now();
     auto renderDuration = duration_cast<milliseconds>(endTime - startTime).count();
     auto renderSeconds = static_cast<float>(renderDuration) / 1000.0f;
-    spdlog::info("Render completed in {:.2f} seconds, rays traced: {}, samples traced: {}",
-        renderSeconds, tracer.GetStats().rays, tracer.GetStats().samples);
+    const auto stats = tracer.GetStats();
+    auto mrays = static_cast<float>(stats.rays) / 1'000'000.0f;
+    auto msamples = static_cast<float>(stats.samples) / 1'000'000.0f;
+    auto mraysPerSec = mrays / renderSeconds;
+    auto msamplesPerSec = msamples / renderSeconds;
+    spdlog::info(
+        "Render completed in {:.2f} seconds, rays: {:.2f}M ({:.2f}M/s), samples: {:.2f}M "
+        "({:.2f}M/s)",
+        renderSeconds, mrays, mraysPerSec, msamples, msamplesPerSec);
     statThread.join();
 
     if (filetype == ".jpg")

@@ -4,7 +4,9 @@
 
 #include <thread>
 
-Config::Config()
+#define VERSION "MiTrace " MITRACE_VERSION " compiled at " __DATE__ " " __TIME__
+
+Config::Config() : parser("MiTrace", VERSION)
 {
     parser.add_argument("input")
         .help("GLTF File to be rendered (.glb is not supported yet!)")
@@ -111,7 +113,11 @@ Config& Config::Instance()
 
 void Config::LoadConfig(int argc, char** argv)
 {
-    parser.parse_args(argc, argv);
+    static const char* helpArgs[] = {"MiTrace", "--help"};
+    if (argc == 1)
+        parser.parse_args(2, helpArgs);
+    else
+        parser.parse_args(argc, argv);
 
     options_.evExposure = std::stof(parser.get<std::string>("--ev-exposure"));
     options_.fireflyEliminationThreshold =
