@@ -81,6 +81,9 @@ void Config::LoadFromFile(const std::string& filepath)
     LoadFromJson(json, "rendering.max_bvh_depth", options_.rendering.maxBVHDepth);
     LoadFromJson(json, "rendering.block_size", options_.rendering.blockSize);
     LoadFromJson(json, "rendering.terminate_energy", options_.rendering.terminateEnergy);
+    LoadFromJson(json, "rendering.use_statistic_firefly_elimination", options_.rendering.useStatisticFireflyElimination);
+    LoadFromJson(json, "rendering.firefly_elimination_threshold", options_.rendering.fireflyEliminationThreshold);
+    LoadFromJson(json, "rendering.ev_exposure", options_.rendering.evExposure);
 
     if (options_.rendering.numThreads <= 0)
         options_.rendering.numThreads = std::thread::hardware_concurrency();

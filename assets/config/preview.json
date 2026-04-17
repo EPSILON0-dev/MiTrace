@@ -12,6 +12,9 @@
         "terminate_energy": 0.01,
         "block_size": 16,
         "num_threads": 0,
-        "cpu_affinity": true
+        "cpu_affinity": true,
+        "use_statistic_firefly_elimination": true,
+        "firefly_elimination_threshold": 5.0,
+        "ev_exposure": 10.0
     }
 }

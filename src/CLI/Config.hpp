@@ -27,6 +27,9 @@ class Config
             unsigned numThreads = 8;
             float terminateEnergy = 0.01f;
             bool cpuAffinity = true;
+            bool useStatisticFireflyElimination = true;
+            float fireflyEliminationThreshold = 5.0f;
+            float evExposure = 10.0f;
         } rendering;
 
         struct
