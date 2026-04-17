@@ -25,6 +25,12 @@ class BasicTracer : public Tracer
         glm::ivec2 size;
     };
 
+    struct SimplifiedLight
+    {
+        glm::vec3 position;
+        float intensity;
+    };
+
     struct PathStep
     {
         Ray ray;
@@ -37,6 +43,7 @@ class BasicTracer : public Tracer
         bool didHit;
     };
 
+   public:
     struct JobData
     {
         std::vector<PathStep> pathBuffer;
@@ -59,25 +66,13 @@ class BasicTracer : public Tracer
     std::mutex blockMutex_;
     std::vector<std::thread> workers_;
     std::chrono::time_point<std::chrono::system_clock> startTime_;
+    std::vector<SimplifiedLight> simplifiedLights_;
     volatile std::atomic<bool> renderKilled_ = false;
 
    private:
-    static void BuildTBN(
-        const glm::vec3& normal, glm::vec3& tangent, glm::vec3& bitangent) noexcept;
-    static glm::vec3 SampleCosineHemisphere(JobData& jobData, const glm::vec3& normal) noexcept;
-    static glm::vec3 SampleGGXDirection(JobData& jobData, const glm::vec3& incident,
-        const glm::vec3& normal, float roughness) noexcept;
-    static float ComputeSpecularProbability(const glm::vec3& viewDir, const glm::vec3& normal,
-        const glm::vec3& baseColor, float metallic) noexcept;
-    static Ray ReflectSpecular(
-        JobData& jobData, const RayHit& hit, const glm::vec3& normal, float roughness) noexcept;
-    static Ray ReflectDiffuse(
-        JobData& jobData, const RayHit& hit, const glm::vec3& normal) noexcept;
-    static glm::vec3 GenerateRandomDirection(JobData& jobData) noexcept;
-    static glm::vec3 ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept;
+    void PrepareLights();
     void GeneratePath(JobData& jobData, const Ray& ray, std::vector<PathStep>& pathVec,
         size_t maxBounces, float terminateEnergy = 0.01f) const noexcept;
-    static glm::vec3 ApplyColorCorrection(const JobData& jobData, const glm::vec3& color) noexcept;
     glm::vec3 ProcessRay(JobData& jobData, const Ray& ray) noexcept;
     void RenderBlock(const Block& block);
     void WorkerThread();
