@@ -1,11 +1,11 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <random>
-#include <atomic>
 
 #include "Ray.hpp"
 #include "Scene/Scene.hpp"
@@ -41,6 +41,7 @@ class BasicTracer : public Tracer
     {
         std::vector<PathStep> pathBuffer;
         std::mt19937 rng;
+        std::uniform_real_distribution<float> randomFloat{0.0f, 1.0f};
         size_t raysTraced = 0;
         size_t samplesTraced = 0;
     };
@@ -60,13 +61,20 @@ class BasicTracer : public Tracer
     volatile std::atomic<bool> renderKilled_ = false;
 
    private:
+    static void BuildTBN(
+        const glm::vec3& normal, glm::vec3& tangent, glm::vec3& bitangent) noexcept;
+    static glm::vec3 SampleCosineHemisphere(
+        JobPersistentData& jobData, const glm::vec3& normal) noexcept;
+    static glm::vec3 SampleGGXDirection(JobPersistentData& jobData, const glm::vec3& incident,
+        const glm::vec3& normal, float roughness) noexcept;
+    static float ComputeSpecularProbability(const glm::vec3& viewDir, const glm::vec3& normal,
+        const glm::vec3& baseColor, float metallic) noexcept;
     static Ray ReflectSpecular(JobPersistentData& jobData, const RayHit& hit,
         const glm::vec3& normal, float roughness) noexcept;
     static Ray ReflectDiffuse(
         JobPersistentData& jobData, const RayHit& hit, const glm::vec3& normal) noexcept;
     static glm::vec3 GenerateRandomDirection(JobPersistentData& jobData) noexcept;
-    static glm::vec3 GenerateHemisphereDirection(
-        JobPersistentData& jobData, const glm::vec3& normal) noexcept;
+    static glm::vec3 ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept;
     void GeneratePath(JobPersistentData& jobData, const Ray& ray, std::vector<PathStep>& pathVec,
         size_t maxBounces, float terminateEnergy = 0.01f) const noexcept;
     glm::vec3 ProcessRay(JobPersistentData& jobData, const Ray& ray) noexcept;

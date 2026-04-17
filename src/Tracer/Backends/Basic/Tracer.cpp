@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cmath>
 #include <glm/gtc/constants.hpp>
+#include <glm/gtx/compatibility.hpp>
 #include <glm/gtx/intersect.hpp>
 #include <memory>
 
@@ -18,6 +19,66 @@ using namespace BasicBackend;
 static const float pulloutEpsilon = 0.0001f;
 
 std::random_device BasicTracer::rd;
+
+void BasicTracer::BuildTBN(
+    const glm::vec3& normal, glm::vec3& tangent, glm::vec3& bitangent) noexcept
+{
+    const auto up =
+        (glm::abs(normal.z) < 0.999f) ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+    tangent = glm::normalize(glm::cross(up, normal));
+    bitangent = glm::cross(normal, tangent);
+}
+
+glm::vec3 BasicTracer::SampleCosineHemisphere(
+    JobPersistentData& jobData, const glm::vec3& normal) noexcept
+{
+    const float u1 = jobData.randomFloat(jobData.rng);
+    const float u2 = jobData.randomFloat(jobData.rng);
+    const float r = std::sqrt(u1);
+    const float phi = 2.0f * glm::pi<float>() * u2;
+
+    glm::vec3 tangent, bitangent;
+    BuildTBN(normal, tangent, bitangent);
+
+    const glm::vec3 localDir(
+        r * std::cos(phi), r * std::sin(phi), std::sqrt(glm::max(0.0f, 1.0f - u1)));
+    return glm::normalize(tangent * localDir.x + bitangent * localDir.y + normal * localDir.z);
+}
+
+glm::vec3 BasicTracer::SampleGGXDirection(JobPersistentData& jobData, const glm::vec3& incident,
+    const glm::vec3& normal, float roughness) noexcept
+{
+    const float u1 = jobData.randomFloat(jobData.rng);
+    const float u2 = jobData.randomFloat(jobData.rng);
+    const float alpha = glm::max(roughness * roughness, 0.0025f);
+    const float alpha2 = alpha * alpha;
+    const float phi = 2.0f * glm::pi<float>() * u2;
+    const float tanTheta2 = alpha2 * u1 / glm::max(1.0f - u1, 0.0001f);
+    const float cosTheta = 1.0f / std::sqrt(1.0f + tanTheta2);
+    const float sinTheta = std::sqrt(glm::max(0.0f, 1.0f - cosTheta * cosTheta));
+
+    glm::vec3 tangent, bitangent;
+    BuildTBN(normal, tangent, bitangent);
+
+    glm::vec3 halfVector =
+        glm::normalize(tangent * (sinTheta * std::cos(phi)) +
+                       bitangent * (sinTheta * std::sin(phi)) + normal * cosTheta);
+    if (glm::dot(halfVector, -incident) < 0.0f) halfVector = -halfVector;
+
+    const glm::vec3 reflected = glm::reflect(incident, halfVector);
+    return (glm::dot(reflected, normal) > 0.0f) ? glm::normalize(reflected)
+                                                : SampleCosineHemisphere(jobData, normal);
+}
+
+float BasicTracer::ComputeSpecularProbability(const glm::vec3& viewDir, const glm::vec3& normal,
+    const glm::vec3& baseColor, float metallic) noexcept
+{
+    const auto f0 = BasicBackend::BRDF::BaseReflectivity(baseColor, metallic);
+    const auto fresnel =
+        BasicBackend::BRDF::FresnelSchlick(glm::max(glm::dot(normal, viewDir), 0.0f), f0);
+    const float probability = (fresnel.r + fresnel.g + fresnel.b) / 3.0f;
+    return glm::clamp(probability, 0.05f, 0.95f);
+}
 
 BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
     : imageBuffer_(std::move(imageBuffer)), scene_(scene), cam_(scene.GetCamera())
@@ -38,14 +99,7 @@ glm::vec3 BasicTracer::GenerateRandomDirection(JobPersistentData& jobData) noexc
     return glm::normalize(glm::vec3(cosf(u) * cosf(v), sinf(v), sinf(u) * cosf(v)));
 }
 
-glm::vec3 BasicTracer::GenerateHemisphereDirection(
-    JobPersistentData& jobData, const glm::vec3& normal) noexcept
-{
-    const auto dir = GenerateRandomDirection(jobData);
-    return (glm::dot(dir, normal) > 0.0f) ? dir : -dir;
-}
-
-static glm::vec3 ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept
+glm::vec3 BasicTracer::ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNorm) noexcept
 {
     const auto normal = glm::normalize(surfNorm);
     const auto up =
@@ -60,9 +114,7 @@ static glm::vec3 ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNo
 Ray BasicTracer::ReflectSpecular(JobPersistentData& jobData, const RayHit& hit,
     const glm::vec3& normal, float roughness) noexcept
 {
-    const auto dirDiffuse = glm::normalize(GenerateHemisphereDirection(jobData, normal));
-    const auto dirSpecular = glm::normalize(glm::reflect(hit.direction, normal));
-    const auto dir = glm::normalize(glm::mix(dirSpecular, dirDiffuse, roughness));
+    const auto dir = SampleGGXDirection(jobData, hit.direction, normal, roughness);
     const auto pos = hit.origin + hit.direction * hit.distance + pulloutEpsilon * normal;
     return {pos, dir};
 }
@@ -70,7 +122,7 @@ Ray BasicTracer::ReflectSpecular(JobPersistentData& jobData, const RayHit& hit,
 Ray BasicTracer::ReflectDiffuse(
     JobPersistentData& jobData, const RayHit& hit, const glm::vec3& normal) noexcept
 {
-    const auto dir = glm::normalize(GenerateHemisphereDirection(jobData, normal));
+    const auto dir = SampleCosineHemisphere(jobData, normal);
     const auto pos = hit.origin + hit.direction * hit.distance + pulloutEpsilon * normal;
     return {pos, dir};
 }
@@ -78,7 +130,6 @@ Ray BasicTracer::ReflectDiffuse(
 void BasicTracer::GeneratePath(JobPersistentData& jobData, const Ray& ray,
     std::vector<PathStep>& pathVec, size_t maxBounces, float terminateEnergy) const noexcept
 {
-    std::uniform_real_distribution<float> randomFloat(0.0f, 1.0f);
     Ray currentRay = ray, newRay;
     glm::vec3 totalEnergy(1.0f);
     pathVec.clear();
@@ -96,28 +147,35 @@ void BasicTracer::GeneratePath(JobPersistentData& jobData, const Ray& ray,
         const auto& matRef = hit->meshInstance->GetMaterial();
         auto mat = matRef.SampleMaterial(geom.TexCoord0);
         mat.baseColor = mat.baseColor * 0.96f + 0.04f;
-        step.ray = ray;
+        step.ray = currentRay;
         step.hitPos = hit->worldPosition;
-        step.baseColor = mat.baseColor;
+        step.baseColor = glm::vec3(mat.baseColor);
         step.roughness = mat.roughness;
         step.metallic = mat.metallic;
         step.normal = ComputeNormal(geom.Normal, mat.normal);
 
         // Compute the bounce direction and energy transfer
-        const auto fresnel = BasicBackend::BRDF::FresnelSchlick(
-            glm::max(glm::dot(-currentRay.direction, step.normal), 0.0f), mat.metallic);
-        if (randomFloat(jobData.rng) > fresnel)
-        {
-            newRay = ReflectDiffuse(jobData, *hit, step.normal);
-        }
-        else
+        const auto viewDir = -currentRay.direction;
+        const auto specularProbability =
+            ComputeSpecularProbability(viewDir, step.normal, step.baseColor, step.metallic);
+        if (jobData.randomFloat(jobData.rng) < specularProbability)
         {
             newRay = ReflectSpecular(jobData, *hit, step.normal, mat.roughness);
         }
-        float brdf = BasicBackend::BRDF::BRDF(
-            newRay.direction, -currentRay.direction, step.normal, mat.roughness, mat.metallic);
-        step.energy = glm::min(brdf * step.baseColor, glm::vec3(1.0f));
-        // TODO Divide step energy by a PDF
+        else
+        {
+            newRay = ReflectDiffuse(jobData, *hit, step.normal);
+        }
+
+        const float diffusePdf = BasicBackend::BRDF::DiffusePdf(newRay.direction, step.normal);
+        const float specularPdf =
+            BasicBackend::BRDF::SpecularPdf(newRay.direction, viewDir, step.normal, step.roughness);
+        const float pdf =
+            (1.0f - specularProbability) * diffusePdf + specularProbability * specularPdf;
+        const glm::vec3 brdf = BasicBackend::BRDF::EvaluateBRDF(
+            newRay.direction, viewDir, step.normal, step.baseColor, step.roughness, step.metallic);
+        const float dotNL = glm::max(glm::dot(step.normal, newRay.direction), 0.0f);
+        step.energy = (pdf > 0.0f) ? brdf * (dotNL / pdf) : glm::vec3(0.0f);
 
         // Store the new ray and energy transfer for the next bounce
         pathVec.push_back(step);
@@ -155,15 +213,17 @@ glm::vec3 BasicTracer::ProcessRay(JobPersistentData& jobData, const Ray& ray) no
             // TODO combine into one BRDF function
             float metalness = step.metallic;
             float roughness = step.roughness;
-            float lightDivisor = 1000.0f;
-            float brdf = BasicBackend::BRDF::BRDF(
-                glm::normalize(lightDir), -step.ray.direction, step.normal, roughness, metalness);
+            float lightDivisor = 350.0f;
+            const auto lightDirection = glm::normalize(lightDir);
+            const glm::vec3 brdf = BasicBackend::BRDF::EvaluateBRDF(lightDirection,
+                -step.ray.direction, step.normal, step.baseColor, roughness, metalness);
+            const float dotNL = glm::max(glm::dot(step.normal, lightDirection), 0.0f);
             float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir) + 1.0f);
-            float lightEnergy = brdf * distanceFalloff / lightDivisor;
+            const glm::vec3 lightEnergy = brdf * (dotNL * distanceFalloff / lightDivisor);
 
             if (!shadowHit.has_value() || shadowHit->distance > glm::length(lightDir))
             {
-                totalLight += currentEnergy * lightEnergy * glm::vec3(step.baseColor) * lightColor;
+                totalLight += currentEnergy * lightEnergy * lightColor;
             }
         }
 
