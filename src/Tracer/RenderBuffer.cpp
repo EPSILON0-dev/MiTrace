@@ -66,6 +66,15 @@ void RenderBuffer::SaveToFilePNG(const std::string& filename) const
         throw std::runtime_error("Failed to save image to file");
 }
 
+void RenderBuffer::SaveToFileJPG(const std::string& filename) const
+{
+    auto rgbPixels = GetPixelsRGB8();
+    // 1 means success, there's no define for it
+    if (stbi_write_jpg(filename.c_str(), static_cast<int>(width_), static_cast<int>(height_), 3,
+            rgbPixels.get(), static_cast<int>(width_ * 3)) != 1)
+        throw std::runtime_error("Failed to save image to file");
+}
+
 void RenderBuffer::SaveToFileHDR(const std::string& filename) const
 {
     // 1 means success, there's no define for it

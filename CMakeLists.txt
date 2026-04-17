@@ -27,6 +27,15 @@ endif()
 set(FETCHCONTENT_QUIET OFF)
 include(FetchContent)
 
+# Add argparse library
+FetchContent_Declare(
+    argparse
+    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+    GIT_TAG v3.2
+    GIT_PROGRESS TRUE
+)
+FetchContent_MakeAvailable(argparse)
+
 # Nlohmann JSON library
 FetchContent_Declare(
     nlohmann_json
@@ -127,6 +136,7 @@ set(SRC_FILES
 add_executable(MiTrace ${SRC_FILES})
 
 target_link_libraries(MiTrace PRIVATE spdlog)
+target_link_libraries(MiTrace PRIVATE argparse)
 target_include_directories(MiTrace PRIVATE src)
 
 target_include_directories(MiTrace PRIVATE ${nlohmann_json_SOURCE_DIR}/include)

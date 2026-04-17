@@ -1,5 +1,6 @@
 #pragma once
 
+#include <argparse/argparse.hpp>
 #include <nlohmann/json_fwd.hpp>
 #include <string>
 
@@ -10,44 +11,37 @@ class Config
    public:
     struct ConfigOptions
     {
-        struct
-        {
-            unsigned width = 640;
-            unsigned height = 480;
-            unsigned samples = 16;
-        } image;
+        std::string inputFilename;
+        std::string outputFilename;
 
-        struct
-        {
-            bool disableBVH = false;
-            unsigned maxBounces = 5;
-            unsigned maxBVHTriangles = 32;
-            unsigned maxBVHDepth = 16;
-            unsigned blockSize = 8;
-            unsigned numThreads = 8;
-            float terminateEnergy = 0.01f;
-            bool cpuAffinity = true;
-            bool useStatisticFireflyElimination = true;
-            float fireflyEliminationThreshold = 5.0f;
-            float evExposure = 10.0f;
-        } rendering;
+        unsigned imageWidth = 1280;
+        unsigned imageHeight = 720;
+        unsigned samples = 64;
+        unsigned bounces = 5;
+        float evExposure = 8.0f;
 
-        struct
-        {
-            std::string filename;
-            std::string config;
-        } input;
+        bool bvhDisable = false;
+        unsigned bvhMaxTriangles = 32;
+        unsigned bvhMaxDepth = 32;
+        unsigned imageBlockSize = 32;
+        bool useStatisticFireflyElimination = true;
+        float fireflyEliminationThreshold = 6.0f;
+        float terminateEnergy = 0.01f;
+
+        unsigned numThreads;
+        bool cpuAffinity = true;
+
+        bool verbose = false;
+        bool enablePreview = false;
+        bool veryVerbose = false;
     };
 
    private:
     ConfigOptions options_;
-    bool printHelp_ = false;
-    bool verbose_ = false;
-    bool enablePreview_ = false;
-    bool veryVerbose_ = false;
+    argparse::ArgumentParser parser;
 
    private:
-    Config() = default;
+    Config();
     ~Config() = default;
 
    public:
@@ -56,20 +50,12 @@ class Config
     Config(const Config&) = delete;
     Config& operator=(const Config&) = delete;
 
-   private:
-    static std::vector<std::string> SplitPath(const std::string& path);
-    template <typename T>
-    void LoadFromJson(const nlohmann::json& jsonObj, const std::string& path, T& prop);
-    void LoadFromFile(const std::string& filepath);
-
    public:
     static Config& Instance();
     void LoadConfig(int argc, char** argv);
-    bool PrintHelpIfNeeded() const;
-    bool IsPreviewEnabled() const { return enablePreview_; }
-    bool IsVerbose() const { return verbose_; }
-    bool IsVeryVerbose() const { return veryVerbose_; }
 
     const ConfigOptions& GetConfigStruct() const { return options_; }
     static const ConfigOptions& GetConfig() { return Instance().GetConfigStruct(); }
+
+    void LogConfig() const;
 };

@@ -1,3 +1,4 @@
+#include <mutex>
 #include "glm/fwd.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <spdlog/spdlog.h>
@@ -208,8 +209,8 @@ static glm::vec3 ApplyColorCorrection(const JobData& jobData, const glm::vec3& c
 glm::vec3 BasicTracer::ProcessRay(JobData& jobData, const Ray& ray) noexcept
 {
     static thread_local std::vector<PathStep> path;
-    const auto& config = Config::GetConfig();
-    GeneratePath(jobData, ray, path, config.rendering.maxBounces, config.rendering.terminateEnergy);
+    const auto& cfg = Config::GetConfig();
+    GeneratePath(jobData, ray, path, cfg.bounces, cfg.terminateEnergy);
 
     // Accumulate color from bounces
     glm::vec3 totalLight(0.0f), currentEnergy(1.0f);
@@ -272,17 +273,17 @@ glm::vec3 BasicTracer::ProcessRay(JobData& jobData, const Ray& ray) noexcept
 void BasicTracer::RenderBlock(const Block& block)
 {
     const auto& config = Config::GetConfig();
-    const auto imageWidth = config.image.width;
-    const auto imageHeight = config.image.height;
-    const auto imageSamples = config.image.samples;
+    const auto imageWidth = config.imageWidth;
+    const auto imageHeight = config.imageHeight;
+    const auto imageSamples = config.samples;
     const auto aspectRatio = static_cast<float>(imageWidth) / static_cast<float>(imageHeight);
     const auto pixelSize = glm::vec2(1.0f) / glm::vec2(imageWidth, imageHeight);
-    const auto useStatisticFireflyElimination = config.rendering.useStatisticFireflyElimination;
-    const auto fireflyEliminationThreshold = config.rendering.fireflyEliminationThreshold;
+    const auto useStatisticFireflyElimination = config.useStatisticFireflyElimination;
+    const auto fireflyEliminationThreshold = config.fireflyEliminationThreshold;
 
     JobData jobData;
     jobData.rng.seed(rd());
-    jobData.exposureMultiplier = std::powf(2.0f, -config.rendering.evExposure);
+    jobData.exposureMultiplier = std::powf(2.0f, -config.evExposure);
 
     std::uniform_real_distribution<float> xDist(0.0f, pixelSize.x);
     std::uniform_real_distribution<float> yDist(0.0f, pixelSize.y);
@@ -393,11 +394,11 @@ BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene:
 void BasicTracer::StartRender()
 {
     const auto& config = Config::GetConfig();
-    const auto blockSize = config.rendering.blockSize;
-    const auto imageWidth = config.image.width;
-    const auto imageHeight = config.image.height;
-    const auto cpuAffinity = config.rendering.cpuAffinity;
-    const auto numThreads = config.rendering.numThreads;
+    const auto blockSize = config.imageBlockSize;
+    const auto imageWidth = config.imageWidth;
+    const auto imageHeight = config.imageHeight;
+    const auto cpuAffinity = config.cpuAffinity;
+    const auto numThreads = config.numThreads;
 
     // Prepare blocks for rendering
     for (unsigned y = 0; y < imageHeight; y += blockSize)
@@ -455,14 +456,24 @@ void BasicTracer::StartRender()
 
 void BasicTracer::WaitForRender()
 {
-    for (auto& thread : workers_) thread.join();
+    std::scoped_lock lock(workersMutex_);
+    for (auto& thread : workers_)
+    {
+        try
+        {
+            thread.join();
+        }
+        catch (const std::system_error& e)
+        {
+            spdlog::error("Error joining worker thread: {}", e.what());
+        }
+    }
     workers_.clear();
 }
 
 void BasicTracer::KillRender()
 {
     renderKilled_ = true;
-    WaitForRender();
 }
 
 Tracer::Stats BasicTracer::GetStats() const
@@ -477,8 +488,8 @@ Tracer::Stats BasicTracer::GetStats() const
     stats.timeElapsed =
         static_cast<float>(duration_cast<seconds>(system_clock::now() - startTime_).count());
     stats.estimatedTimeRemaining = (stats.timeElapsed / stats.progress) * (1.0f - stats.progress);
-    stats.raysTraced = raysTraced_.load();
-    stats.samplesTraced = samplesTraced_.load();
+    stats.rays = raysTraced_.load();
+    stats.samples = samplesTraced_.load();
     return stats;
 }
 

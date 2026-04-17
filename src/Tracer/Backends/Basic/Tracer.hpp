@@ -55,18 +55,22 @@ class BasicTracer : public Tracer
     };
 
    private:
-    std::atomic<size_t> raysTraced_{0};
-    std::atomic<size_t> samplesTraced_{0};
     static std::random_device rd;
     std::shared_ptr<RenderBuffer> imageBuffer_;
     const Scene::Scene& scene_;
     const BasicBackend::BasicCamera cam_;
-    std::queue<Block> blocks_;
-    unsigned int initialQueueSize_ = 0;
-    std::mutex blockMutex_;
-    std::vector<std::thread> workers_;
-    std::chrono::time_point<std::chrono::system_clock> startTime_;
     std::vector<SimplifiedLight> simplifiedLights_;
+
+    unsigned int initialQueueSize_ = 0;
+    std::queue<Block> blocks_;
+    std::mutex blockMutex_;
+
+    std::atomic<size_t> raysTraced_{0};
+    std::atomic<size_t> samplesTraced_{0};
+    std::chrono::time_point<std::chrono::system_clock> startTime_;
+
+    std::mutex workersMutex_;
+    std::vector<std::thread> workers_;
     volatile std::atomic<bool> renderKilled_ = false;
 
    private:

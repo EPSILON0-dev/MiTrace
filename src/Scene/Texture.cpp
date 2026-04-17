@@ -43,7 +43,7 @@ glm::vec4 Texture::SampleEquirectangular(const glm::vec3& direction) const noexc
 
 void Texture::LoadCachedImages()
 {
-    const auto nThread = Config::GetConfig().rendering.numThreads;
+    const auto nThread = Config::GetConfig().numThreads;
     Common::ParallelForEach(imageCache.begin(), imageCache.end(), nThread,
         [](const auto& cacheEntry) { cacheEntry.second->Load(); });
 }

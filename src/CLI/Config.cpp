@@ -2,52 +2,105 @@
 
 #include <spdlog/spdlog.h>
 
-#include <format>
-#include <fstream>
-#include <iostream>
-#include <nlohmann/json.hpp>
-#include <sstream>
+#include <thread>
 
-static const std::string helpMessage =
-    "Usage: RayTracing [options]\n"
-    "Options:\n"
-    "  -f,  --file        <file>     Specify the scene file to load.\n"
-    "  -c,  --config      <config>   Specify the configuration file to load.\n"
-    "  -p,  --preview                Enable preview window.\n"
-    "  -v,  --verbose                Enable verbose logging.\n"
-    "  -vv, --very-verbose           Enable very verbose logging.\n";
-
-std::vector<std::string> Config::SplitPath(const std::string& path)
+Config::Config()
 {
-    std::vector<std::string> keys;
-    std::stringstream ss(path);
-    std::string item;
+    parser.add_argument("input")
+        .help("GLTF File to be rendered (.glb is not supported yet!)")
+        .store_into(options_.inputFilename)
+        .required();
 
-    while (std::getline(ss, item, '.')) keys.push_back(item);
+    parser.add_argument("-o", "--output")
+        .help("Name of the file for image to be written to (.jpg, .png or .hdr)")
+        .default_value(options_.outputFilename)
+        .store_into(options_.outputFilename);
 
-    return keys;
-}
+    parser.add_argument("-w", "--width")
+        .help("Output image width in pixels")
+        .default_value(options_.imageWidth)
+        .store_into(options_.imageWidth);
 
-template <typename T>
-void Config::LoadFromJson(const nlohmann::json& jsonObj, const std::string& path, T& prop)
-{
-    const auto* obj = &jsonObj;
-    const auto keys = SplitPath(path);
+    parser.add_argument("-h", "--height")
+        .help("Output image height in pixels")
+        .default_value(options_.imageHeight)
+        .store_into(options_.imageHeight);
 
-    for (const auto& key : keys)
-    {
-        if (!obj->contains(key)) return;
-        obj = &(obj->at(key));
-    }
+    parser.add_argument("-s", "--samples")
+        .help("Samples per pixel")
+        .default_value(options_.samples)
+        .store_into(options_.samples);
 
-    try
-    {
-        prop = obj->get<T>();
-    }
-    catch (const std::exception& e)
-    {
-        spdlog::warn("Failed to read arg {}: {}", path, e.what());
-    }
+    parser.add_argument("-b", "--bounces")
+        .help("Maximum path bounces")
+        .default_value(options_.bounces)
+        .store_into(options_.bounces);
+
+    parser.add_argument("-e", "--ev-exposure")
+        .help("Exposure value applied during tonemapping")
+        .default_value(std::to_string(options_.evExposure));
+
+    parser.add_argument("--disable-bvh")
+        .help("Disable BVH acceleration structure")
+        .default_value(options_.bvhDisable)
+        .implicit_value(true)
+        .store_into(options_.bvhDisable);
+
+    parser.add_argument("--bvh-max-triangles")
+        .help("Maximum number of triangles per BVH leaf")
+        .default_value(options_.bvhMaxTriangles)
+        .store_into(options_.bvhMaxTriangles);
+
+    parser.add_argument("--bvh-max-depth")
+        .help("Maximum BVH recursion depth")
+        .default_value(options_.bvhMaxDepth)
+        .store_into(options_.bvhMaxDepth);
+
+    parser.add_argument("--image-block-size")
+        .help("Tile size used for rendering work distribution")
+        .default_value(options_.imageBlockSize)
+        .store_into(options_.imageBlockSize);
+
+    parser.add_argument("--disable-firefly-elimination")
+        .help("Disable statistical firefly elimination")
+        .default_value(false)
+        .implicit_value(true);
+
+    parser.add_argument("--firefly-threshold")
+        .help("Threshold used by firefly elimination (in standard deviations)")
+        .default_value(std::to_string(options_.fireflyEliminationThreshold));
+
+    parser.add_argument("--terminate-energy")
+        .help("Path termination energy threshold")
+        .default_value(std::to_string(options_.terminateEnergy));
+
+    parser.add_argument("-t", "--threads")
+        .help("Number of worker threads")
+        .default_value(std::thread::hardware_concurrency())
+        .store_into(options_.numThreads);
+
+    parser.add_argument("--disable-cpu-affinity")
+        .help("Disable CPU affinity pinning for worker threads")
+        .default_value(false)
+        .implicit_value(true);
+
+    parser.add_argument("-v", "--verbose")
+        .help("Enable verbose logging")
+        .default_value(options_.verbose)
+        .implicit_value(true)
+        .store_into(options_.verbose);
+
+    parser.add_argument("-p", "--preview")
+        .help("Enable preview window")
+        .default_value(options_.enablePreview)
+        .implicit_value(true)
+        .store_into(options_.enablePreview);
+
+    parser.add_argument("-V", "--very-verbose")
+        .help("Enable very verbose logging")
+        .default_value(options_.veryVerbose)
+        .implicit_value(true)
+        .store_into(options_.veryVerbose);
 }
 
 Config& Config::Instance()
@@ -56,100 +109,40 @@ Config& Config::Instance()
     return instance;
 }
 
-void Config::LoadFromFile(const std::string& filepath)
-{
-    nlohmann::json json;
-    try
-    {
-        json = nlohmann::json::parse(std::ifstream(filepath));
-    }
-    catch (const std::exception& e)
-    {
-        throw std::runtime_error(
-            std::format("Failed to load config file '{}': {}", filepath, e.what()));
-    }
-
-    LoadFromJson(json, "output.width", options_.image.width);
-    LoadFromJson(json, "output.height", options_.image.height);
-    LoadFromJson(json, "output.samples", options_.image.samples);
-
-    LoadFromJson(json, "rendering.disable_bvh", options_.rendering.disableBVH);
-    LoadFromJson(json, "rendering.max_bounces", options_.rendering.maxBounces);
-    LoadFromJson(json, "rendering.num_threads", options_.rendering.numThreads);
-    LoadFromJson(json, "rendering.cpu_affinity", options_.rendering.cpuAffinity);
-    LoadFromJson(json, "rendering.max_bvh_triangles", options_.rendering.maxBVHTriangles);
-    LoadFromJson(json, "rendering.max_bvh_depth", options_.rendering.maxBVHDepth);
-    LoadFromJson(json, "rendering.block_size", options_.rendering.blockSize);
-    LoadFromJson(json, "rendering.terminate_energy", options_.rendering.terminateEnergy);
-    LoadFromJson(json, "rendering.use_statistic_firefly_elimination", options_.rendering.useStatisticFireflyElimination);
-    LoadFromJson(json, "rendering.firefly_elimination_threshold", options_.rendering.fireflyEliminationThreshold);
-    LoadFromJson(json, "rendering.ev_exposure", options_.rendering.evExposure);
-
-    if (options_.rendering.numThreads <= 0)
-        options_.rendering.numThreads = std::thread::hardware_concurrency();
-}
-
 void Config::LoadConfig(int argc, char** argv)
 {
-    for (int i = 1; i < argc; ++i)
-    {
-        std::string arg = argv[i];
-        if (arg == "-f" || arg == "--file")
-        {
-            if (i + 1 < argc)
-            {
-                options_.input.filename = argv[++i];
-            }
-            else
-            {
-                spdlog::critical("Expected filename after {}", arg);
-                exit(EXIT_FAILURE);
-            }
-        }
-        else if (arg == "-c" || arg == "--config")
-        {
-            if (i + 1 < argc)
-            {
-                options_.input.config = argv[++i];
-            }
-            else
-            {
-                spdlog::critical("Expected filename after {}", arg);
-                exit(EXIT_FAILURE);
-            }
-        }
-        else if (arg == "-h" || arg == "--help")
-        {
-            printHelp_ = true;
-        }
-        else if (arg == "-v" || arg == "--verbose")
-        {
-            verbose_ = true;
-        }
-        else if (arg == "-vv" || arg == "--very-verbose")
-        {
-            veryVerbose_ = true;
-        }
-        else if (arg == "-p" || arg == "--preview")
-        {
-            enablePreview_ = true;
-        }
-        else
-        {
-            spdlog::critical("Unknown argument: {}", arg);
-            exit(EXIT_FAILURE);
-        }
-    }
+    parser.parse_args(argc, argv);
 
-    if (!options_.input.config.empty()) LoadFromFile(options_.input.config);
+    options_.evExposure = std::stof(parser.get<std::string>("--ev-exposure"));
+    options_.fireflyEliminationThreshold =
+        std::stof(parser.get<std::string>("--firefly-threshold"));
+    options_.terminateEnergy = std::stof(parser.get<std::string>("--terminate-energy"));
+    options_.useStatisticFireflyElimination = !parser.get<bool>("--disable-firefly-elimination");
+    options_.cpuAffinity = !parser.get<bool>("--disable-cpu-affinity");
 }
 
-bool Config::PrintHelpIfNeeded() const
+void Config::LogConfig() const
 {
-    if (printHelp_)
-    {
-        std::cout << helpMessage;
-        return true;
-    }
-    return false;
+    const auto& o = options_;
+    spdlog::debug("Config:");
+    spdlog::debug("  inputFilename: {}", o.inputFilename);
+    spdlog::debug("  outputFilename: {}", o.outputFilename);
+    spdlog::debug("  imageWidth: {}", o.imageWidth);
+    spdlog::debug("  imageHeight: {}", o.imageHeight);
+    spdlog::debug("  samples: {}", o.samples);
+    spdlog::debug("  bounces: {}", o.bounces);
+    spdlog::debug("  evExposure: {}", o.evExposure);
+    spdlog::debug("  bvhDisable: {}", o.bvhDisable ? "true" : "false");
+    spdlog::debug("  bvhMaxTriangles: {}", o.bvhMaxTriangles);
+    spdlog::debug("  bvhMaxDepth: {}", o.bvhMaxDepth);
+    spdlog::debug("  imageBlockSize: {}", o.imageBlockSize);
+    spdlog::debug("  useStatisticFireflyElimination: {}",
+        o.useStatisticFireflyElimination ? "true" : "false");
+    spdlog::debug("  fireflyEliminationThreshold: {}", o.fireflyEliminationThreshold);
+    spdlog::debug("  terminateEnergy: {}", o.terminateEnergy);
+    spdlog::debug("  numThreads: {}", o.numThreads);
+    spdlog::debug("  cpuAffinity: {}", o.cpuAffinity ? "true" : "false");
+    spdlog::debug("  verbose: {}", o.verbose ? "true" : "false");
+    spdlog::debug("  enablePreview: {}", o.enablePreview ? "true" : "false");
+    spdlog::debug("  veryVerbose: {}", o.veryVerbose ? "true" : "false");
 }

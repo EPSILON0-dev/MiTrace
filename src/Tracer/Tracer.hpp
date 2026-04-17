@@ -10,8 +10,8 @@ class Tracer
         float progress;
         float timeElapsed;
         float estimatedTimeRemaining;
-        size_t raysTraced;
-        size_t samplesTraced;
+        size_t rays;
+        size_t samples;
     };
 
    public:

@@ -24,7 +24,7 @@ void Scene::Scene::CopyLoaderMeshInstances(const Loader::Scene& scene)
     // Convert all the loader meshes into scene meshes in parallel
     std::mutex mapMutex;
     std::map<const Loader::Mesh*, std::shared_ptr<Mesh>> meshMap;
-    const auto nThread = Config::GetConfig().rendering.numThreads;
+    const auto nThread = Config::GetConfig().numThreads;
     Common::ParallelForEach(meshSet.begin(), meshSet.end(), nThread,
         [&mapMutex, &meshMap](const auto meshPtr)
         {

@@ -34,10 +34,10 @@ Mesh::Mesh(const Loader::Mesh& mesh)
     texCoord1_ = UnpackVector(mesh.texCoord1, mesh.indices);
     color0_ = UnpackVector(mesh.color0, mesh.indices);
 
-    bool generateBVH = !config.rendering.disableBVH;
-    generateBVH &= GetTriangleCount() > config.rendering.maxBVHTriangles;
+    bool generateBVH = !config.bvhDisable;
+    generateBVH &= GetTriangleCount() > config.bvhMaxTriangles;
     if (generateBVH)
-        bvh_ = BVH(*this, config.rendering.maxBVHTriangles, config.rendering.maxBVHDepth - 1);
+        bvh_ = BVH(*this, config.bvhMaxTriangles, config.bvhMaxDepth - 1);
 }
 
 std::pair<glm::vec3, glm::vec3> Mesh::CalculateAABB() const noexcept
