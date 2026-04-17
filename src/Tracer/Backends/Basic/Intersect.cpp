@@ -1,8 +1,8 @@
 #define GLM_ENABLE_EXPERIMENTAL
+#include "Intersect.hpp"
+
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/intersect.hpp>
-
-#include "Intersect.hpp"
 
 using namespace BasicBackend;
 
@@ -20,7 +20,7 @@ static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, 
 static void IntersectTrianglesLinear(const Ray& localRay, const Scene::MeshInstance& meshInstance,
     float& dist, glm::vec2& baryCoord, size_t& triangleIndex) noexcept
 {
-    auto positions = meshInstance.GetMesh().GetPositions();
+    const auto& positions = meshInstance.GetMesh().GetPositions();
     for (size_t i = 0; i < positions.size(); i += 3)
     {
         const glm::vec3& v0 = positions[i + 0];
@@ -33,7 +33,7 @@ static void IntersectTrianglesLinear(const Ray& localRay, const Scene::MeshInsta
         if (glm::intersectRayTriangle(
                 localRay.origin, localRay.direction, v0, v1, v2, currentBaryCoord, currentDistance))
         {
-            if (currentDistance > 0.0f && currentDistance < dist)
+            [[unlikely]] if (currentDistance > 0.0f && currentDistance < dist)
             {
                 dist = currentDistance;
                 baryCoord = currentBaryCoord;
@@ -54,7 +54,7 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
     static thread_local std::vector<StackEntry> stack;
 
     const float minDelta = 0.1f;
-    auto rootNode = meshInstance.GetMesh().GetBVH().GetNodes()[0];
+    const auto& rootNode = meshInstance.GetMesh().GetBVH().GetNodes()[0];
     auto rootDist = IntersectRayAABB(localRay, rootNode.GetAABB());
     stack.clear();
     stack.push_back({0, rootDist});
@@ -62,7 +62,7 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
     const auto& positions = meshInstance.GetMesh().GetPositions();
     const auto& bvh = meshInstance.GetMesh().GetBVH();
 
-    while (!stack.empty())
+    [[likely]] while (!stack.empty())
     {
         auto entry = stack.back();
         stack.pop_back();
@@ -74,7 +74,7 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
         if (nodeDist > dist + minDelta) continue;
 
         // If it's a leaf, check the triangles
-        if (node.IsLeaf())
+        [[unlikely]] if (node.IsLeaf())
         {
             auto index = node.GetTriangleIndex();
             auto count = node.GetTriangleCount();
@@ -101,7 +101,7 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
         }
 
         // Else keep descending
-        else
+        else  // NOLINT
         {
             auto& childA = bvh.GetNodes()[node.GetChildA()];
             auto& childB = bvh.GetNodes()[node.GetChildB()];

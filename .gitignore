@@ -16,6 +16,7 @@ assets/**/*_render*
 *.bak
 *.log
 callgrind.out.*
+vgcore.*
 
 # Don't ask...
 src/format

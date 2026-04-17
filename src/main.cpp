@@ -89,12 +89,16 @@ static void RenderThread(const std::shared_ptr<RenderBuffer>& texture, const cha
 
     std::optional<Scene::Scene> scene;
     {
+        auto startTime = system_clock::now();
         Loader::GLTF loader(gltfFilePath);
         const auto loaderCamera = loader.LoadSceneCamera(0);
         const auto loaderScene = loader.LoadScene(0);
         const auto camera = Scene::Camera(loaderCamera);
         scene = Scene::Scene(loaderScene);
         scene->SetCamera(camera);
+        auto endTime = system_clock::now();
+        auto loadDuration = duration_cast<milliseconds>(endTime - startTime).count();
+        spdlog::info("Loading took {:.2f} seconds", static_cast<float>(loadDuration) / 1000.0f);
     }
 
     auto tracerBackend = BasicTracer(texture, scene.value());

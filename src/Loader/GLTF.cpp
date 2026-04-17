@@ -15,8 +15,6 @@
 
 #include "Loader/Types.hpp"
 
-// TODO Implement a proper "no such file" exception
-
 using namespace Loader;
 
 GLTF::GLTF(const std::filesystem::path& filePath)
@@ -24,8 +22,10 @@ GLTF::GLTF(const std::filesystem::path& filePath)
 {
     try
     {
-        gltfData_ =
-            std::make_unique<nlohmann::json>(nlohmann::json::parse(std::ifstream(filePath_)));
+        auto file = std::ifstream(filePath_);
+        if (file.fail())
+            throw std::runtime_error(std::format("Failed to open file {}", filePath_.string()));
+        gltfData_ = std::make_unique<nlohmann::json>(nlohmann::json::parse(file));
     }
     catch (const std::exception& e)
     {
@@ -266,8 +266,7 @@ Texture GLTF::LoadTextureInfo(const nlohmann::json& textureInfoData)
             texture.offset =
                 glm::make_vec2(transformData["offset"].get<std::vector<float>>().data());
         if (transformData.contains("scale"))
-            texture.scale =
-                glm::make_vec2(transformData["scale"].get<std::vector<float>>().data());
+            texture.scale = glm::make_vec2(transformData["scale"].get<std::vector<float>>().data());
     }
 
     return texture;
@@ -758,7 +757,8 @@ std::vector<Light> GLTF::LoadNodeLights(size_t nodeIndex, const glm::mat4& trans
         }
     }
 
-    if (nodeData.contains("extensions") && nodeData["extensions"].contains("EXT_light_attributes") &&
+    if (nodeData.contains("extensions") &&
+        nodeData["extensions"].contains("EXT_light_attributes") &&
         nodeData["extensions"]["EXT_light_attributes"].contains("areaLight"))
     {
         try
