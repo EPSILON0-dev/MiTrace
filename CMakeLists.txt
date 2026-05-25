@@ -16,7 +16,6 @@ project(MiTrace VERSION 0.1
 )
 
 set(ENABLE_PREVIEW_GUI ON CACHE BOOL "Enable Preview GUI")
-set(ENABLE_BACKEND_BASIC ON CACHE BOOL "Enable Basic Backend")
 set(TARGET_ARCH "native" CACHE STRING "Target architecture for optimization (e.g., native, x86-64, etc.)")
 
 set(CMAKE_CXX_STANDARD 20)
