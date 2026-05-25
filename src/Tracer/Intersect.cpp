@@ -70,7 +70,7 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
         const auto nodeDist = entry.dist;
 
         // Skip this node if already got a closer hit
-        // NOTE: There's no need to check for miss here
+        if (nodeDist < 0.0f) continue;
         if (nodeDist > dist + minDelta) continue;
 
         // If it's a leaf, check the triangles

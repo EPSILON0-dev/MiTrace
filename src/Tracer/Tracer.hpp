@@ -39,6 +39,7 @@ class Tracer
         float roughness;
         glm::vec3 normal;
         glm::vec3 energy;
+        glm::vec3 emission;
         bool didHit;
     };
 

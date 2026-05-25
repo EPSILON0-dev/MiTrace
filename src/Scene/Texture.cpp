@@ -1,5 +1,7 @@
 #include "Texture.hpp"
 
+#include <spdlog/spdlog.h>
+
 #include "CLI/Config.hpp"
 #include "Common/ParallelForEach.hpp"
 
@@ -28,6 +30,23 @@ Texture::Texture(const Loader::Texture& texture)
         image_ = std::make_shared<Image>(texture.image);
         imageCache[texture.image.path] = image_;
     }
+}
+
+Texture Texture::LoadEnvTexture(const std::filesystem::path& path)
+{
+    Loader::Image loaderImage = {.name = "env_texture", .path = path};
+    Scene::Image hdriImage(loaderImage);
+    hdriImage.Load();
+    if (!hdriImage.IsValid())
+    {
+        spdlog::critical("Failed to load environment texture");
+        std::exit(EXIT_FAILURE);
+    }
+    Texture tex;
+    tex.image_ = std::make_shared<Image>(hdriImage);
+    tex.filterMode_ = Image::FilterMode::Linear;
+    tex.offset_ = glm::vec2{Config::GetConfig().hdriRotation / 360.0f, 0.0f};
+    return tex;
 }
 
 glm::vec4 Texture::Sample(const glm::vec2& uv) const noexcept

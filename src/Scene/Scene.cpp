@@ -57,3 +57,17 @@ Scene::Scene::Scene(const Loader::Scene& scene)
     Texture::LoadCachedImages();
     spdlog::info("Scene loaded.");
 }
+
+glm::vec3 Scene::Scene::SampleSkybox(const glm::vec3& direction, bool isPrimaryRay) const noexcept
+{
+    const static float primIntensity = Config::GetConfig().hdriPrimaryIntensity;
+    const static float secIntensity = Config::GetConfig().hdriSecondaryIntensity;
+    const float multiplier = isPrimaryRay ? primIntensity : secIntensity;
+
+    if (environmentTexture_ && environmentTexture_->IsValid())
+    {
+        return environmentTexture_->SampleEquirectangular(direction) * multiplier;
+    }
+
+    return glm::vec3(0.0f);
+}

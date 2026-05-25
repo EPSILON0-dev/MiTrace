@@ -8,6 +8,7 @@
 #include "Mesh.hpp"
 #include "Scene/Camera.hpp"
 #include "Texture.hpp"
+#include "glm/fwd.hpp"
 
 class Light;
 
@@ -30,6 +31,8 @@ class Scene
 
     void SetEnvironmentTexture(const Texture& texture) noexcept { environmentTexture_ = texture; }
     void SetCamera(const Camera& camera) noexcept { camera_ = camera; }
+
+    glm::vec3 SampleSkybox(const glm::vec3& direction, bool isPrimaryRay) const noexcept;
 
     using MeshInstance_vec_cr = const std::vector<MeshInstance>&;
     using Light_vec_cr = const std::vector<Light>&;

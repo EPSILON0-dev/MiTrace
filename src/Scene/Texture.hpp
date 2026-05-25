@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <glm/glm.hpp>
 #include <map>
 #include <memory>
@@ -27,6 +28,7 @@ class Texture
     {
     }
     Texture(const Loader::Texture& texture);
+    static Texture LoadEnvTexture(const std::filesystem::path& path);
 
    public:
     glm::vec4 Sample(const glm::vec2& uv) const noexcept;

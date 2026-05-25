@@ -11,6 +11,7 @@
 #include "CLI/Config.hpp"
 #include "Loader/GLTF.hpp"
 #include "Preview/Preview.hpp"
+#include "Scene/Texture.hpp"
 #include "Tracer/RenderBuffer.hpp"
 #include "Tracer/Tracer.hpp"
 
@@ -69,8 +70,8 @@ static void StatThread(const Tracer::Tracer& tracer, volatile bool& shouldStop)
     }
 }
 
-static void RenderThread(const std::shared_ptr<RenderBuffer>& renderTarget, const char* gltfFilePath,
-    volatile bool& shouldStop)
+static void RenderThread(const std::shared_ptr<RenderBuffer>& renderTarget,
+    const char* gltfFilePath, volatile bool& shouldStop)
 {
     using std::chrono::duration_cast;
     using std::chrono::milliseconds;
@@ -90,12 +91,22 @@ static void RenderThread(const std::shared_ptr<RenderBuffer>& renderTarget, cons
     std::optional<Scene::Scene> scene;
     {
         auto startTime = system_clock::now();
+
         Loader::GLTF loader(gltfFilePath);
-        const auto loaderCamera = loader.LoadSceneCamera(0);
-        const auto loaderScene = loader.LoadScene(0);
+        const auto loaderCamera = loader.LoadSceneCamera(cfg.sceneIndex, cfg.cameraIndex);
+        const auto loaderScene = loader.LoadScene(cfg.sceneIndex);
         const auto camera = Scene::Camera(loaderCamera);
+
         scene = Scene::Scene(loaderScene);
         scene->SetCamera(camera);
+
+        if (!cfg.hdriOverride.empty())
+        {
+            spdlog::info("Overriding HDRI with '{}'", cfg.hdriOverride);
+            auto hdriTexture = Scene::Texture::LoadEnvTexture(cfg.hdriOverride);
+            scene->SetEnvironmentTexture(hdriTexture);
+        }
+
         auto endTime = system_clock::now();
         auto loadDuration = duration_cast<milliseconds>(endTime - startTime).count();
         spdlog::info("Loading took {:.2f} seconds", static_cast<float>(loadDuration) / 1000.0f);

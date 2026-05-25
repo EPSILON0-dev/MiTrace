@@ -1,16 +1,21 @@
 # TODO before V1
 
 [x] Move the tracer back to the tracer directory
-[ ] Fix the light radius problem
+[x] Add camera selection
+[x] Add GLTF scene selection
+[ ] Add skyboxes
+[ ] Add skybox loading from GLTF file
+[ ] Generalize the Texture class
 [ ] Test the blender exporter
   * [ ] Skybox
   * [ ] Lights
+[ ] Add mesh level BVH
+[ ] Fix the light radius problem
 [ ] Add multiple light types
 [ ] Improve the light selection algorithm
 [ ] Add bidirectional path tracing
 [ ] Add alpha (non-physical) transparency
 [ ] Add light bending on transparency (?)
-[ ] Add skyboxes
 [ ] Add OpenImageDenoise
 [ ] Add debug render modes
   * [ ] Intersections

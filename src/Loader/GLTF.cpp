@@ -444,12 +444,20 @@ Material GLTF::LoadMaterial(size_t materialIndex)
     Material material;
 
     // Load emissive texture and factor
-    if (pbrData.contains("emissiveTexture"))
-        material.emissiveTexture = LoadTextureInfo(pbrData["emissiveTexture"]);
+    if (materialData.contains("emissiveTexture"))
+        material.emissiveTexture = LoadTextureInfo(materialData["emissiveTexture"]);
     material.emissiveFactor =
-        pbrData.contains("emissiveFactor")
-            ? glm::make_vec3(pbrData["emissiveFactor"].get<std::vector<float>>().data())
-            : glm::vec3(1.0f);
+        materialData.contains("emissiveFactor")
+            ? glm::make_vec3(materialData["emissiveFactor"].get<std::vector<float>>().data())
+            : glm::vec3(0.0f);
+
+    // Load the emission strength
+    if (materialData.contains("extensions") &&
+        materialData["extensions"].contains("KHR_materials_emissive_strength"))
+    {
+        material.emissiveFactor *=
+            materialData["extensions"]["KHR_materials_emissive_strength"].value("emissiveStrength", 1.0f);
+    }
 
     // Load PBR material properties
     material.name = materialData.value("name", "Unnamed_Material");
@@ -866,16 +874,21 @@ std::vector<Camera> GLTF::LoadSceneCameras(size_t sceneIndex, const glm::mat4& t
     return cameras;
 }
 
-Camera GLTF::LoadSceneCamera(size_t sceneIndex, const glm::mat4& transform) const
+Camera GLTF::LoadSceneCamera(
+    size_t sceneIndex, size_t cameraIndex, const glm::mat4& transform) const
 {
     const auto cameras = LoadSceneCameras(sceneIndex, transform);
 
     if (cameras.empty()) throw std::runtime_error("No camera found in the scene");
 
-    if (cameras.size() > 1)
-        spdlog::warn("Multiple cameras found in the scene, using the first one loaded");
+    if (cameraIndex >= cameras.size())
+    {
+        spdlog::warn(
+            "Requested camera index {} is out of range, using the first camera", cameraIndex);
+        cameraIndex = 0;
+    }
 
-    return cameras.front();
+    return cameras[cameraIndex];
 }
 
 template <typename Tmap, typename Tlambda>

@@ -25,7 +25,7 @@ class Material
         float metallic;
         float roughness;
         glm::vec3 normal;
-        glm::vec3 emissive;
+        glm::vec3 emission;
         float occlusion;
     };
 
@@ -129,7 +129,7 @@ class Material
         point.metallic = GetMetallic(texCoord);
         point.roughness = GetRoughness(texCoord);
         point.normal = GetNormal(texCoord);
-        point.emissive = GetEmissive(texCoord);
+        point.emission = GetEmissive(texCoord);
         point.occlusion = GetOcclusion(texCoord);
         return point;
     }

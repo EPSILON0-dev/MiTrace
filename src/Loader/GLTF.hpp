@@ -110,7 +110,7 @@ class GLTF
 
     Camera_vec LoadNodeCameras(size_t nodeIndex, Mat4_cref transform = ident) const;
     Camera_vec LoadSceneCameras(size_t sceneIndex, Mat4_cref transform = ident) const;
-    Camera LoadSceneCamera(size_t sceneIndex, Mat4_cref transform = ident) const;
+    Camera LoadSceneCamera(size_t sceneIndex, size_t cameraIndex, Mat4_cref transform = ident) const;
 
     std::optional<Texture> LoadSceneEnvironmentTexture();
 

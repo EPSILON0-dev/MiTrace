@@ -12,4 +12,4 @@ fi
 SCENE_PATH=$(dirname $0)/$SCENE_FILENAME
 RENDER_PATH=$(dirname $0)/$(basename $SCENE_FILENAME .gltf)_render.png
 
-$MITRACE_EXECUTABLE $SCENE_PATH -o $RENDER_PATH -w 512 -h 512 -s 256 --image-block-size 32 -e 6 $@
+$MITRACE_EXECUTABLE $SCENE_PATH -o $RENDER_PATH -w 512 -h 512 -s 512 --image-block-size 8 -e 5 $@

@@ -17,7 +17,15 @@ class Config
         unsigned imageHeight = 720;
         unsigned samples = 64;
         unsigned bounces = 5;
+        unsigned cameraIndex = 0;
+        unsigned sceneIndex = 0;
         float evExposure = 8.0f;
+
+        std::string hdriOverride;
+        float hdriRotation = 0.0f;
+        float hdriSecondaryIntensity = 350.0f;
+        float hdriPrimaryIntensity = 350.0f;
+        float emissionBaseIntensity = 1.0f;
 
         bool bvhDisable = false;
         unsigned bvhMaxTriangles = 32;

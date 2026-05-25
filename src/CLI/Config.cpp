@@ -38,9 +38,43 @@ Config::Config() : parser("MiTrace", VERSION)
         .default_value(options_.bounces)
         .store_into(options_.bounces);
 
+    parser.add_argument("-c", "--camera")
+        .help("Camera index to use for rendering")
+        .default_value(options_.cameraIndex)
+        .store_into(options_.cameraIndex);
+
+    parser.add_argument("--scene")
+        .help("Scene index to use for rendering")
+        .default_value(options_.sceneIndex)
+        .store_into(options_.sceneIndex);
+
     parser.add_argument("-e", "--ev-exposure")
         .help("Exposure value applied during tonemapping")
         .default_value(std::to_string(options_.evExposure));
+
+    parser.add_argument("-hdri", "--hdri-override")
+        .help("HDRI file to use for environment lighting (must be .hdr or .png)")
+        .store_into(options_.hdriOverride);
+
+    parser.add_argument("--hdri-rotation")
+        .help("HDRI rotation in degrees")
+        .default_value(std::to_string(options_.hdriRotation));
+
+    parser.add_argument("--hdri-secondary-intensity")
+        .help("HDRI secondary intensity")
+        .default_value(std::to_string(options_.hdriSecondaryIntensity));
+
+    parser.add_argument("--hdri-primary-intensity")
+        .help("HDRI primary intensity")
+        .default_value(std::to_string(options_.hdriPrimaryIntensity));
+
+    parser.add_argument("-e", "--ev-exposure")
+        .help("Exposure value applied during tonemapping")
+        .default_value(std::to_string(options_.evExposure));
+
+    parser.add_argument("--emission-base-intensity")
+        .help("Base intensity for emissive materials")
+        .default_value(std::to_string(options_.emissionBaseIntensity));
 
     parser.add_argument("-bdpt", "--bidirectional-path-tracing")
         .help("Use bidirectional path tracing instead of forward path tracing")
@@ -72,7 +106,8 @@ Config::Config() : parser("MiTrace", VERSION)
     parser.add_argument("--disable-firefly-elimination")
         .help("Disable statistical firefly elimination")
         .default_value(false)
-        .implicit_value(true);
+        .implicit_value(true)
+        .store_into(options_.useStatisticFireflyElimination);
 
     parser.add_argument("--firefly-threshold")
         .help("Threshold used by firefly elimination (in standard deviations)")
@@ -136,6 +171,12 @@ void Config::LoadConfig(int argc, char** argv)
         std::stof(parser.get<std::string>("--firefly-threshold"));
     options_.terminateEnergy = std::stof(parser.get<std::string>("--terminate-energy"));
     options_.useStatisticFireflyElimination = !parser.get<bool>("--disable-firefly-elimination");
+    options_.hdriRotation = std::stof(parser.get<std::string>("--hdri-rotation"));
+    options_.hdriSecondaryIntensity =
+        std::stof(parser.get<std::string>("--hdri-secondary-intensity"));
+    options_.hdriPrimaryIntensity = std::stof(parser.get<std::string>("--hdri-primary-intensity"));
+    options_.emissionBaseIntensity =
+        std::stof(parser.get<std::string>("--emission-base-intensity"));
     options_.cpuAffinity = !parser.get<bool>("--disable-cpu-affinity");
 }
 
@@ -149,7 +190,15 @@ void Config::LogConfig() const
     spdlog::debug("  imageHeight: {}", o.imageHeight);
     spdlog::debug("  samples: {}", o.samples);
     spdlog::debug("  bounces: {}", o.bounces);
+    spdlog::debug("  cameraIndex: {}", o.cameraIndex);
+    spdlog::debug("  sceneIndex: {}", o.sceneIndex);
     spdlog::debug("  evExposure: {}", o.evExposure);
+    spdlog::debug("  hdriOverride: {}", o.hdriOverride.empty() ? "None" : o.hdriOverride);
+    spdlog::debug("  hdriRotation: {}", o.hdriRotation);
+    spdlog::debug("  hdriSecondaryIntensity: {}", o.hdriSecondaryIntensity);
+    spdlog::debug("  hdriPrimaryIntensity: {}", o.hdriPrimaryIntensity);
+    spdlog::debug("  emissionBaseIntensity: {}", o.emissionBaseIntensity);
+    spdlog::debug("  bidirectionalPathTracing: {}", o.bidirectionalPathTracing ? "true" : "false");
     spdlog::debug("  bvhDisable: {}", o.bvhDisable ? "true" : "false");
     spdlog::debug("  bvhMaxTriangles: {}", o.bvhMaxTriangles);
     spdlog::debug("  bvhMaxDepth: {}", o.bvhMaxDepth);
@@ -162,5 +211,6 @@ void Config::LogConfig() const
     spdlog::debug("  cpuAffinity: {}", o.cpuAffinity ? "true" : "false");
     spdlog::debug("  verbose: {}", o.verbose ? "true" : "false");
     spdlog::debug("  enablePreview: {}", o.enablePreview ? "true" : "false");
+    spdlog::debug("  exitPreviewWhenDone: {}", o.exitPreviewWhenDone ? "true" : "false");
     spdlog::debug("  veryVerbose: {}", o.veryVerbose ? "true" : "false");
 }

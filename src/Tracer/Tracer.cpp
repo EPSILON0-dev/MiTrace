@@ -80,7 +80,7 @@ static float ComputeSpecularProbability(const glm::vec3& viewDir, const glm::vec
     return glm::clamp(probability, 0.05f, 0.95f);
 }
 
-static glm::vec3 GenerateRandomDirection(JobData& jobData) noexcept
+[[maybe_unused]] static glm::vec3 GenerateRandomDirection(JobData& jobData) noexcept
 {
     std::uniform_real_distribution<float> phi(0.0f, 2.0f * glm::pi<float>());
     std::uniform_real_distribution<float> theta(-glm::half_pi<float>(), glm::half_pi<float>());
@@ -143,7 +143,13 @@ void Tracer::Tracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<
         PathStep step;
         const auto hit = IntersectScene(currentRay, scene_);
         jobData.raysTraced++;
-        if (!hit.has_value()) break;
+        if (!hit.has_value())
+        {
+            step.ray = currentRay;
+            step.didHit = false;
+            pathVec.push_back(step);
+            break;
+        }
 
         // Read and store the geometry info
         const auto geom = RayHitGeometryInfo(*hit);
@@ -156,6 +162,8 @@ void Tracer::Tracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<
         step.roughness = mat.roughness;
         step.metallic = mat.metallic;
         step.normal = ComputeNormal(geom.Normal, mat.normal);
+        step.emission = glm::vec3(mat.emission);
+        step.didHit = true;
 
         // Compute the bounce direction and energy transfer
         const auto viewDir = -currentRay.direction;
@@ -215,8 +223,23 @@ glm::vec3 Tracer::Tracer::ProcessRayForward(JobData& jobData, const Ray& ray) no
 
     // Accumulate color from bounces
     glm::vec3 totalLight(0.0f), currentEnergy(1.0f);
-    for (const auto& step : path)
+    // NOLINTNEXTLINE(modernize-loop-convert)
+    for (size_t index = 0; index < path.size(); ++index)
     {
+        const auto& step = path[index];
+
+        // If the path didn't hit, sample the skybox
+        if (!step.didHit)
+        {
+            const glm::vec3 color = (index > 0) ? path[index - 1].baseColor : glm::vec3(1.0f);
+            const bool prim = index == 0;
+            totalLight += color * currentEnergy * scene_.SampleSkybox(step.ray.direction, prim);
+            break;
+        }
+
+        // Add emission from the hit material
+        totalLight += currentEnergy * cfg.emissionBaseIntensity * step.emission;
+
         int chosenLightIndex = -1;
         float chosenLightDistancePDF = 0.0f;
         float totalScore = 0.0f;
@@ -244,25 +267,24 @@ glm::vec3 Tracer::Tracer::ProcessRayForward(JobData& jobData, const Ray& ray) no
         // Sample the light with a shadow ray
         const auto& light = scene_.GetLights()[chosenLightIndex];
 
-        // FIXME: This causes problems, please fix
         const auto lightPos =
-            light.GetPosition() + (GenerateRandomDirection(jobData) * light.GetPointSize()) * 0.0f;
+            light.GetPosition() + GenerateRandomDirection(jobData) * light.GetPointSize();
         const auto lightColor = light.GetColor();
-        const glm::vec3 lightDir = glm::normalize(lightPos - step.hitPos);
-        const Ray shadowRay(step.hitPos + lightDir * pulloutEpsilon, lightDir);
+        const glm::vec3 lightVec = lightPos - step.hitPos;
+        const glm::vec3 lightDir = glm::normalize(lightVec);
+        const Ray shadowRay(step.hitPos + lightVec * pulloutEpsilon, lightDir);
         const auto shadowHit = IntersectScene(shadowRay, scene_);
         jobData.raysTraced++;
 
         // If the shadow ray is not occluded, accumulate the light contribution
-        if (!shadowHit.has_value() || shadowHit->distance > glm::length(lightDir))
+        if (!shadowHit.has_value() || shadowHit->distance > glm::length(lightVec))
         {
             float metalness = step.metallic;
             float roughness = step.roughness;
-            const auto lightDirection = glm::normalize(lightDir);
-            const glm::vec3 brdf = BRDF::EvaluateBRDF(lightDirection, -step.ray.direction,
-                step.normal, step.baseColor, roughness, metalness);
-            const float dotNL = glm::max(glm::dot(step.normal, lightDirection), 0.0f);
-            float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir) + 1.0f);
+            const glm::vec3 brdf = BRDF::EvaluateBRDF(
+                lightDir, -step.ray.direction, step.normal, step.baseColor, roughness, metalness);
+            const float dotNL = glm::max(glm::dot(step.normal, lightDir), 0.0f);
+            float distanceFalloff = 1.0f / (glm::length(lightVec) * glm::length(lightVec) + 1.0f);
             const glm::vec3 lightEnergy = brdf * dotNL * distanceFalloff;
             totalLight += currentEnergy * lightEnergy * lightColor / chosenLightDistancePDF;
         }
