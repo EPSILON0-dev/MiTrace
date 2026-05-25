@@ -42,9 +42,15 @@ Config::Config() : parser("MiTrace", VERSION)
         .help("Exposure value applied during tonemapping")
         .default_value(std::to_string(options_.evExposure));
 
+    parser.add_argument("-bdpt", "--bidirectional-path-tracing")
+        .help("Use bidirectional path tracing instead of forward path tracing")
+        .default_value(false)
+        .implicit_value(true)
+        .store_into(options_.bidirectionalPathTracing);
+
     parser.add_argument("--disable-bvh")
         .help("Disable BVH acceleration structure")
-        .default_value(options_.bvhDisable)
+        .default_value(false)
         .implicit_value(true)
         .store_into(options_.bvhDisable);
 
@@ -88,19 +94,25 @@ Config::Config() : parser("MiTrace", VERSION)
 
     parser.add_argument("-v", "--verbose")
         .help("Enable verbose logging")
-        .default_value(options_.verbose)
+        .default_value(false)
         .implicit_value(true)
         .store_into(options_.verbose);
 
     parser.add_argument("-p", "--preview")
         .help("Enable preview window")
-        .default_value(options_.enablePreview)
+        .default_value(false)
         .implicit_value(true)
         .store_into(options_.enablePreview);
 
+    parser.add_argument("-x", "--exit-preview-when-done")
+        .help("Close the preview window when render is completed")
+        .default_value(false)
+        .implicit_value(true)
+        .store_into(options_.exitPreviewWhenDone);
+
     parser.add_argument("-V", "--very-verbose")
         .help("Enable very verbose logging")
-        .default_value(options_.veryVerbose)
+        .default_value(false)
         .implicit_value(true)
         .store_into(options_.veryVerbose);
 }

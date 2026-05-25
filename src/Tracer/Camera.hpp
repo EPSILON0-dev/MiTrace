@@ -1,15 +1,15 @@
 #pragma once
 
-#include "Scene/Camera.hpp"
 #include "Ray.hpp"
+#include "Scene/Camera.hpp"
 
-namespace BasicBackend
+namespace Tracer
 {
 
-class BasicCamera : public Scene::Camera
+class Camera : public Scene::Camera
 {
    public:
-    BasicCamera(const Scene::Camera& cam) : Scene::Camera(cam) {}
+    Camera(const Scene::Camera& cam) : Scene::Camera(cam) {}
 
     void CheckCameraAspectRatio(float renderAspectRatio) const noexcept;
     Ray GeneratePerspectiveRay(float u, float v, float aspectRatio) const noexcept;
@@ -17,4 +17,4 @@ class BasicCamera : public Scene::Camera
     Ray GenerateCameraRay(float u, float v, float aspectRatio) const noexcept;
 };
 
-}  // namespace BasicBackend
+}  // namespace Tracer

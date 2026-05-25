@@ -1,3 +1,4 @@
+#include "GLFW/glfw3.h"
 #ifdef ENABLE_PREVIEW_GUI
 #include "Preview.hpp"
 
@@ -115,6 +116,11 @@ void PreviewWindow::Open()
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window_);
     }
+}
+
+void PreviewWindow::Close()
+{
+    glfwSetWindowShouldClose(window_, true);
 }
 
 void PreviewWindow::RefreshTextureIfNeeded()

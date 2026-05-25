@@ -2,9 +2,9 @@
 
 #include <spdlog/spdlog.h>
 
-using namespace BasicBackend;
+using namespace Tracer;
 
-void BasicCamera::CheckCameraAspectRatio(float renderAspectRatio) const noexcept
+void Camera::CheckCameraAspectRatio(float renderAspectRatio) const noexcept
 {
     if (fabsf(GetAspectRatio() - renderAspectRatio) < 0.01f) return;
 
@@ -14,7 +14,7 @@ void BasicCamera::CheckCameraAspectRatio(float renderAspectRatio) const noexcept
         GetAspectRatio(), renderAspectRatio);
 }
 
-Ray BasicCamera::GeneratePerspectiveRay(float u, float v, float aspectRatio) const noexcept
+Ray Camera::GeneratePerspectiveRay(float u, float v, float aspectRatio) const noexcept
 {
     float fovScale = tanf(GetFov() * 0.5f);
     float px = (2.0f * u - 1.0f) * fovScale * aspectRatio;
@@ -29,7 +29,7 @@ Ray BasicCamera::GeneratePerspectiveRay(float u, float v, float aspectRatio) con
     return {glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace))};
 }
 
-Ray BasicCamera::GenerateOrthogonalRay(float u, float v, float aspectRatio) const noexcept
+Ray Camera::GenerateOrthogonalRay(float u, float v, float aspectRatio) const noexcept
 {
     float px = (2.0f * u - 1.0f) * GetOrthogonalSize().x * aspectRatio / GetAspectRatio();
     float py = (2.0f * v - 1.0f) * GetOrthogonalSize().y;
@@ -43,7 +43,7 @@ Ray BasicCamera::GenerateOrthogonalRay(float u, float v, float aspectRatio) cons
     return {glm::vec3(rayOriginWorldSpace), glm::normalize(glm::vec3(rayDirectionWorldSpace))};
 }
 
-Ray BasicCamera::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
+Ray Camera::GenerateCameraRay(float u, float v, float aspectRatio) const noexcept
 {
     return GetType() == Scene::Camera::Type::Perspective ? GeneratePerspectiveRay(u, v, aspectRatio)
                                                          : GenerateOrthogonalRay(u, v, aspectRatio);

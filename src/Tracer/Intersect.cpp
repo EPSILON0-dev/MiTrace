@@ -4,7 +4,7 @@
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/intersect.hpp>
 
-using namespace BasicBackend;
+using namespace Tracer;
 
 static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, glm::vec3>& aabb)
 {
@@ -185,8 +185,7 @@ static std::optional<RayHit> IntersectMeshInstance(
     }
 }
 
-std::optional<RayHit> BasicBackend::IntersectScene(
-    const Ray& ray, const Scene::Scene& scene) noexcept
+std::optional<RayHit> Tracer::IntersectScene(const Ray& ray, const Scene::Scene& scene) noexcept
 {
     float lowestDistance = std::numeric_limits<float>::max();
     std::optional<RayHit> bestHit = std::nullopt;

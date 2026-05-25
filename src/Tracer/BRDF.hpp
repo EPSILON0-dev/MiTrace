@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
-namespace BasicBackend::BRDF
+namespace Tracer::BRDF
 {
 
 static glm::vec3 FresnelSchlick(float cosTheta, const glm::vec3& f0) noexcept

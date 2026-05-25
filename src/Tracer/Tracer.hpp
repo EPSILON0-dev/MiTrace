@@ -1,10 +1,58 @@
 #pragma once
 
-#include <cstddef>
+#include <atomic>
+#include <chrono>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <random>
+
+#include "Camera.hpp"
+#include "Ray.hpp"
+#include "RenderBuffer.hpp"
+#include "Scene/Scene.hpp"
+
+namespace Tracer
+{
 
 class Tracer
 {
+   private:
+    struct Block
+    {
+        glm::ivec2 offset;
+        glm::ivec2 size;
+    };
+
+    struct SimplifiedLight
+    {
+        glm::vec3 position;
+        float intensity;
+    };
+
+    struct PathStep
+    {
+        Ray ray;
+        glm::vec3 hitPos;
+        glm::vec3 baseColor;
+        float metallic;
+        float roughness;
+        glm::vec3 normal;
+        glm::vec3 energy;
+        bool didHit;
+    };
+
    public:
+    struct JobData
+    {
+        std::vector<PathStep> pathBuffer;
+        std::mt19937 rng;
+        std::uniform_real_distribution<float> randomFloat{0.0f, 1.0f};
+        size_t raysTraced = 0;
+        size_t samplesTraced = 0;
+        float exposureMultiplier = 1.0f;
+    };
+
     struct Stats
     {
         float progress;
@@ -14,22 +62,43 @@ class Tracer
         size_t samples;
     };
 
+   private:
+    static std::random_device rd;
+    std::shared_ptr<RenderBuffer> imageBuffer_;
+    const Scene::Scene& scene_;
+    const Camera cam_;
+    std::vector<SimplifiedLight> simplifiedLights_;
+
+    unsigned int initialQueueSize_ = 0;
+    std::queue<Block> blocks_;
+    std::mutex blockMutex_;
+
+    std::atomic<size_t> raysTraced_{0};
+    std::atomic<size_t> samplesTraced_{0};
+    std::chrono::time_point<std::chrono::system_clock> startTime_;
+
+    std::mutex workersMutex_;
+    std::vector<std::thread> workers_;
+    volatile std::atomic<bool> renderKilled_ = false;
+
+   private:
+    void PrepareLights();
+    void GeneratePath(JobData& jobData, const Ray& ray, std::vector<PathStep>& pathVec,
+        size_t maxBounces, float terminateEnergy = 0.01f) const noexcept;
+    glm::vec3 ProcessRayForward(JobData& jobData, const Ray& ray) noexcept;
+    glm::vec3 ProcessRayBidirectional(JobData& jobData, const Ray& ray) noexcept;
+    void RenderBlock(const Block& block);
+    void WorkerThread();
+
    public:
-    Tracer() = default;
-    virtual ~Tracer() = default;
+    Tracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene);
+    ~Tracer() = default;
 
-    // Starts the rendering process
-    virtual void StartRender() = 0;
-
-    // Waits until the rendering process is complete
-    virtual void WaitForRender() = 0;
-
-    // Forcefully kills the rendering process if it's still running
-    virtual void KillRender() = 0;
-
-    // Retrieves the current rendering statistics
-    virtual Stats GetStats() const = 0;
-
-    // Checks if the rendering process is complete
-    virtual bool IsDone() const = 0;
+    void StartRender();
+    void WaitForRender();
+    void KillRender();
+    Stats GetStats() const;
+    bool IsDone() const;
 };
+
+}  // namespace Tracer

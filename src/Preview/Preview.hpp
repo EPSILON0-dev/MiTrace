@@ -61,6 +61,7 @@ class PreviewWindow
     ~PreviewWindow();
 
     void Open();
+    void Close();
 };
 
 }  // namespace Preview
@@ -83,6 +84,8 @@ class PreviewWindow
     {
         spdlog::warn("Preview GUI is disabled. Recompile with ENABLE_PREVIEW_GUI=ON to enable it.");
     }
+
+    void Close() {}
 };
 
 }  // namespace Preview

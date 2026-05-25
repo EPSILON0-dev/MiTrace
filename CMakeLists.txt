@@ -107,16 +107,6 @@ if (ENABLE_PREVIEW_GUI)
     set (PREVIEW_SRC_FILES)
 endif()
 
-# Basic Backend
-if (ENABLE_BACKEND_BASIC)
-    set (BACKEND_BASIC_SRC_FILES
-        src/Tracer/Backends/Basic/Camera.cpp
-        src/Tracer/Backends/Basic/Intersect.cpp
-        src/Tracer/Backends/Basic/Ray.cpp
-        src/Tracer/Backends/Basic/Tracer.cpp
-    )
-endif()
-
 # Source Files
 set(SRC_FILES
     src/main.cpp
@@ -132,7 +122,10 @@ set(SRC_FILES
     src/Tracer/RenderBuffer.cpp
     src/Platform/Platform.cpp
     src/Common/STB_Impl.cpp
-    ${BACKEND_BASIC_SRC_FILES}
+    src/Tracer/Camera.cpp
+    src/Tracer/Intersect.cpp
+    src/Tracer/Ray.cpp
+    src/Tracer/Tracer.cpp
     ${IMGUI_BACKEND_FILES}
 )
 
@@ -146,10 +139,6 @@ target_include_directories(MiTrace PRIVATE ${nlohmann_json_SOURCE_DIR}/include)
 target_include_directories(MiTrace PRIVATE ${spdlog_SOURCE_DIR})
 target_include_directories(MiTrace PRIVATE ${glm_SOURCE_DIR})
 target_include_directories(MiTrace PRIVATE ${stb_SOURCE_DIR})
-
-if (ENABLE_BACKEND_BASIC)
-    target_compile_definitions(MiTrace PRIVATE ENABLE_BACKEND_BASIC=1)
-endif()
 
 if (ENABLE_PREVIEW_GUI)
     target_compile_definitions(MiTrace PRIVATE ENABLE_PREVIEW_GUI=1)

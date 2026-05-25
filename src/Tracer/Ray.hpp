@@ -7,7 +7,7 @@ namespace Scene
 class MeshInstance;
 }
 
-namespace BasicBackend
+namespace Tracer
 {
 
 class Ray
@@ -59,4 +59,4 @@ class RayHitGeometryInfo : public RayHit
     RayHitGeometryInfo(const RayHit& rayHit) noexcept;
 };
 
-}  // namespace BasicBackend
+}  // namespace Tracer

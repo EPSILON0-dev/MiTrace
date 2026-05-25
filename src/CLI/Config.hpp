@@ -12,6 +12,7 @@ class Config
         std::string inputFilename;
         std::string outputFilename;
 
+        bool bidirectionalPathTracing = false;
         unsigned imageWidth = 1280;
         unsigned imageHeight = 720;
         unsigned samples = 64;
@@ -30,8 +31,9 @@ class Config
         bool cpuAffinity = true;
 
         bool verbose = false;
-        bool enablePreview = false;
         bool veryVerbose = false;
+        bool enablePreview = false;
+        bool exitPreviewWhenDone = false;
     };
 
    private:

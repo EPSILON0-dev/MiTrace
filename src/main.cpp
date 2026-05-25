@@ -11,11 +11,11 @@
 #include "CLI/Config.hpp"
 #include "Loader/GLTF.hpp"
 #include "Preview/Preview.hpp"
-#include "Tracer/Backends/Basic/Tracer.hpp"
 #include "Tracer/RenderBuffer.hpp"
 #include "Tracer/Tracer.hpp"
 
-static std::optional<std::function<void()>> killRender = std::nullopt;
+static std::optional<std::function<void()>> renderKillFunc = std::nullopt;
+static std::optional<std::function<void()>> windowCloseFunc = std::nullopt;
 
 static std::string GenerateFilename()
 {
@@ -37,7 +37,7 @@ static std::string GenerateFilename()
     return filename;
 }
 
-static void StatThread(const Tracer& tracer, volatile bool& shouldStop)
+static void StatThread(const Tracer::Tracer& tracer, volatile bool& shouldStop)
 {
     using std::chrono::milliseconds;
     using std::chrono::seconds;
@@ -69,7 +69,7 @@ static void StatThread(const Tracer& tracer, volatile bool& shouldStop)
     }
 }
 
-static void RenderThread(const std::shared_ptr<RenderBuffer>& texture, const char* gltfFilePath,
+static void RenderThread(const std::shared_ptr<RenderBuffer>& renderTarget, const char* gltfFilePath,
     volatile bool& shouldStop)
 {
     using std::chrono::duration_cast;
@@ -101,16 +101,15 @@ static void RenderThread(const std::shared_ptr<RenderBuffer>& texture, const cha
         spdlog::info("Loading took {:.2f} seconds", static_cast<float>(loadDuration) / 1000.0f);
     }
 
-    auto tracerBackend = BasicTracer(texture, scene.value());
-    auto& tracer = dynamic_cast<Tracer&>(tracerBackend);
+    auto tracer = Tracer::Tracer(renderTarget, scene.value());
 
     spdlog::info("Starting render...");
     std::thread statThread(StatThread, std::cref(tracer), std::ref(shouldStop));
     auto startTime = system_clock::now();
-    killRender = [&tracer]() { tracer.KillRender(); };
+    renderKillFunc = [&tracer]() { tracer.KillRender(); };
     tracer.StartRender();
     tracer.WaitForRender();
-    killRender = std::nullopt;
+    renderKillFunc = std::nullopt;
     auto endTime = system_clock::now();
     auto renderDuration = duration_cast<milliseconds>(endTime - startTime).count();
     auto renderSeconds = static_cast<float>(renderDuration) / 1000.0f;
@@ -126,15 +125,21 @@ static void RenderThread(const std::shared_ptr<RenderBuffer>& texture, const cha
     statThread.join();
 
     if (filetype == ".jpg")
-        texture->SaveToFileJPG(filename);
+        renderTarget->SaveToFileJPG(filename);
     else if (filetype == ".png")
-        texture->SaveToFilePNG(filename);
+        renderTarget->SaveToFilePNG(filename);
     else if (filetype == ".hdr")
-        texture->SaveToFileHDR(filename);
+        renderTarget->SaveToFileHDR(filename);
     else
         throw std::runtime_error("Invalid file type (failed to catch early)");
 
     spdlog::info("Saved rendered image to '{}'", filename);
+
+    if (cfg.exitPreviewWhenDone && windowCloseFunc)
+    {
+        std::this_thread::sleep_for(seconds(2));
+        (*windowCloseFunc)();
+    }
 }
 
 int main(int argc, char** argv)
@@ -164,9 +169,11 @@ int main(int argc, char** argv)
 
     if (cfg.enablePreview)
     {
-        Preview::PreviewWindow(tex).Open();
+        auto win = Preview::PreviewWindow(tex);
+        windowCloseFunc = [&]() { win.Close(); };
+        win.Open();
         shouldStop = true;
-        if (killRender) (*killRender)();
+        if (renderKillFunc) (*renderKillFunc)();
     }
 
     renderThread.join();

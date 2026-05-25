@@ -1,4 +1,5 @@
 #include <mutex>
+
 #include "glm/fwd.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <spdlog/spdlog.h>
@@ -16,11 +17,10 @@
 #include "Platform/Platform.hpp"
 #include "Tracer.hpp"
 
-using namespace BasicBackend;
-using JobData = BasicTracer::JobData;
-static const float pulloutEpsilon = 0.0001f;
+std::random_device Tracer::Tracer::rd;
+using JobData = Tracer::Tracer::JobData;
 
-std::random_device BasicTracer::rd;
+static const float pulloutEpsilon = 0.0001f;
 
 static void BuildTBN(const glm::vec3& normal, glm::vec3& tangent, glm::vec3& bitangent) noexcept
 {
@@ -73,9 +73,9 @@ static glm::vec3 SampleGGXDirection(
 static float ComputeSpecularProbability(const glm::vec3& viewDir, const glm::vec3& normal,
     const glm::vec3& baseColor, float metallic) noexcept
 {
-    const auto f0 = BasicBackend::BRDF::BaseReflectivity(baseColor, metallic);
+    const auto f0 = Tracer::BRDF::BaseReflectivity(baseColor, metallic);
     const auto fresnel =
-        BasicBackend::BRDF::FresnelSchlick(glm::max(glm::dot(normal, viewDir), 0.0f), f0);
+        Tracer::BRDF::FresnelSchlick(glm::max(glm::dot(normal, viewDir), 0.0f), f0);
     const float probability = (fresnel.r + fresnel.g + fresnel.b) / 3.0f;
     return glm::clamp(probability, 0.05f, 0.95f);
 }
@@ -103,22 +103,23 @@ static glm::vec3 ComputeNormal(const glm::vec3& surfNorm, const glm::vec3& texNo
     return glm::normalize(tbn * texNorm);
 }
 
-static Ray ReflectSpecular(
-    JobData& jobData, const RayHit& hit, const glm::vec3& normal, float roughness) noexcept
+static Tracer::Ray ReflectSpecular(
+    JobData& jobData, const Tracer::RayHit& hit, const glm::vec3& normal, float roughness) noexcept
 {
     const auto dir = SampleGGXDirection(jobData, hit.direction, normal, roughness);
     const auto pos = hit.origin + hit.direction * hit.distance + pulloutEpsilon * normal;
     return {pos, dir};
 }
 
-static Ray ReflectDiffuse(JobData& jobData, const RayHit& hit, const glm::vec3& normal) noexcept
+static Tracer::Ray ReflectDiffuse(
+    JobData& jobData, const Tracer::RayHit& hit, const glm::vec3& normal) noexcept
 {
     const auto dir = SampleCosineHemisphere(jobData, normal);
     const auto pos = hit.origin + hit.direction * hit.distance + pulloutEpsilon * normal;
     return {pos, dir};
 }
 
-void BasicTracer::PrepareLights()
+void Tracer::Tracer::PrepareLights()
 {
     simplifiedLights_.clear();
     for (const auto& light : scene_.GetLights())
@@ -129,7 +130,7 @@ void BasicTracer::PrepareLights()
     }
 }
 
-void BasicTracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<PathStep>& pathVec,
+void Tracer::Tracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<PathStep>& pathVec,
     size_t maxBounces, float terminateEnergy) const noexcept
 {
     Ray currentRay = ray, newRay;
@@ -140,7 +141,7 @@ void BasicTracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<Pat
     {
         // Get the hit
         PathStep step;
-        const auto hit = BasicBackend::IntersectScene(currentRay, scene_);
+        const auto hit = IntersectScene(currentRay, scene_);
         jobData.raysTraced++;
         if (!hit.has_value()) break;
 
@@ -169,12 +170,12 @@ void BasicTracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<Pat
             newRay = ReflectDiffuse(jobData, *hit, step.normal);
         }
 
-        const float diffusePdf = BasicBackend::BRDF::DiffusePdf(newRay.direction, step.normal);
+        const float diffusePdf = BRDF::DiffusePdf(newRay.direction, step.normal);
         const float specularPdf =
-            BasicBackend::BRDF::SpecularPdf(newRay.direction, viewDir, step.normal, step.roughness);
+            BRDF::SpecularPdf(newRay.direction, viewDir, step.normal, step.roughness);
         const float pdf =
             (1.0f - specularProbability) * diffusePdf + specularProbability * specularPdf;
-        const glm::vec3 brdf = BasicBackend::BRDF::EvaluateBRDF(
+        const glm::vec3 brdf = BRDF::EvaluateBRDF(
             newRay.direction, viewDir, step.normal, step.baseColor, step.roughness, step.metallic);
         const float dotNL = glm::max(glm::dot(step.normal, newRay.direction), 0.0f);
         step.energy = (pdf > 0.0f) ? brdf * (dotNL / pdf) : glm::vec3(0.0f);
@@ -206,7 +207,7 @@ static glm::vec3 ApplyColorCorrection(const JobData& jobData, const glm::vec3& c
     return ApplyACESColorCorrection(jobData, color);
 }
 
-glm::vec3 BasicTracer::ProcessRay(JobData& jobData, const Ray& ray) noexcept
+glm::vec3 Tracer::Tracer::ProcessRayForward(JobData& jobData, const Ray& ray) noexcept
 {
     static thread_local std::vector<PathStep> path;
     const auto& cfg = Config::GetConfig();
@@ -216,7 +217,7 @@ glm::vec3 BasicTracer::ProcessRay(JobData& jobData, const Ray& ray) noexcept
     glm::vec3 totalLight(0.0f), currentEnergy(1.0f);
     for (const auto& step : path)
     {
-        size_t chosenLightIndex = 0;
+        int chosenLightIndex = -1;
         float chosenLightDistancePDF = 0.0f;
         float totalScore = 0.0f;
 
@@ -231,20 +232,25 @@ glm::vec3 BasicTracer::ProcessRay(JobData& jobData, const Ray& ray) noexcept
             totalScore += score;
             if (jobData.randomFloat(jobData.rng) * totalScore < score)
             {
-                chosenLightIndex = i;
+                chosenLightIndex = static_cast<int>(i);
                 chosenLightDistancePDF = score;
             }
         }
         chosenLightDistancePDF /= totalScore;
 
+        // Skip if no light was selected
+        if (chosenLightIndex == -1) continue;
+
         // Sample the light with a shadow ray
-        const auto light = scene_.GetLights()[chosenLightIndex];
+        const auto& light = scene_.GetLights()[chosenLightIndex];
+
+        // FIXME: This causes problems, please fix
         const auto lightPos =
-            light.GetPosition() + GenerateRandomDirection(jobData) * light.GetPointSize();
+            light.GetPosition() + (GenerateRandomDirection(jobData) * light.GetPointSize()) * 0.0f;
         const auto lightColor = light.GetColor();
-        const glm::vec3 lightDir = lightPos - step.hitPos;
+        const glm::vec3 lightDir = glm::normalize(lightPos - step.hitPos);
         const Ray shadowRay(step.hitPos + lightDir * pulloutEpsilon, lightDir);
-        const auto shadowHit = BasicBackend::IntersectScene(shadowRay, scene_);
+        const auto shadowHit = IntersectScene(shadowRay, scene_);
         jobData.raysTraced++;
 
         // If the shadow ray is not occluded, accumulate the light contribution
@@ -253,8 +259,8 @@ glm::vec3 BasicTracer::ProcessRay(JobData& jobData, const Ray& ray) noexcept
             float metalness = step.metallic;
             float roughness = step.roughness;
             const auto lightDirection = glm::normalize(lightDir);
-            const glm::vec3 brdf = BasicBackend::BRDF::EvaluateBRDF(lightDirection,
-                -step.ray.direction, step.normal, step.baseColor, roughness, metalness);
+            const glm::vec3 brdf = BRDF::EvaluateBRDF(lightDirection, -step.ray.direction,
+                step.normal, step.baseColor, roughness, metalness);
             const float dotNL = glm::max(glm::dot(step.normal, lightDirection), 0.0f);
             float distanceFalloff = 1.0f / (glm::length(lightDir) * glm::length(lightDir) + 1.0f);
             const glm::vec3 lightEnergy = brdf * dotNL * distanceFalloff;
@@ -270,20 +276,64 @@ glm::vec3 BasicTracer::ProcessRay(JobData& jobData, const Ray& ray) noexcept
     return ApplyColorCorrection(jobData, totalLight);
 }
 
-void BasicTracer::RenderBlock(const Block& block)
+glm::vec3 Tracer::Tracer::ProcessRayBidirectional(JobData& jobData, const Ray& ray) noexcept
 {
-    const auto& config = Config::GetConfig();
-    const auto imageWidth = config.imageWidth;
-    const auto imageHeight = config.imageHeight;
-    const auto imageSamples = config.samples;
+    return ProcessRayForward(jobData, ray);
+}
+
+static size_t CleanupFireflies(std::vector<glm::vec3>& buffer, float fireflyEliminationThreshold)
+{
+    auto colorToIntensity = [](const glm::vec3& color)
+    { return (color.r + color.g + color.b) / 3.0f; };
+
+    // Compute the average intensity
+    auto imageSamples = buffer.size();
+    const float averageIntensity =
+        std::accumulate(buffer.begin(), buffer.end(), 0.0f,
+            [&](float sum, const glm::vec3& color) { return sum + colorToIntensity(color); }) /
+        static_cast<float>(imageSamples);
+
+    // Compute standard deviation
+    const float standardDeviation = std::accumulate(buffer.begin(), buffer.end(), 0.0f,
+                                        [&](float sum, const glm::vec3& color)
+                                        {
+                                            const float diff =
+                                                (colorToIntensity(color) - averageIntensity);
+                                            return sum + diff * diff;
+                                        }) /
+                                    static_cast<float>(imageSamples);
+    const float standardDeviationSqrt = std::sqrt(standardDeviation);
+
+    // Zero out any samples that surpass the threshold, and compute the final color
+    const float threshold = fireflyEliminationThreshold * standardDeviationSqrt;
+    for (auto& color : buffer)
+    {
+        if (std::abs(colorToIntensity(color) - averageIntensity) > threshold)
+        {
+            color = glm::vec3(0.0f);
+            imageSamples--;
+        }
+    }
+
+    // Protect against divide-by-zero errors
+    return (imageSamples == 0) ? 1 : imageSamples;
+}
+
+void Tracer::Tracer::RenderBlock(const Block& block)
+{
+    const auto& cfg = Config::GetConfig();
+    const auto imageWidth = cfg.imageWidth;
+    const auto imageHeight = cfg.imageHeight;
+    const auto imageSamples = cfg.samples;
     const auto aspectRatio = static_cast<float>(imageWidth) / static_cast<float>(imageHeight);
     const auto pixelSize = glm::vec2(1.0f) / glm::vec2(imageWidth, imageHeight);
-    const auto useStatisticFireflyElimination = config.useStatisticFireflyElimination;
-    const auto fireflyEliminationThreshold = config.fireflyEliminationThreshold;
+    const auto useStatisticFireflyElimination = cfg.useStatisticFireflyElimination;
+    const auto fireflyEliminationThreshold = cfg.fireflyEliminationThreshold;
+    const auto bidirectionalPathTracing = cfg.bidirectionalPathTracing;
 
     JobData jobData;
     jobData.rng.seed(rd());
-    jobData.exposureMultiplier = std::powf(2.0f, -config.evExposure);
+    jobData.exposureMultiplier = std::powf(2.0f, -cfg.evExposure);
 
     std::uniform_real_distribution<float> xDist(0.0f, pixelSize.x);
     std::uniform_real_distribution<float> yDist(0.0f, pixelSize.y);
@@ -291,42 +341,6 @@ void BasicTracer::RenderBlock(const Block& block)
     auto blockBuffer = std::make_unique<RenderBuffer>(block.size.x, block.size.y);
 
     std::vector<glm::vec3> sampleBuffer(block.size.x * block.size.y, glm::vec3(0.0f));
-
-    auto cleanupFireflies = [&](std::vector<glm::vec3>& buffer)
-    {
-        auto colorToIntensity = [](const glm::vec3& color)
-        { return (color.r + color.g + color.b) / 3.0f; };
-
-        // Compute the average intensity
-        const float averageIntensity =
-            std::accumulate(buffer.begin(), buffer.end(), 0.0f,
-                [&](float sum, const glm::vec3& color) { return sum + colorToIntensity(color); }) /
-            static_cast<float>(imageSamples);
-
-        // Compute standard deviation
-        const float standardDeviation = std::accumulate(buffer.begin(), buffer.end(), 0.0f,
-                                            [&](float sum, const glm::vec3& color)
-                                            {
-                                                const float diff =
-                                                    (colorToIntensity(color) - averageIntensity);
-                                                return sum + diff * diff;
-                                            }) /
-                                        static_cast<float>(imageSamples);
-        const float standardDeviationSqrt = std::sqrt(standardDeviation);
-
-        // Zero out any samples that surpass the threshold, and compute the final color
-        const float threshold = fireflyEliminationThreshold * standardDeviationSqrt;
-        auto actualImageSamples = imageSamples;
-        for (auto& color : buffer)
-        {
-            if (std::abs(colorToIntensity(color) - averageIntensity) > threshold)
-            {
-                color = glm::vec3(0.0f);
-                actualImageSamples--;
-            }
-        }
-        return actualImageSamples;
-    };
 
     auto renderPixel = [&](int x, int y)
     {
@@ -340,12 +354,16 @@ void BasicTracer::RenderBlock(const Block& block)
             const auto u = baseU + xDist(jobData.rng);
             const auto v = baseV + yDist(jobData.rng);
             const Ray ray = cam_.GenerateCameraRay(u, v, aspectRatio);
-            sampleBuffer.push_back(ProcessRay(jobData, ray));
+            if (bidirectionalPathTracing)
+                sampleBuffer.push_back(ProcessRayBidirectional(jobData, ray));
+            else
+                sampleBuffer.push_back(ProcessRayForward(jobData, ray));
         }
 
         // Optionally clean up fireflies before averaging
         auto actualImageSamples = imageSamples;
-        if (useStatisticFireflyElimination) actualImageSamples = cleanupFireflies(sampleBuffer);
+        if (useStatisticFireflyElimination)
+            actualImageSamples = CleanupFireflies(sampleBuffer, fireflyEliminationThreshold);
 
         glm::vec3 color =
             std::accumulate(sampleBuffer.begin(), sampleBuffer.end(), glm::vec3(0.0f)) /
@@ -367,7 +385,7 @@ void BasicTracer::RenderBlock(const Block& block)
     raysTraced_ += jobData.raysTraced;
 }
 
-void BasicTracer::WorkerThread()
+void Tracer::Tracer::WorkerThread()
 {
     while (!renderKilled_)
     {
@@ -382,7 +400,7 @@ void BasicTracer::WorkerThread()
     }
 }
 
-BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
+Tracer::Tracer::Tracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::Scene& scene)
     : imageBuffer_(std::move(imageBuffer)), scene_(scene), cam_(scene.GetCamera())
 {
     const auto aspect = static_cast<float>(imageBuffer_->GetWidth()) /
@@ -391,7 +409,7 @@ BasicTracer::BasicTracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene:
     PrepareLights();
 }
 
-void BasicTracer::StartRender()
+void Tracer::Tracer::StartRender()
 {
     const auto& config = Config::GetConfig();
     const auto blockSize = config.imageBlockSize;
@@ -426,7 +444,7 @@ void BasicTracer::StartRender()
     // Start and join worker threads
     startTime_ = std::chrono::system_clock::now();
     for (unsigned i = 0; i < numThreads; ++i)
-        workers_.emplace_back(&BasicTracer::WorkerThread, this);
+        workers_.emplace_back(&Tracer::Tracer::WorkerThread, this);
     spdlog::info("Started {} worker threads", numThreads);
 
     // Set CPU affinity if enabled
@@ -454,7 +472,7 @@ void BasicTracer::StartRender()
     }
 }
 
-void BasicTracer::WaitForRender()
+void Tracer::Tracer::WaitForRender()
 {
     std::scoped_lock lock(workersMutex_);
     for (auto& thread : workers_)
@@ -471,12 +489,12 @@ void BasicTracer::WaitForRender()
     workers_.clear();
 }
 
-void BasicTracer::KillRender()
+void Tracer::Tracer::KillRender()
 {
     renderKilled_ = true;
 }
 
-Tracer::Stats BasicTracer::GetStats() const
+Tracer::Tracer::Stats Tracer::Tracer::GetStats() const
 {
     using std::chrono::duration_cast;
     using std::chrono::seconds;
@@ -493,7 +511,7 @@ Tracer::Stats BasicTracer::GetStats() const
     return stats;
 }
 
-bool BasicTracer::IsDone() const
+bool Tracer::Tracer::IsDone() const
 {
     return initialQueueSize_ &&  // A render was started
            blocks_.empty() &&    // No more blocks to render
