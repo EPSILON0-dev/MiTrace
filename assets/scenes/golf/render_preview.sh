@@ -14,7 +14,7 @@ ENV_PATH=$(dirname $0)/tex/env.png
 RENDER_PATH=$(dirname $0)/$(basename $SCENE_FILENAME .gltf)_render.png
 
 $MITRACE_EXECUTABLE $SCENE_PATH -o $RENDER_PATH \
-    -w 1920 -h 1080 -s 128 -e 8.5 -b 3 -v \
+    -w 360 -h 240 -s 32 -e 8.5 -b 3 -v \
       -hdri $ENV_PATH \
       --camera 10 \
       --hdri-primary-intensity 140 \

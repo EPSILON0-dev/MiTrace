@@ -1,0 +1,4 @@
+--width 512 
+--height 512 
+--samples 512 
+--ev-exposure 6

@@ -918,7 +918,7 @@
 		{
 			"mimeType":"image/png",
 			"name":"checkerboard",
-			"uri":"checkerboard.png"
+			"uri":"../textures/checkerboard.png"
 		}
 	],
 	"accessors":[
