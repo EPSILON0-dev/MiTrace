@@ -51,4 +51,4 @@ for MODE in $MODES; do
     echo "Rendering debug mode: $MODE"
     render_mode $MODE $@
 done
-montage render-*.png -tile 5x4 -geometry +0+0 renders_combined.png
+python `dirname $0`/../scripts/stitch_renders.py

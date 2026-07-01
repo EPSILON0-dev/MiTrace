@@ -18,8 +18,3 @@ assets/**/*render*png
 *.tmp
 callgrind.out.*
 vgcore.*
-
-# Don't ask...
-src/format
-
-assets/scenes/golf/golf_in_the_end.bin

@@ -21,7 +21,6 @@ $MITRACE_EXECUTABLE $SCENE_PATH -o $RENDER_PATH \
       --hdri-secondary-intensity 1000 \
       --hdri-rotation 90 \
       --emission-base-intensity 2000 \
-      --disable-firefly-elimination \
       --bvh-max-depth 48 \
       --image-block-size 8 \
       $@

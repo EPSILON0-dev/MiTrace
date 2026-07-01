@@ -42,14 +42,13 @@ function render_mode() {
     ENV_PATH=`dirname $0`/tex/env.png
     OUT_FILE=`dirname $0`/render-$mode.png
     $MITRACE `dirname $0`/$GLTF_FILE -o `dirname $0`/$OUT_FILE -q \
-        -w 360 -h 240 -s 192 -e 8.5 \
+        -w 360 -h 240 -s 256 -e 8.5 \
         -hdri $ENV_PATH \
         --camera 10 \
         --hdri-primary-intensity 140 \
         --hdri-secondary-intensity 1000 \
         --hdri-rotation 90 \
         --emission-base-intensity 2000 \
-        --disable-firefly-elimination \
         --bvh-max-depth 48 \
         --image-block-size 8 \
         --debug-mode debug-$mode \
@@ -61,4 +60,4 @@ for MODE in $MODES; do
     echo "Rendering debug mode: $MODE"
     render_mode $MODE $@
 done
-montage render-*.png -tile 5x4 -geometry +0+0 renders_combined.png
+python `dirname $0`/../scripts/stitch_renders.py
