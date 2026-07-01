@@ -280,12 +280,40 @@ Tracer::Tracer::LightOutput Tracer::Tracer::ProcessRayForward(
 
         // Sample the light with a shadow ray
         const auto& light = scene_.GetLights()[chosenLightIndex];
+        using LightType = Scene::Light::LightType;
+        glm::vec3 lightPos{}, lightColor{};
 
-        const auto lightPos =
-            light.GetPosition() + GenerateRandomDirection(jobData) * light.GetPointSize();
-        const auto lightColor = light.GetColor();
+        // Calculate the light position
+        switch (light.GetType())
+        {
+            case LightType::Point:
+            case LightType::Spot:
+                lightPos =
+                    light.GetPosition() + GenerateRandomDirection(jobData) * light.GetPointSize();
+                break;
+
+            default:
+                lightPos = light.GetPosition();
+                break;
+        }
+
+        // Compute the vector and the direction
         const glm::vec3 lightVec = lightPos - step.hitPos;
         const glm::vec3 lightDir = glm::normalize(lightVec);
+
+        // Calculate the light color
+        switch (light.GetType())
+        {
+            case LightType::Spot:
+                lightColor = light.GetColor() * light.GetSpotIntensity(lightDir);
+                break;
+
+            case LightType::Point:
+            default:
+                lightColor = light.GetColor();
+                break;
+        }
+
         const Ray shadowRay(step.hitPos + lightVec * pulloutEpsilon, lightDir);
         const auto shadowHit = IntersectScene(shadowRay, scene_);
         jobData.raysTraced++;
@@ -674,9 +702,9 @@ static void ApplyDebugPostProcessing(std::shared_ptr<RenderBuffer>& imageBuffer)
         case Config::DebugMode::DebugTotalTriangleTests:
         case Config::DebugMode::DebugBounces:
         case Config::DebugMode::DebugFireflyElimination:
-        ApplyHeatMapPostProcessing(imageBuffer, true);
-        break;
-        
+            ApplyHeatMapPostProcessing(imageBuffer, true);
+            break;
+
         case Config::DebugMode::DebugDepth:
         case Config::DebugMode::DebugFirstHitBRDF:
         case Config::DebugMode::DebugPixelStandardDeviation:
