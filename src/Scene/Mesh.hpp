@@ -4,8 +4,8 @@
 #include <string>
 
 #include "BVH.hpp"
-#include "Material.hpp"
 #include "Loader/Types.hpp"
+#include "Material.hpp"
 
 namespace Scene
 {
@@ -16,7 +16,6 @@ class Mesh
     std::string name_;
     std::vector<glm::vec3> positions_;
     std::vector<glm::vec3> normals_;
-    // std::vector<glm::vec4> tangents_;
     std::vector<glm::vec2> texCoord0_;
     std::vector<glm::vec2> texCoord1_;
     std::vector<glm::vec4> color0_;
@@ -30,7 +29,6 @@ class Mesh
     const auto& GetName() const noexcept { return name_; }
     const auto& GetPositions() const noexcept { return positions_; }
     const auto& GetNormals() const noexcept { return normals_; }
-    // const auto& GetTangents() const noexcept { return tangents_; }
     const auto& GetTexCoord0() const noexcept { return texCoord0_; }
     const auto& GetTexCoord1() const noexcept { return texCoord1_; }
     const auto& GetColor0() const noexcept { return color0_; }
@@ -70,10 +68,7 @@ class MeshInstance
     const std::shared_ptr<Mesh>& GetMeshPtr() const noexcept { return mesh_; }
     const glm::mat4& GetTransform() const noexcept { return transform_; }
     const Material& GetMaterial() const noexcept { return material_; }
-    const std::pair<glm::vec3, glm::vec3>& GetWorldAABB() const noexcept
-    {
-        return worldAABB_;
-    }
+    const std::pair<glm::vec3, glm::vec3>& GetWorldAABB() const noexcept { return worldAABB_; }
 };
 
 }  // namespace Scene

@@ -27,8 +27,11 @@ class RayHit : public Ray
     const Scene::MeshInstance* meshInstance;
     glm::vec2 baryCoord;
     glm::vec3 worldPosition;
-    size_t triangleIndex;
     float distance;
+    uint32_t triangleIndex;
+    uint32_t bvIndex;
+    uint32_t bvhTests;
+    uint32_t triangleTests;
 
    public:
     RayHit() noexcept : distance(-1.0f) {}

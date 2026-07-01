@@ -25,6 +25,7 @@ function render_test() {
     params=$(cat $PARAMS_PATH)
 
     $MITRACE $SCENE_PATH -o $OUTPUT_PATH --quiet $params $@
+    echo
 }
 
 TEST_DIRECTORIES=`ls -d *test/`

@@ -9,7 +9,7 @@ tmp/
 
 # Render outputs
 outputs/
-assets/**/*_render*
+assets/**/*render*png
 
 # Random log/save/backup files
 *.ini

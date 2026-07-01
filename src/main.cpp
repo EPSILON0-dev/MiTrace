@@ -60,11 +60,17 @@ static void StatThread(const Tracer::Tracer& tracer, volatile bool& shouldStop)
         auto msamples = static_cast<float>(stats.samples - prevStats.samples) / 1'000'000.0f;
 
         if (shouldStop || tracer.IsDone()) break;
-        spdlog::info(
+
+        const auto logMessage = std::format(
             "Progress: {:.2f}%, Time: {:.1f}s, ETA: {:.1f}s, {:.2f}M rays/sec, {:.2f}M "
             "samples/sec\033[A",
             stats.progress * 100.0f, stats.timeElapsed, stats.estimatedTimeRemaining, mrays,
             msamples);
+
+        if (Config::GetConfig().quiet)
+            std::cout << logMessage << std::endl;
+        else
+            spdlog::info(logMessage);
         prevStats = stats;
         lastUpdateTime = now;
     }
@@ -168,8 +174,16 @@ int main(int argc, char** argv)
     const auto& cfg = Config::GetConfig();
     const auto verbose = cfg.verbose;
     const auto veryVerbose = cfg.veryVerbose;
-    spdlog::set_level(veryVerbose ? spdlog::level::trace
-                                  : (verbose ? spdlog::level::debug : spdlog::level::info));
+
+    spdlog::level::level_enum logLevel = spdlog::level::info;
+    if (veryVerbose)
+        logLevel = spdlog::level::trace;
+    else if (verbose)
+        logLevel = spdlog::level::debug;
+    else if (cfg.quiet)
+        logLevel = spdlog::level::err;
+    spdlog::set_level(logLevel);
+
     Config::Instance().LogConfig();
 
     volatile bool shouldStop = false;

@@ -18,10 +18,10 @@ static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, 
 }
 
 static void IntersectTrianglesLinear(const Ray& localRay, const Scene::MeshInstance& meshInstance,
-    float& dist, glm::vec2& baryCoord, size_t& triangleIndex) noexcept
+    float& dist, glm::vec2& baryCoord, uint32_t& triangleIndex, uint32_t& triangleTests) noexcept
 {
     const auto& positions = meshInstance.GetMesh().GetPositions();
-    for (size_t i = 0; i < positions.size(); i += 3)
+    for (uint32_t i = 0; i < positions.size(); i += 3)
     {
         const glm::vec3& v0 = positions[i + 0];
         const glm::vec3& v1 = positions[i + 1];
@@ -30,6 +30,7 @@ static void IntersectTrianglesLinear(const Ray& localRay, const Scene::MeshInsta
         float currentDistance;
         glm::vec2 currentBaryCoord;
 
+        triangleTests++;
         if (glm::intersectRayTriangle(
                 localRay.origin, localRay.direction, v0, v1, v2, currentBaryCoord, currentDistance))
         {
@@ -37,14 +38,15 @@ static void IntersectTrianglesLinear(const Ray& localRay, const Scene::MeshInsta
             {
                 dist = currentDistance;
                 baryCoord = currentBaryCoord;
-                triangleIndex = i / 3;
+                triangleIndex = static_cast<uint32_t>(i / 3);
             }
         }
     }
 }
 
 static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance& meshInstance,
-    float& dist, glm::vec2& baryCoord, size_t& triangleIndex) noexcept
+    float& dist, glm::vec2& baryCoord, uint32_t& bvIndex, uint32_t& triangleIndex,
+    uint32_t& bvhTests, uint32_t& triangleTests) noexcept
 {
     struct alignas(8) StackEntry
     {
@@ -66,6 +68,7 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
     {
         auto entry = stack.back();
         stack.pop_back();
+        bvhTests++;
         const auto& node = bvh.GetNodes()[entry.nodeIndex];
         const auto nodeDist = entry.dist;
 
@@ -76,17 +79,18 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
         // If it's a leaf, check the triangles
         [[unlikely]] if (node.IsLeaf())
         {
-            auto index = node.GetTriangleIndex();
-            auto count = node.GetTriangleCount();
+            uint32_t index = node.GetTriangleIndex();
+            uint32_t count = node.GetTriangleCount();
             for (uint32_t i = index; i < index + count; i++)
             {
-                auto currentTriangleIndex = bvh.GetIndices()[i];
+                uint32_t currentTriangleIndex = bvh.GetIndices()[i];
                 float currentDistance;
                 glm::vec2 currentBaryCoord;
 
                 const glm::vec3& v0 = positions[currentTriangleIndex * 3 + 0];
                 const glm::vec3& v1 = positions[currentTriangleIndex * 3 + 1];
                 const glm::vec3& v2 = positions[currentTriangleIndex * 3 + 2];
+                triangleTests++;
                 if (glm::intersectRayTriangle(localRay.origin, localRay.direction, v0, v1, v2,
                         currentBaryCoord, currentDistance))
                 {
@@ -94,6 +98,7 @@ static void IntersectTrianglesBVH(const Ray& localRay, const Scene::MeshInstance
                     {
                         dist = currentDistance;
                         baryCoord = currentBaryCoord;
+                        bvIndex = entry.nodeIndex;
                         triangleIndex = currentTriangleIndex;
                     }
                 }
@@ -152,14 +157,19 @@ static std::optional<RayHit> IntersectMeshInstance(
     // Find the closest triangle intersection
     float dist = std::numeric_limits<float>::max();
     auto baryCoord = glm::vec2(0.0f);
-    size_t triangleIndex = 0;
+    uint32_t bvIndex = 0;
+    uint32_t triangleIndex = 0;
+    uint32_t bvhTests = 0;
+    uint32_t triangleTests = 0;
     if (meshInstance.GetMesh().HasBVH())
     {
-        IntersectTrianglesBVH(localRay, meshInstance, dist, baryCoord, triangleIndex);
+        IntersectTrianglesBVH(localRay, meshInstance, dist, baryCoord, bvIndex, triangleIndex,
+            bvhTests, triangleTests);
     }
     else
     {
-        IntersectTrianglesLinear(localRay, meshInstance, dist, baryCoord, triangleIndex);
+        IntersectTrianglesLinear(
+            localRay, meshInstance, dist, baryCoord, triangleIndex, triangleTests);
     }
 
     // If there is an intersection, transform the hit position back to world space and return the
@@ -171,7 +181,10 @@ static std::optional<RayHit> IntersectMeshInstance(
             glm::vec3(modelToWorld * glm::vec4(localRay.origin + dist * localRay.direction, 1.0f));
         hit.distance = glm::length(hit.worldPosition - ray.origin);
         hit.triangleIndex = triangleIndex;
+        hit.bvIndex = bvIndex;
         hit.baryCoord = baryCoord;
+        hit.bvhTests = bvhTests;
+        hit.triangleTests = triangleTests;
 
         hit.origin = ray.origin;
         hit.direction = ray.direction;

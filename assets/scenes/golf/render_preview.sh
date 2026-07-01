@@ -14,7 +14,7 @@ ENV_PATH=$(dirname $0)/tex/env.png
 RENDER_PATH=$(dirname $0)/$(basename $SCENE_FILENAME .gltf)_render.png
 
 $MITRACE_EXECUTABLE $SCENE_PATH -o $RENDER_PATH \
-    -w 360 -h 240 -s 32 -e 8.5 -b 3 -v \
+    -w 360 -h 240 -s 32 -e 8.5 -b 5 -v \
       -hdri $ENV_PATH \
       --camera 10 \
       --hdri-primary-intensity 140 \
@@ -23,5 +23,5 @@ $MITRACE_EXECUTABLE $SCENE_PATH -o $RENDER_PATH \
       --emission-base-intensity 2000 \
       --disable-firefly-elimination \
       --bvh-max-depth 48 \
-      --image-block-size 16 \
+      --image-block-size 8 \
       $@

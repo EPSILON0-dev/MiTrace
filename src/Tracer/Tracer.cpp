@@ -1,4 +1,5 @@
 #include <mutex>
+#include <numeric>
 
 #include "glm/fwd.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
@@ -80,7 +81,7 @@ static float ComputeSpecularProbability(const glm::vec3& viewDir, const glm::vec
     return glm::clamp(probability, 0.05f, 0.95f);
 }
 
-[[maybe_unused]] static glm::vec3 GenerateRandomDirection(JobData& jobData) noexcept
+static glm::vec3 GenerateRandomDirection(JobData& jobData) noexcept
 {
     std::uniform_real_distribution<float> phi(0.0f, 2.0f * glm::pi<float>());
     std::uniform_real_distribution<float> theta(-glm::half_pi<float>(), glm::half_pi<float>());
@@ -161,9 +162,17 @@ void Tracer::Tracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<
         step.baseColor = glm::vec3(mat.baseColor);
         step.roughness = mat.roughness;
         step.metallic = mat.metallic;
+        step.geomNormal = geom.Normal;
         step.normal = ComputeNormal(geom.Normal, mat.normal);
         step.emission = glm::vec3(mat.emission);
         step.didHit = true;
+
+        // Copy debug info
+        step.bvhTests = hit->bvhTests;
+        step.triangleTests = hit->triangleTests;
+        step.bvIndex = hit->bvIndex & 0xffff;
+        step.triangleIndex = hit->triangleIndex & 0xffff;
+        step.meshIndex = reinterpret_cast<size_t>(hit->meshInstance) & 0xffff;
 
         // Compute the bounce direction and energy transfer
         const auto viewDir = -currentRay.direction;
@@ -187,6 +196,8 @@ void Tracer::Tracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<
             newRay.direction, viewDir, step.normal, step.baseColor, step.roughness, step.metallic);
         const float dotNL = glm::max(glm::dot(step.normal, newRay.direction), 0.0f);
         step.energy = (pdf > 0.0f) ? brdf * (dotNL / pdf) : glm::vec3(0.0f);
+        step.brdfIntensity = brdf.r + brdf.g + brdf.b;
+        step.pdf = pdf;
 
         // Store the new ray and energy transfer for the next bounce
         pathVec.push_back(step);
@@ -215,30 +226,33 @@ static glm::vec3 ApplyColorCorrection(const JobData& jobData, const glm::vec3& c
     return ApplyACESColorCorrection(jobData, color);
 }
 
-glm::vec3 Tracer::Tracer::ProcessRayForward(JobData& jobData, const Ray& ray) noexcept
+Tracer::Tracer::LightOutput Tracer::Tracer::ProcessRayForward(
+    JobData& jobData, const Ray& ray, std::vector<PathStep>& path) noexcept
 {
-    static thread_local std::vector<PathStep> path;
     const auto& cfg = Config::GetConfig();
     GeneratePath(jobData, ray, path, cfg.bounces, cfg.terminateEnergy);
 
     // Accumulate color from bounces
-    glm::vec3 totalLight(0.0f), currentEnergy(1.0f);
+    glm::vec3 currentEnergy(1.0f);
+    LightOutput output{};
     // NOLINTNEXTLINE(modernize-loop-convert)
-    for (size_t index = 0; index < path.size(); ++index)
+    for (size_t stepIndex = 0; stepIndex < path.size(); ++stepIndex)
     {
-        const auto& step = path[index];
+        const auto& step = path[stepIndex];
 
         // If the path didn't hit, sample the skybox
         if (!step.didHit)
         {
-            const glm::vec3 color = (index > 0) ? path[index - 1].baseColor : glm::vec3(1.0f);
-            const bool prim = index == 0;
-            totalLight += color * currentEnergy * scene_.SampleSkybox(step.ray.direction, prim);
+            const glm::vec3 color =
+                (stepIndex > 0) ? path[stepIndex - 1].baseColor : glm::vec3(1.0f);
+            const bool prim = stepIndex == 0;
+            const auto skyboxSample = scene_.SampleSkybox(step.ray.direction, prim);
+            output.skyLight += color * currentEnergy * skyboxSample;
             break;
         }
 
         // Add emission from the hit material
-        totalLight += currentEnergy * cfg.emissionBaseIntensity * step.emission;
+        output.emittedLight += currentEnergy * cfg.emissionBaseIntensity * step.emission;
 
         int chosenLightIndex = -1;
         float chosenLightDistancePDF = 0.0f;
@@ -286,7 +300,11 @@ glm::vec3 Tracer::Tracer::ProcessRayForward(JobData& jobData, const Ray& ray) no
             const float dotNL = glm::max(glm::dot(step.normal, lightDir), 0.0f);
             float distanceFalloff = 1.0f / (glm::length(lightVec) * glm::length(lightVec) + 1.0f);
             const glm::vec3 lightEnergy = brdf * dotNL * distanceFalloff;
-            totalLight += currentEnergy * lightEnergy * lightColor / chosenLightDistancePDF;
+            const auto light = currentEnergy * lightEnergy * lightColor / chosenLightDistancePDF;
+            if (stepIndex == 0)
+                output.directLight += light;
+            else
+                output.indirectLight += light;
         }
 
         // Update the current energy for the next bounce
@@ -295,18 +313,158 @@ glm::vec3 Tracer::Tracer::ProcessRayForward(JobData& jobData, const Ray& ray) no
 
     jobData.samplesTraced++;
 
-    return ApplyColorCorrection(jobData, totalLight);
+    output.totalLight =
+        output.emittedLight + output.directLight + output.indirectLight + output.skyLight;
+    output.totalLight = ApplyColorCorrection(jobData, output.totalLight);
+    return output;
 }
 
-glm::vec3 Tracer::Tracer::ProcessRayBidirectional(JobData& jobData, const Ray& ray) noexcept
+static glm::vec3 RandomColorFromU16(uint16_t value) noexcept
 {
-    return ProcessRayForward(jobData, ray);
+    uint32_t x = value;
+    x ^= x >> 7;
+    x *= 0x2C1B3C6D;
+    x ^= x >> 12;
+    x *= 0x297A2D39;
+    x ^= x >> 15;
+    value = static_cast<uint16_t>(x);
+
+    const float r = static_cast<float>((value & 0x01C0) >> 6) / 7.0f;
+    const float g = static_cast<float>((value & 0x0038) >> 3) / 7.0f;
+    const float b = static_cast<float>(value & 0x0007) / 7.0f;
+    return {r, g, b};
+}
+
+glm::vec3 Tracer::Tracer::ProcessDebugRay(JobData& jobData, const Ray& ray,
+    std::vector<PathStep>& path, Config::DebugMode debugMode,
+    Config::RenderMode renderMode) noexcept
+{
+    (void)renderMode;
+
+    const auto output = ProcessRayForward(jobData, ray, path);
+    constexpr auto black = glm::vec3(0.0f);
+    constexpr auto errorColor = glm::vec3(0.0f, 1.0f, 1.0f);
+    const bool didHit = path.begin()->didHit;
+
+    switch (debugMode)
+    {
+        // Test counters debug
+        case Config::DebugMode::DebugPrimaryBVHTests:
+        {
+            const auto heat = static_cast<float>(path.begin()->bvhTests);
+            return didHit ? glm::vec3(heat) : black;
+        }
+        case Config::DebugMode::DebugTotalBVHTests:
+        {
+            const auto heat =
+                std::accumulate(path.begin(), path.end(), 0.0f, [](float sum, const PathStep& step)
+                    { return sum + static_cast<float>(step.bvhTests); });
+            return didHit ? glm::vec3(heat) : black;
+        }
+        case Config::DebugMode::DebugPrimaryTriangleTests:
+        {
+            const auto heat = static_cast<float>(path.begin()->triangleTests);
+            return didHit ? glm::vec3(heat) : black;
+        }
+        case Config::DebugMode::DebugTotalTriangleTests:
+        {
+            const auto heat =
+                std::accumulate(path.begin(), path.end(), 0.0f, [](float sum, const PathStep& step)
+                    { return sum + static_cast<float>(step.triangleTests); });
+            return didHit ? glm::vec3(heat) : black;
+        }
+        case Config::DebugMode::DebugBounces:
+        {
+            const auto heat = static_cast<float>(path.size());
+            return didHit ? glm::vec3(heat) : black;
+        }
+
+        // Material property debug
+        case Config::DebugMode::DebugAlbedo:
+        {
+            return didHit ? path.begin()->baseColor : black;
+        }
+        case Config::DebugMode::DebugMetallicRoughness:
+        {
+            const auto orm = glm::vec3(0.0f, path.begin()->metallic, path.begin()->roughness);
+            return didHit ? orm : black;
+        }
+        case Config::DebugMode::DebugGeometricNormal:
+        {
+            return didHit ? path.begin()->geomNormal * 0.5f + 0.5f : black;
+        }
+        case Config::DebugMode::DebugShadingNormal:
+        {
+            return didHit ? path.begin()->normal * 0.5f + 0.5f : black;
+        }
+
+        // Light components
+        case Config::DebugMode::DebugDirectOnly:
+        {
+            return ApplyColorCorrection(jobData, output.directLight);
+        }
+        case Config::DebugMode::DebugIndirectOnly:
+        {
+            return ApplyColorCorrection(jobData, output.indirectLight + output.skyLight);
+        }
+        case Config::DebugMode::DebugEmission:
+        {
+            return ApplyColorCorrection(jobData, output.emittedLight);
+        }
+
+        // Color per object debug
+        case Config::DebugMode::DebugColorPerMesh:
+        {
+            return didHit ? RandomColorFromU16(path.begin()->meshIndex) : black;
+        }
+        case Config::DebugMode::DebugColorPerTriangle:
+        {
+            return didHit ? RandomColorFromU16(path.begin()->triangleIndex) : black;
+        }
+        case Config::DebugMode::DebugColorPerBoundingVolume:
+        {
+            return didHit ? RandomColorFromU16(path.begin()->bvIndex) : black;
+        }
+
+        case Config::DebugMode::DebugDepth:
+        {
+            const auto depth = glm::length(path.begin()->hitPos - ray.origin);
+            return didHit ? glm::vec3(depth) : black;
+        }
+
+        // First hit debug
+        case Config::DebugMode::DebugFirstHitFresnel:
+        {
+            const auto f0 = BRDF::BaseReflectivity(path.begin()->baseColor, path.begin()->metallic);
+            const auto dot = glm::dot(path.begin()->normal, -ray.direction);
+            return didHit ? BRDF::FresnelSchlick(glm::max(dot, 0.0f), f0) : black;
+        }
+        case Config::DebugMode::DebugFirstHitBRDF:
+        {
+            return didHit ? glm::vec3(path.begin()->brdfIntensity) : black;
+        }
+        case Config::DebugMode::DebugFirstHitPDF:
+        {
+            return didHit ? glm::vec3(path.begin()->pdf) : black;
+        }
+        case Config::DebugMode::DebugReflectedDirection:
+        {
+            return path.size() > 1 ? path[1].ray.direction * 0.5f + 0.5f : black;
+        }
+
+        default:
+            return output.totalLight;
+    }
+
+    return errorColor;
 }
 
 static size_t CleanupFireflies(std::vector<glm::vec3>& buffer, float fireflyEliminationThreshold)
 {
     auto colorToIntensity = [](const glm::vec3& color)
     { return (color.r + color.g + color.b) / 3.0f; };
+
+    const auto debugMode = Config::GetConfig().debugMode;
 
     // Compute the average intensity
     auto imageSamples = buffer.size();
@@ -326,6 +484,16 @@ static size_t CleanupFireflies(std::vector<glm::vec3>& buffer, float fireflyElim
                                     static_cast<float>(imageSamples);
     const float standardDeviationSqrt = std::sqrt(standardDeviation);
 
+    // If we're in debug mode output the standard deviation
+    if (debugMode == Config::DebugMode::DebugPixelStandardDeviation)
+    {
+        for (auto& color : buffer)
+        {
+            color = glm::vec3(standardDeviationSqrt);
+        }
+        return buffer.size();
+    }
+
     // Zero out any samples that surpass the threshold, and compute the final color
     const float threshold = fireflyEliminationThreshold * standardDeviationSqrt;
     for (auto& color : buffer)
@@ -335,6 +503,16 @@ static size_t CleanupFireflies(std::vector<glm::vec3>& buffer, float fireflyElim
             color = glm::vec3(0.0f);
             imageSamples--;
         }
+    }
+
+    // If we're in debug mode output the amount of dropped samples
+    if (debugMode == Config::DebugMode::DebugFireflyElimination)
+    {
+        for (auto& color : buffer)
+        {
+            color = glm::vec3(static_cast<float>(buffer.size() - imageSamples));
+        }
+        return buffer.size();
     }
 
     // Protect against divide-by-zero errors
@@ -351,7 +529,8 @@ void Tracer::Tracer::RenderBlock(const Block& block)
     const auto pixelSize = glm::vec2(1.0f) / glm::vec2(imageWidth, imageHeight);
     const auto useStatisticFireflyElimination = cfg.useStatisticFireflyElimination;
     const auto fireflyEliminationThreshold = cfg.fireflyEliminationThreshold;
-    const auto bidirectionalPathTracing = cfg.bidirectionalPathTracing;
+    const auto debugMode = cfg.debugMode;
+    const auto renderMode = cfg.renderMode;
 
     JobData jobData;
     jobData.rng.seed(rd());
@@ -366,6 +545,7 @@ void Tracer::Tracer::RenderBlock(const Block& block)
 
     auto renderPixel = [&](int x, int y)
     {
+        static thread_local std::vector<PathStep> path;
         sampleBuffer.clear();
         const auto baseU = static_cast<float>(x) * pixelSize.x;
         const auto baseV = static_cast<float>(y) * pixelSize.y;
@@ -376,10 +556,10 @@ void Tracer::Tracer::RenderBlock(const Block& block)
             const auto u = baseU + xDist(jobData.rng);
             const auto v = baseV + yDist(jobData.rng);
             const Ray ray = cam_.GenerateCameraRay(u, v, aspectRatio);
-            if (bidirectionalPathTracing)
-                sampleBuffer.push_back(ProcessRayBidirectional(jobData, ray));
-            else
-                sampleBuffer.push_back(ProcessRayForward(jobData, ray));
+            const auto color = (debugMode != Config::DebugMode::DebugNone)
+                                   ? ProcessDebugRay(jobData, ray, path, debugMode, renderMode)
+                                   : ProcessRayForward(jobData, ray, path).totalLight;
+            sampleBuffer.push_back(color);
         }
 
         // Optionally clean up fireflies before averaging
@@ -429,6 +609,82 @@ Tracer::Tracer::Tracer(std::shared_ptr<RenderBuffer> imageBuffer, const Scene::S
                         static_cast<float>(imageBuffer_->GetHeight());
     cam_.CheckCameraAspectRatio(aspect);
     PrepareLights();
+}
+
+static glm::vec3 Heatmap(float t)
+{
+    t = glm::clamp(t, 0.0f, 1.0f);
+
+    const glm::vec3 colors[] = {
+        {0.0f, 0.0f, 1.0f},  // Blue
+        {0.0f, 1.0f, 1.0f},  // Cyan
+        {0.0f, 1.0f, 0.0f},  // Green
+        {1.0f, 1.0f, 0.0f},  // Yellow
+        {1.0f, 0.0f, 0.0f}   // Red
+    };
+
+    constexpr int nColors = sizeof(colors) / sizeof(colors[0]);
+
+    float x = t * (nColors - 1);
+    int i = glm::min(int(x), nColors - 2);
+    float f = x - static_cast<float>(i);
+
+    return glm::mix(colors[i], colors[i + 1], f);
+}
+
+static void ApplyHeatMapPostProcessing(std::shared_ptr<RenderBuffer>& imageBuffer, bool colorful)
+{
+    // Compute the maximum intensity in the image buffer
+    float maxIntensity = 0.0f;
+    for (unsigned int y = 0; y < imageBuffer->GetHeight(); ++y)
+    {
+        for (unsigned int x = 0; x < imageBuffer->GetWidth(); ++x)
+        {
+            glm::vec3 color;
+            imageBuffer->GetPixel(x, y, color);
+            float intensity = (color.r + color.g + color.b) / 3.0f;
+            maxIntensity = std::max(maxIntensity, intensity);
+        }
+    }
+    spdlog::info("Max intensity for heatmap: {}", maxIntensity);
+
+    // Apply heatmap color mapping based on intensity
+    for (unsigned int y = 0; y < imageBuffer->GetHeight(); ++y)
+    {
+        for (unsigned int x = 0; x < imageBuffer->GetWidth(); ++x)
+        {
+            glm::vec3 color;
+            imageBuffer->GetPixel(x, y, color);
+            float intensity = (color.r + color.g + color.b) / 3.0f;
+            float normalizedIntensity = (maxIntensity > 0.0f) ? intensity / maxIntensity : 0.0f;
+            glm::vec3 heatmapColor =
+                colorful ? Heatmap(normalizedIntensity) : glm::vec3(normalizedIntensity);
+            imageBuffer->SetPixel(x, y, heatmapColor);
+        }
+    }
+}
+
+static void ApplyDebugPostProcessing(std::shared_ptr<RenderBuffer>& imageBuffer)
+{
+    switch (Config::GetConfig().debugMode)
+    {
+        case Config::DebugMode::DebugPrimaryBVHTests:
+        case Config::DebugMode::DebugTotalBVHTests:
+        case Config::DebugMode::DebugPrimaryTriangleTests:
+        case Config::DebugMode::DebugTotalTriangleTests:
+        case Config::DebugMode::DebugBounces:
+        case Config::DebugMode::DebugFireflyElimination:
+        ApplyHeatMapPostProcessing(imageBuffer, true);
+        break;
+        
+        case Config::DebugMode::DebugDepth:
+        case Config::DebugMode::DebugFirstHitBRDF:
+        case Config::DebugMode::DebugPixelStandardDeviation:
+            ApplyHeatMapPostProcessing(imageBuffer, false);
+            break;
+        default:
+            break;
+    }
 }
 
 void Tracer::Tracer::StartRender()
@@ -509,6 +765,9 @@ void Tracer::Tracer::WaitForRender()
         }
     }
     workers_.clear();
+
+    std::cout << "\n";
+    ApplyDebugPostProcessing(imageBuffer_);
 }
 
 void Tracer::Tracer::KillRender()

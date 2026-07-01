@@ -111,46 +111,14 @@ The binary is written to `build/MiTrace`.
 MiTrace <input.gltf> [options]
 ```
 
-### Options
-
-| Flag | Default | Description |
-|---|---|---|
-| `input` | _(required)_ | Path to `.gltf` scene file |
-| `-o, --output` | auto-generated | Output path; extension sets format (`.png`, `.jpg`, `.hdr`) |
-| `-w, --width` | `1280` | Image width in pixels |
-| `-h, --height` | `720` | Image height in pixels |
-| `-s, --samples` | `64` | Samples per pixel |
-| `-b, --bounces` | `5` | Maximum path bounces |
-| `-c, --camera` | `0` | Camera index within the GLTF scene |
-| `--scene` | `0` | Scene index within the GLTF file |
-| `-e, --ev-exposure` | `8.0` | EV exposure applied during tone-mapping |
-| `-hdri, --hdri-override` | - | Override environment with an `.hdr` or `.png` file |
-| `--hdri-rotation` | `0.0` | HDRI rotation in degrees |
-| `--hdri-primary-intensity` | `350.0` | Intensity multiplier for primary rays |
-| `--hdri-secondary-intensity` | `350.0` | Intensity multiplier for secondary (indirect) rays |
-| `--emission-base-intensity` | `1.0` | Base multiplier for emissive materials |
-| `--disable-bvh` | - | Disable the BVH (brute-force intersection) |
-| `--bvh-max-triangles` | `32` | Maximum triangles per BVH leaf |
-| `--bvh-max-depth` | `32` | Maximum BVH recursion depth |
-| `--image-block-size` | `32` | Tile size for work distribution |
-| `--disable-firefly-elimination` | - | Disable statistical firefly clamping |
-| `--firefly-threshold` | `6.0` | Firefly clamp threshold (standard deviations) |
-| `--terminate-energy` | `0.01` | Path termination energy threshold |
-| `-t, --threads` | hw concurrency | Number of worker threads |
-| `--disable-cpu-affinity` | - | Disable CPU affinity pinning |
-| `-p, --preview` | - | Open live preview window |
-| `-x, --exit-preview-when-done` | - | Close preview window automatically after render |
-| `-v, --verbose` | - | Verbose logging |
-| `-V, --very-verbose` | - | Very verbose logging |
-
 ### Example
 
 ```bash
 # Render cornell box at 1080p, 256 spp, with live preview
-./build/MiTrace assets/scenes/cornell_box/scene.gltf \
+./build/MiTrace assets/tests/cornell_box_test/cornell_box.gltf \
     -w 1920 -h 1080 -s 256 -b 8 \
-    -o outputs/cornell.hdr \
-    --preview --exit-preview-when-done
+    -o outputs/cornell.png \
+    --preview
 ```
 
 Output files that are not given an explicit name are auto-generated as `outputs/render_<DDMMYYYY_HHMM>.png`.
@@ -171,19 +139,12 @@ A Blender add-on for exporting scenes to GLTF in a format compatible with MiTrac
   - [ ] Skybox export
   - [ ] Lights export
 - [ ] Add mesh-level BVH
-- [ ] Fix the light radius problem
 - [ ] Add multiple light types
 - [ ] Improve the light selection algorithm
 - [ ] Add bidirectional path tracing
 - [ ] Add alpha (non-physical) transparency
 - [ ] Add light bending on transparency
 - [ ] Integrate OpenImageDenoise
-- [ ] Add debug render modes
-  - [ ] Intersections: BVH depth, primary BVH tests, total BVH tests
-  - [ ] Material: albedo, metallic/roughness, geometric normal, shading normal
-  - [ ] Contributions: direct only, indirect diffuse, indirect specular, indirect all, emission
-  - [ ] Random color: per mesh, per triangle, per bounding volume
-  - [ ] Other: bounces, depth, first-hit Fresnel/BRDF/PDF, reflected direction, pixel standard deviation
 
 ### Completed
 
@@ -191,3 +152,10 @@ A Blender add-on for exporting scenes to GLTF in a format compatible with MiTrac
 - [x] Add camera selection
 - [x] Add GLTF scene selection
 - [x] Add skyboxes
+- [x] Fix the light radius problem
+- [x] Add debug render modes
+  - [x] Intersections: primary and total BVH and triangle tests
+  - [x] Material: albedo, metallic/roughness, geometric normal, shading normal
+  - [x] Contributions: direct only, indirect only, emission
+  - [x] Random color: per mesh, per triangle, per bounding volume
+  - [x] Other: bounces, depth, first-hit Fresnel/BRDF/PDF, reflected direction, pixel standard deviation

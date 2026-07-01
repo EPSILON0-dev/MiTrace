@@ -7,6 +7,7 @@
 #include <queue>
 #include <random>
 
+#include "CLI/Config.hpp"
 #include "Camera.hpp"
 #include "Ray.hpp"
 #include "RenderBuffer.hpp"
@@ -30,17 +31,37 @@ class Tracer
         float intensity;
     };
 
-    struct PathStep
+    struct alignas(128) PathStep
     {
         Ray ray;
         glm::vec3 hitPos;
         glm::vec3 baseColor;
         float metallic;
         float roughness;
+        glm::vec3 geomNormal;
         glm::vec3 normal;
         glm::vec3 energy;
         glm::vec3 emission;
+
+        // Debug information
+        float brdfIntensity;
+        float pdf;
+        uint32_t bvhTests;
+        uint32_t triangleTests;
+        uint16_t triangleIndex;
+        uint16_t bvIndex;
+        uint16_t meshIndex;
+
         bool didHit;
+    };
+
+    struct LightOutput
+    {
+        glm::vec3 emittedLight;
+        glm::vec3 directLight;
+        glm::vec3 indirectLight;
+        glm::vec3 skyLight;
+        glm::vec3 totalLight;
     };
 
    public:
@@ -86,8 +107,13 @@ class Tracer
     void PrepareLights();
     void GeneratePath(JobData& jobData, const Ray& ray, std::vector<PathStep>& pathVec,
         size_t maxBounces, float terminateEnergy = 0.01f) const noexcept;
-    glm::vec3 ProcessRayForward(JobData& jobData, const Ray& ray) noexcept;
-    glm::vec3 ProcessRayBidirectional(JobData& jobData, const Ray& ray) noexcept;
+
+    // glm::vec3 ProcessRayBidirectional(JobData& jobData, const Ray& ray) noexcept;
+    LightOutput ProcessRayForward(
+        JobData& jobData, const Ray& ray, std::vector<PathStep>& path) noexcept;
+    glm::vec3 ProcessDebugRay(JobData& jobData, const Ray& ray, std::vector<PathStep>& path,
+        Config::DebugMode debugMode, Config::RenderMode renderMode) noexcept;
+
     void RenderBlock(const Block& block);
     void WorkerThread();
 

@@ -7,12 +7,46 @@
 class Config
 {
    public:
+    enum class RenderMode : uint8_t
+    {
+        Forward,
+        Bidirectional,
+    };
+
+    enum class DebugMode : uint8_t
+    {
+        DebugNone,
+        DebugPrimaryBVHTests,
+        DebugTotalBVHTests,
+        DebugPrimaryTriangleTests,
+        DebugTotalTriangleTests,
+        DebugAlbedo,
+        DebugMetallicRoughness,
+        DebugGeometricNormal,
+        DebugShadingNormal,
+        DebugDirectOnly,
+        DebugIndirectOnly,
+        DebugEmission,
+        DebugColorPerMesh,
+        DebugColorPerTriangle,
+        DebugColorPerBoundingVolume,
+        DebugBounces,
+        DebugDepth,
+        DebugFirstHitFresnel,
+        DebugFirstHitBRDF,
+        DebugFirstHitPDF,
+        DebugReflectedDirection,
+        DebugPixelStandardDeviation,
+        DebugFireflyElimination
+    };
+
     struct ConfigOptions
     {
         std::string inputFilename;
         std::string outputFilename;
 
-        bool bidirectionalPathTracing = false;
+        RenderMode renderMode = RenderMode::Forward;
+        DebugMode debugMode = DebugMode::DebugNone;
         unsigned imageWidth = 1280;
         unsigned imageHeight = 720;
         unsigned samples = 64;
@@ -38,6 +72,7 @@ class Config
         unsigned numThreads;
         bool cpuAffinity = true;
 
+        bool quiet = false;
         bool verbose = false;
         bool veryVerbose = false;
         bool enablePreview = false;
@@ -63,7 +98,9 @@ class Config
     void LoadConfig(int argc, char** argv);
 
     const ConfigOptions& GetConfigStruct() const { return options_; }
+    ConfigOptions& GetConfigStructMutable() { return options_; }
     static const ConfigOptions& GetConfig() { return Instance().GetConfigStruct(); }
+    static ConfigOptions& GetConfigMutable() { return Instance().GetConfigStructMutable(); }
 
     void LogConfig() const;
 };
