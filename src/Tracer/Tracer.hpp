@@ -29,6 +29,7 @@ class Tracer
     {
         glm::vec3 position;
         float intensity;
+        bool isSun;
     };
 
     struct alignas(128) PathStep

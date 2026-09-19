@@ -1,6 +1,7 @@
 #include <mutex>
 #include <numeric>
 
+#include "Loader/Types.hpp"
 #include "glm/fwd.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <spdlog/spdlog.h>
@@ -127,7 +128,8 @@ void Tracer::Tracer::PrepareLights()
     {
         const auto color = light.GetColor();
         const auto intensity = (color.r + color.g + color.b) / 3.0f;
-        simplifiedLights_.push_back({light.GetPosition(), intensity});
+        const bool sun = (light.GetType() == Scene::Light::LightType::Directional);
+        simplifiedLights_.push_back({light.GetPosition(), intensity, sun});
     }
 }
 
@@ -262,10 +264,18 @@ Tracer::Tracer::LightOutput Tracer::Tracer::ProcessRayForward(
         // Find the light for this bounce with a running weighted random selection
         for (size_t i = 0; i < simplifiedLights_.size(); ++i)
         {
+            float score;
             const auto& light = simplifiedLights_[i];
-            const auto lightPath = light.position - step.hitPos;
-            const float distanceSquared = glm::dot(lightPath, lightPath);
-            const float score = light.intensity / (distanceSquared + 1.0f);
+            if (light.isSun)
+            {
+                score = light.intensity;
+            }
+            else
+            {
+                const auto lightPath = light.position - step.hitPos;
+                const float distanceSquared = glm::dot(lightPath, lightPath);
+                score = light.intensity / (distanceSquared + 1.0f);
+            }
             totalScore += score;
             if (jobData.randomFloat(jobData.rng) * totalScore < score)
             {
@@ -281,7 +291,8 @@ Tracer::Tracer::LightOutput Tracer::Tracer::ProcessRayForward(
         // Sample the light with a shadow ray
         const auto& light = scene_.GetLights()[chosenLightIndex];
         using LightType = Scene::Light::LightType;
-        glm::vec3 lightPos{}, lightColor{};
+        glm::vec3 lightPos{}, lightColor{}, lightVec{}, lightDir{};
+        const auto isSun = (light.GetType() == LightType::Directional);
 
         // Calculate the light position
         switch (light.GetType())
@@ -298,23 +309,27 @@ Tracer::Tracer::LightOutput Tracer::Tracer::ProcessRayForward(
         }
 
         // Compute the vector and the direction
-        const glm::vec3 lightVec = lightPos - step.hitPos;
-        const glm::vec3 lightDir = glm::normalize(lightVec);
-
-        // Calculate the light color
-        switch (light.GetType())
+        if (isSun)
         {
-            case LightType::Spot:
-                lightColor = light.GetColor() * light.GetSpotIntensity(lightDir);
-                break;
-
-            case LightType::Point:
-            default:
-                lightColor = light.GetColor();
-                break;
+            // For directional light we don't care about the distance, so we set it to something
+            //  absurdly high
+            lightDir = -light.GetDirection();
+            lightVec = lightDir * 10e6f;
+        }
+        else
+        {
+            lightVec = lightPos - step.hitPos;
+            lightDir = glm::normalize(lightVec);
         }
 
-        const Ray shadowRay(step.hitPos + lightVec * pulloutEpsilon, lightDir);
+        // Calculate the light color
+        lightColor = light.GetColor();
+        if (light.GetType() == LightType::Spot)
+        {
+            lightColor *= light.GetSpotIntensity(lightDir);
+        }
+
+        const Ray shadowRay(step.hitPos + lightDir * pulloutEpsilon, lightDir);
         const auto shadowHit = IntersectScene(shadowRay, scene_);
         jobData.raysTraced++;
 
@@ -326,7 +341,8 @@ Tracer::Tracer::LightOutput Tracer::Tracer::ProcessRayForward(
             const glm::vec3 brdf = BRDF::EvaluateBRDF(
                 lightDir, -step.ray.direction, step.normal, step.baseColor, roughness, metalness);
             const float dotNL = glm::max(glm::dot(step.normal, lightDir), 0.0f);
-            float distanceFalloff = 1.0f / (glm::length(lightVec) * glm::length(lightVec) + 1.0f);
+            float distanceFalloff =
+                isSun ? 1.0f : (1.0f / (glm::length(lightVec) * glm::length(lightVec) + 1.0f));
             const glm::vec3 lightEnergy = brdf * dotNL * distanceFalloff;
             const auto light = currentEnergy * lightEnergy * lightColor / chosenLightDistancePDF;
             if (stepIndex == 0)

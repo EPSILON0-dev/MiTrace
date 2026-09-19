@@ -41,8 +41,7 @@ class Light
           spotInnerConeDot_(glm::cos(light.spotInnerConeAngle)),
           spotOuterConeDot_(glm::cos(light.spotOuterConeAngle))
     {
-        if (light.type != Loader::LightType::Point && light.type != Loader::LightType::Spot)
-            spdlog::warn("Only point and spot lights are supported, but got a different type");
+        if (light.type == Loader::LightType::Area) spdlog::warn("Area lights are not supported.");
 
         if (light.type == Loader::LightType::Directional || light.type == Loader::LightType::Spot)
         {
@@ -54,15 +53,17 @@ class Light
 
     auto GetType() const noexcept { return type_; }
     const glm::vec3& GetPosition() const noexcept { return position_; }
-    // const glm::quat& GetDirection() const noexcept { return quatDirection_; }
+    const glm::vec3& GetDirection() const noexcept { return vecDirection_; }
+    const glm::quat& GetQuat() const noexcept { return quatDirection_; }
+    float GetPointSize() const noexcept { return pointSize_; }
+    const glm::vec3& GetColor() const noexcept { return color_; }
+
     float GetSpotIntensity(const glm::vec3& dir) const noexcept
     {
         float dot = glm::dot(-dir, vecDirection_);
         float intensity = (dot - spotOuterConeDot_) / (spotInnerConeDot_ - spotOuterConeDot_);
         return glm::clamp(intensity, 0.0f, 1.0f);
     }
-    float GetPointSize() const noexcept { return pointSize_; }
-    const glm::vec3& GetColor() const noexcept { return color_; }
 };
 
 }  // namespace Scene

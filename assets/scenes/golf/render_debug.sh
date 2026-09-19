@@ -42,7 +42,7 @@ function render_mode() {
     ENV_PATH=`dirname $0`/tex/env.png
     OUT_FILE=`dirname $0`/render-$mode.png
     $MITRACE `dirname $0`/$GLTF_FILE -o `dirname $0`/$OUT_FILE -q \
-        -w 360 -h 240 -s 256 -e 8.5 \
+        -w 360 -h 240 -s 128 -e 8.5 \
         -hdri $ENV_PATH \
         --camera 10 \
         --hdri-primary-intensity 140 \

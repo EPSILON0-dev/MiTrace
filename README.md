@@ -35,6 +35,8 @@ MiTrace is a CPU-based path tracer written in C++20. It renders physically-accur
 - **Point lights** - with configurable radius and color/intensity
 - **HDRI / environment lighting** - loaded from GLTF or CLI-overridden; supports rotation and separate primary/secondary intensity
 
+> **Note:** Area lights are not supported due to GLTF specification limitations.
+
 ### Output & Visualization
 
 - **Export formats** - PNG, JPEG, HDR
@@ -131,16 +133,12 @@ A Blender add-on for exporting scenes to GLTF in a format compatible with MiTrac
 
 ### V1 Goals
 
-- [ ] Break up the golf scene to be uploaded as 2 files (size limit)
 - [ ] Proper low-roughness non-metals
-- [ ] Add skybox loading from GLTF file
-- [ ] Generalize the Texture class
 - [ ] Test the Blender exporter
   - [ ] Skybox export
   - [ ] Lights export
 - [ ] Add mesh-level BVH
 - [ ] Add multiple light types
-- [ ] Improve the light selection algorithm
 - [ ] Add bidirectional path tracing
 - [ ] Add alpha (non-physical) transparency
 - [ ] Add light bending on transparency
@@ -148,6 +146,7 @@ A Blender add-on for exporting scenes to GLTF in a format compatible with MiTrac
 
 ### Completed
 
+- [x] Break up the golf scene to be uploaded as 2 files (size limit)
 - [x] Move the tracer back to the tracer directory
 - [x] Add camera selection
 - [x] Add GLTF scene selection
