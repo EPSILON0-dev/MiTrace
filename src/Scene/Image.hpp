@@ -26,8 +26,6 @@ class Image
    public:
     Image(const Loader::Image& image) : name_(image.name), path_(image.path), data_(nullptr)
     {
-        // Alpha is dropped on load anyway
-        // if (channels_ != 3) throw std::runtime_error("Only RGB images are supported");
     }
 
     auto GetWidth() const noexcept { return width_; }

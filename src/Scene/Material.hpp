@@ -15,7 +15,7 @@ class Material
     {
         Opaque,
         Mask,
-        Blend
+        Blend,
     };
 
    public:
@@ -27,6 +27,7 @@ class Material
         glm::vec3 normal;
         glm::vec3 emission;
         float occlusion;
+        float alpha;
     };
 
    private:
@@ -43,10 +44,9 @@ class Material
     float roughnessFactor_;
     float occlusionStrength_;
 
-    // Currrently unused
-    // float alphaCutoff_;
-    // TransparencyMode transparencyMode_;
-    // bool doubleSided_;
+    float alphaCutoff_;
+    TransparencyMode transparencyMode_;
+    bool doubleSided_;
 
    public:
     Material()
@@ -56,7 +56,10 @@ class Material
           normalScale_(1.0f),
           metallicFactor_(1.0f),
           roughnessFactor_(1.0f),
-          occlusionStrength_(1.0f)
+          occlusionStrength_(1.0f),
+          alphaCutoff_(0.5f),
+          transparencyMode_(TransparencyMode::Opaque),
+          doubleSided_(false)
     {
     }
 
@@ -72,12 +75,35 @@ class Material
           normalScale_(material.normalScale),
           metallicFactor_(material.metallicFactor),
           roughnessFactor_(material.roughnessFactor),
-          occlusionStrength_(material.occlusionStrength)
+          occlusionStrength_(material.occlusionStrength),
+          alphaCutoff_(material.alphaCutoff),
+          transparencyMode_(TransparencyMode::Opaque),
+          doubleSided_(material.doubleSided)
     {
+        switch (material.transparencyMode)
+        {
+            case Loader::TransparencyMode::Opaque:
+                transparencyMode_ = TransparencyMode::Opaque;
+                break;
+            case Loader::TransparencyMode::Mask:
+                transparencyMode_ = TransparencyMode::Mask;
+                break;
+            case Loader::TransparencyMode::Blend:
+                transparencyMode_ = TransparencyMode::Blend;
+                break;
+        }
     }
 
    public:
     const auto& GetName() const noexcept { return name_; }
+    TransparencyMode GetTransparencyMode() const noexcept { return transparencyMode_; }
+    float GetAlphaCutoff() const noexcept { return alphaCutoff_; }
+    bool IsDoubleSided() const noexcept { return doubleSided_; }
+
+    float GetAlpha(const glm::vec2& texCoord) const noexcept
+    {
+        return GetBaseColor(texCoord).a;
+    }
 
     glm::vec4 GetBaseColor(const glm::vec2& texCoord) const noexcept
     {
@@ -131,6 +157,7 @@ class Material
         point.normal = GetNormal(texCoord);
         point.emission = GetEmissive(texCoord);
         point.occlusion = GetOcclusion(texCoord);
+        point.alpha = glm::clamp(point.baseColor.a, 0.0f, 1.0f);
         return point;
     }
 };

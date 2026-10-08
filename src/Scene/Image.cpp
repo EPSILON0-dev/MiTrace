@@ -10,8 +10,8 @@ using namespace Scene;
 
 glm::vec4 Image::SamplePixel(int x, int y) const noexcept
 {
-    auto idx = (y * width_ + x) * 3;
-    return glm::vec4(data_[idx], data_[idx + 1], data_[idx + 2], 255) / 255.0f;
+    auto idx = (y * width_ + x) * 4;
+    return glm::vec4(data_[idx], data_[idx + 1], data_[idx + 2], data_[idx + 3]) / 255.0f;
 }
 
 glm::vec4 Image::SampleNearest(float& x, float& y) const noexcept
@@ -90,7 +90,7 @@ void Image::Load()
     else
     {
         FILE* f = fopen(path_.c_str(), "rb");
-        pixels = stbi_load_from_file(f, &width_, &height_, &channels_, 3);
+        pixels = stbi_load_from_file(f, &width_, &height_, &channels_, 4);
         fclose(f);
     }
 

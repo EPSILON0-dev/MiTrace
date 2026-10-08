@@ -102,7 +102,7 @@ cmake --build build --parallel
 | `TARGET_ARCH` | `native` | `-march=` target (e.g. `x86-64`, `native`) |
 | `CMAKE_BUILD_TYPE` | `Release` | `Release` / `RelWithDebInfo` / `Debug` |
 
-`Release` and `RelWithDebInfo` compile with `-Ofast -flto -march=<TARGET_ARCH>`.  
+`Release` and `RelWithDebInfo` compile with `-Ofast -flto -march=<TARGET_ARCH>`.
 `Debug` compiles with `-O0 -g -fsanitize=address,undefined`.
 
 The binary is written to `build/MiTrace`.
@@ -138,9 +138,7 @@ A Blender add-on for exporting scenes to GLTF in a format compatible with MiTrac
   - [ ] Skybox export
   - [ ] Lights export
 - [ ] Add mesh-level BVH
-- [ ] Add multiple light types
 - [ ] Add bidirectional path tracing
-- [ ] Add alpha (non-physical) transparency
 - [ ] Add light bending on transparency
 - [ ] Integrate OpenImageDenoise
 
@@ -152,6 +150,8 @@ A Blender add-on for exporting scenes to GLTF in a format compatible with MiTrac
 - [x] Add GLTF scene selection
 - [x] Add skyboxes
 - [x] Fix the light radius problem
+- [x] Add alpha (non-physical) transparency
+- [x] Add multiple light types
 - [x] Add debug render modes
   - [x] Intersections: primary and total BVH and triangle tests
   - [x] Material: albedo, metallic/roughness, geometric normal, shading normal

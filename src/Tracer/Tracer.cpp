@@ -1,7 +1,6 @@
 #include <mutex>
 #include <numeric>
 
-#include "Loader/Types.hpp"
 #include "glm/fwd.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <spdlog/spdlog.h>
@@ -21,7 +20,6 @@
 
 std::random_device Tracer::Tracer::rd;
 using JobData = Tracer::Tracer::JobData;
-
 static const float pulloutEpsilon = 0.0001f;
 
 static void BuildTBN(const glm::vec3& normal, glm::vec3& tangent, glm::vec3& bitangent) noexcept
@@ -144,8 +142,7 @@ void Tracer::Tracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<
     {
         // Get the hit
         PathStep step;
-        const auto hit = IntersectScene(currentRay, scene_);
-        jobData.raysTraced++;
+        const auto hit = IntersectScene(currentRay, scene_, jobData.rng, jobData.raysTraced);
         if (!hit.has_value())
         {
             step.ray = currentRay;
@@ -158,16 +155,24 @@ void Tracer::Tracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<
         const auto geom = RayHitGeometryInfo(*hit);
         const auto& matRef = hit->meshInstance->GetMaterial();
         auto mat = matRef.SampleMaterial(geom.TexCoord0);
-        mat.baseColor = mat.baseColor * 0.96f + 0.04f;
+        mat.baseColor = glm::vec4(glm::vec3(mat.baseColor) * 0.96f + 0.04f, mat.baseColor.a);
         step.ray = currentRay;
         step.hitPos = hit->worldPosition;
         step.baseColor = glm::vec3(mat.baseColor);
         step.roughness = mat.roughness;
         step.metallic = mat.metallic;
+        step.alpha = mat.alpha;
         step.geomNormal = geom.Normal;
         step.normal = ComputeNormal(geom.Normal, mat.normal);
         step.emission = glm::vec3(mat.emission);
         step.didHit = true;
+
+        const auto viewDir = -currentRay.direction;
+        if (matRef.IsDoubleSided() && glm::dot(step.geomNormal, viewDir) < 0.0f)
+        {
+            step.geomNormal = -step.geomNormal;
+            step.normal = -step.normal;
+        }
 
         // Copy debug info
         step.bvhTests = hit->bvhTests;
@@ -177,7 +182,6 @@ void Tracer::Tracer::GeneratePath(JobData& jobData, const Ray& ray, std::vector<
         step.meshIndex = reinterpret_cast<size_t>(hit->meshInstance) & 0xffff;
 
         // Compute the bounce direction and energy transfer
-        const auto viewDir = -currentRay.direction;
         const auto specularProbability =
             ComputeSpecularProbability(viewDir, step.normal, step.baseColor, step.metallic);
         if (jobData.randomFloat(jobData.rng) < specularProbability)
@@ -330,8 +334,7 @@ Tracer::Tracer::LightOutput Tracer::Tracer::ProcessRayForward(
         }
 
         const Ray shadowRay(step.hitPos + lightDir * pulloutEpsilon, lightDir);
-        const auto shadowHit = IntersectScene(shadowRay, scene_);
-        jobData.raysTraced++;
+        const auto shadowHit = IntersectScene(shadowRay, scene_, jobData.rng, jobData.raysTraced);
 
         // If the shadow ray is not occluded, accumulate the light contribution
         if (!shadowHit.has_value() || shadowHit->distance > glm::length(lightVec))
@@ -664,13 +667,13 @@ static glm::vec3 Heatmap(float t)
         {0.0f, 1.0f, 1.0f},  // Cyan
         {0.0f, 1.0f, 0.0f},  // Green
         {1.0f, 1.0f, 0.0f},  // Yellow
-        {1.0f, 0.0f, 0.0f}   // Red
+        {1.0f, 0.0f, 0.0f},  // Red
     };
 
     constexpr int nColors = sizeof(colors) / sizeof(colors[0]);
 
     float x = t * (nColors - 1);
-    int i = glm::min(int(x), nColors - 2);
+    int i = glm::min(static_cast<int>(x), nColors - 2);
     float f = x - static_cast<float>(i);
 
     return glm::mix(colors[i], colors[i + 1], f);

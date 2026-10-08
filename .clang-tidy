@@ -48,6 +48,7 @@ readability-*,
 -readability-avoid-nested-conditional-operator,
 -readability-isolate-declaration,
 -modernize-pass-by-value,
+-bugprone-throwing-static-initialization,
 '
 HeaderFilterRegex: '.*'
 WarningsAsErrors: '*'

@@ -6,6 +6,8 @@
 
 using namespace Tracer;
 
+static constexpr uint32_t maxTransparentPassThroughs = 32;
+
 static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, glm::vec3>& aabb)
 {
     glm::vec3 invDir = 1.0f / ray.direction;
@@ -198,22 +200,45 @@ static std::optional<RayHit> IntersectMeshInstance(
     }
 }
 
-std::optional<RayHit> Tracer::IntersectScene(const Ray& ray, const Scene::Scene& scene) noexcept
+std::optional<RayHit> Tracer::IntersectScene(const Ray& ray, const Scene::Scene& scene,
+    std::mt19937& rng, size_t& raysTraced) noexcept
 {
-    float lowestDistance = std::numeric_limits<float>::max();
-    std::optional<RayHit> bestHit = std::nullopt;
+    using TransparencyMode = Scene::Material::TransparencyMode;
+    std::uniform_real_distribution<float> unitFloat(0.0f, 1.0f);
 
-    for (const auto& meshInstance : scene.GetMeshInstances())
+    Ray mutableRay = ray;
+    for (uint32_t i = 0; i < maxTransparentPassThroughs; ++i)
     {
-        if (const auto hit = IntersectMeshInstance(ray, meshInstance); hit.has_value())
+        float lowestDistance = std::numeric_limits<float>::max();
+        std::optional<RayHit> bestHit = std::nullopt;
+
+        for (const auto& meshInstance : scene.GetMeshInstances())
         {
-            if (hit->distance < lowestDistance)
+            if (const auto hit = IntersectMeshInstance(mutableRay, meshInstance); hit.has_value())
             {
-                lowestDistance = hit->distance;
-                bestHit = *hit;
+                if (hit->distance < lowestDistance)
+                {
+                    lowestDistance = hit->distance;
+                    bestHit = *hit;
+                }
             }
         }
+        raysTraced++;
+        if (!bestHit.has_value()) return std::nullopt;
+
+        const auto& material = bestHit->meshInstance->GetMaterial();
+        const auto mode = material.GetTransparencyMode();
+        if (mode == TransparencyMode::Opaque) return bestHit;
+
+        const RayHitGeometryInfo geom(*bestHit);
+        const float alpha = material.SampleMaterial(geom.TexCoord0).alpha;
+        const bool discard = (mode == TransparencyMode::Mask)
+                                 ? (alpha < material.GetAlphaCutoff())
+                                 : (unitFloat(rng) >= alpha);
+        if (!discard) return bestHit;
+
+        mutableRay.origin = bestHit->worldPosition + mutableRay.direction * 0.001f;
     }
 
-    return bestHit;
+    return std::nullopt;
 }

@@ -39,6 +39,7 @@ class Tracer
         glm::vec3 baseColor;
         float metallic;
         float roughness;
+        float alpha;
         glm::vec3 geomNormal;
         glm::vec3 normal;
         glm::vec3 energy;
