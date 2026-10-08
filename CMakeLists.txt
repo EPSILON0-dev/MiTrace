@@ -115,6 +115,7 @@ set(SRC_FILES
     src/Scene/BVH.cpp
     src/Scene/Image.cpp
     src/Scene/Mesh.cpp
+    src/Scene/ObjectBVH.cpp
     src/Scene/Scene.cpp
     src/Scene/Camera.cpp
     src/Scene/Texture.cpp

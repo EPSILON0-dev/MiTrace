@@ -4,15 +4,17 @@ MiTrace is a CPU-based path tracer written in C++20. It renders physically-accur
 
 ## Gallery
 
-### Hero Render
+### Example Scenes
 
-![Golf Course](doc/images/golf.png)
-
-### Featured Scenes
+![VW Golf](doc/images/golf.png)
 
 | | |
 |---|---|
 | ![Cornell Box](doc/images/cornell_box.png) | ![Material Spheres](doc/images/material_spheres.png) |
+
+### Debug Modes
+
+![Debug Mode Renders](doc/images/golf_debug.png)
 
 ## Features
 
@@ -137,7 +139,6 @@ A Blender add-on for exporting scenes to GLTF in a format compatible with MiTrac
 - [ ] Test the Blender exporter
   - [ ] Skybox export
   - [ ] Lights export
-- [ ] Add mesh-level BVH
 - [ ] Add bidirectional path tracing
 - [ ] Add light bending on transparency
 - [ ] Integrate OpenImageDenoise
@@ -152,6 +153,7 @@ A Blender add-on for exporting scenes to GLTF in a format compatible with MiTrac
 - [x] Fix the light radius problem
 - [x] Add alpha (non-physical) transparency
 - [x] Add multiple light types
+- [x] Add mesh-level BVH
 - [x] Add debug render modes
   - [x] Intersections: primary and total BVH and triangle tests
   - [x] Material: albedo, metallic/roughness, geometric normal, shading normal

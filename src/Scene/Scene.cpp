@@ -54,6 +54,8 @@ Scene::Scene::Scene(const Loader::Scene& scene)
 {
     CopyLoaderMeshInstances(scene);
     CopyLoaderLights(scene);
+    if (!Config::GetConfig().bvhDisable && !meshInstances_.empty())
+        objectBVH_.emplace(meshInstances_);
     Texture::LoadCachedImages();
     spdlog::info("Scene loaded.");
 }

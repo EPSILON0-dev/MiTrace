@@ -6,6 +6,7 @@
 #include "Light.hpp"
 #include "Loader/Types.hpp"
 #include "Mesh.hpp"
+#include "ObjectBVH.hpp"
 #include "Scene/Camera.hpp"
 #include "Texture.hpp"
 #include "glm/fwd.hpp"
@@ -21,6 +22,7 @@ class Scene
     std::vector<MeshInstance> meshInstances_;
     std::vector<Light> lights_;
     std::optional<Texture> environmentTexture_;
+    std::optional<ObjectBVH> objectBVH_;
     Camera camera_;
 
     void CopyLoaderMeshInstances(const Loader::Scene& scene);
@@ -39,6 +41,8 @@ class Scene
     using Texture_opt_cr = const std::optional<Texture>&;
 
     MeshInstance_vec_cr GetMeshInstances() const noexcept { return meshInstances_; }
+    bool HasObjectBVH() const noexcept { return objectBVH_.has_value(); }
+    const std::optional<ObjectBVH>& GetObjectBVH() const noexcept { return objectBVH_; }
     Light_vec_cr GetLights() const noexcept { return lights_; }
     Texture_opt_cr GetEnvironmentTexture() const noexcept { return environmentTexture_; }
     const Camera& GetCamera() const noexcept { return camera_; }

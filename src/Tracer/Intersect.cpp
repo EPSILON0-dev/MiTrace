@@ -16,7 +16,9 @@ static inline float IntersectRayAABB(const Ray& ray, const std::pair<glm::vec3, 
     glm::vec3 tmin3 = glm::min(t1, t2);
     glm::vec3 tmax3 = glm::max(t1, t2);
 
-    return glm::compMax(tmin3) <= glm::compMin(tmax3) ? glm::compMin(tmax3) : -1.0f;
+    const float entry = glm::compMax(tmin3);
+    const float exit = glm::compMin(tmax3);
+    return (entry <= exit) ? glm::max(entry, 0.0f) : -1.0f;
 }
 
 static void IntersectTrianglesLinear(const Ray& localRay, const Scene::MeshInstance& meshInstance,
@@ -40,7 +42,7 @@ static void IntersectTrianglesLinear(const Ray& localRay, const Scene::MeshInsta
             {
                 dist = currentDistance;
                 baryCoord = currentBaryCoord;
-                triangleIndex = static_cast<uint32_t>(i / 3);
+                triangleIndex = i / 3;
             }
         }
     }
@@ -200,8 +202,114 @@ static std::optional<RayHit> IntersectMeshInstance(
     }
 }
 
-std::optional<RayHit> Tracer::IntersectScene(const Ray& ray, const Scene::Scene& scene,
-    std::mt19937& rng, size_t& raysTraced) noexcept
+static std::optional<RayHit> ClosestHitLinear(const Ray& ray, const Scene::Scene& scene) noexcept
+{
+    float lowestDistance = std::numeric_limits<float>::max();
+    std::optional<RayHit> bestHit = std::nullopt;
+
+    for (const auto& meshInstance : scene.GetMeshInstances())
+    {
+        if (const auto hit = IntersectMeshInstance(ray, meshInstance); hit.has_value())
+        {
+            if (hit->distance < lowestDistance)
+            {
+                lowestDistance = hit->distance;
+                bestHit = *hit;
+            }
+        }
+    }
+
+    return bestHit;
+}
+
+static std::optional<RayHit> ClosestHitTLAS(const Ray& ray, const Scene::Scene& scene) noexcept
+{
+    struct alignas(8) StackEntry
+    {
+        uint32_t nodeIndex;
+        float dist;
+    };
+    static thread_local std::vector<StackEntry> stack;
+
+    const auto& objectBVH = scene.GetObjectBVH().value();
+    const auto& nodes = objectBVH.GetNodes();
+    const auto& instanceIndices = objectBVH.GetInstanceIndices();
+    const auto& meshInstances = scene.GetMeshInstances();
+
+    float lowestDistance = std::numeric_limits<float>::max();
+    std::optional<RayHit> bestHit = std::nullopt;
+    uint32_t tlasTests = 0;
+
+    stack.clear();
+    stack.push_back({0, IntersectRayAABB(ray, nodes[0].GetAABB())});
+
+    while (!stack.empty())
+    {
+        const auto entry = stack.back();
+        stack.pop_back();
+        tlasTests++;
+        if (entry.dist < 0.0f || entry.dist > lowestDistance) continue;
+        const auto& node = nodes[entry.nodeIndex];
+
+        if (node.IsLeaf())
+        {
+            const uint32_t begin = node.GetTriangleIndex();
+            const uint32_t count = node.GetTriangleCount();
+            for (uint32_t i = begin; i < begin + count; ++i)
+            {
+                const auto& meshInstance = meshInstances[instanceIndices[i]];
+                if (const auto hit = IntersectMeshInstance(ray, meshInstance);
+                    hit.has_value() && hit->distance < lowestDistance)
+                {
+                    lowestDistance = hit->distance;
+                    bestHit = *hit;
+                }
+            }
+        }
+        else
+        {
+            const auto& childA = nodes[node.GetChildA()];
+            const auto& childB = nodes[node.GetChildB()];
+            const float distA = IntersectRayAABB(ray, childA.GetAABB());
+            const float distB = IntersectRayAABB(ray, childB.GetAABB());
+            const bool pushA = (distA >= 0.0f && distA <= lowestDistance);
+            const bool pushB = (distB >= 0.0f && distB <= lowestDistance);
+            if (pushA && pushB)
+            {
+                if (distA < distB)
+                {
+                    stack.push_back({node.GetChildB(), distB});
+                    stack.push_back({node.GetChildA(), distA});
+                }
+                else
+                {
+                    stack.push_back({node.GetChildA(), distA});
+                    stack.push_back({node.GetChildB(), distB});
+                }
+            }
+            else if (pushA)
+            {
+                stack.push_back({node.GetChildA(), distA});
+            }
+            else if (pushB)
+            {
+                stack.push_back({node.GetChildB(), distB});
+            }
+        }
+    }
+
+    if (bestHit.has_value()) bestHit->bvhTests += tlasTests;
+    return bestHit;
+}
+
+static std::optional<RayHit> ClosestHit(const Ray& ray, const Scene::Scene& scene) noexcept
+{
+    if (scene.HasObjectBVH()) return ClosestHitTLAS(ray, scene);
+    return ClosestHitLinear(ray, scene);
+}
+
+std::optional<RayHit> Tracer::IntersectScene(
+    const Ray& ray, const Scene::Scene& scene, std::mt19937& rng, size_t& raysTraced) noexcept
 {
     using TransparencyMode = Scene::Material::TransparencyMode;
     std::uniform_real_distribution<float> unitFloat(0.0f, 1.0f);
@@ -209,20 +317,7 @@ std::optional<RayHit> Tracer::IntersectScene(const Ray& ray, const Scene::Scene&
     Ray mutableRay = ray;
     for (uint32_t i = 0; i < maxTransparentPassThroughs; ++i)
     {
-        float lowestDistance = std::numeric_limits<float>::max();
-        std::optional<RayHit> bestHit = std::nullopt;
-
-        for (const auto& meshInstance : scene.GetMeshInstances())
-        {
-            if (const auto hit = IntersectMeshInstance(mutableRay, meshInstance); hit.has_value())
-            {
-                if (hit->distance < lowestDistance)
-                {
-                    lowestDistance = hit->distance;
-                    bestHit = *hit;
-                }
-            }
-        }
+        const auto bestHit = ClosestHit(mutableRay, scene);
         raysTraced++;
         if (!bestHit.has_value()) return std::nullopt;
 
@@ -232,9 +327,8 @@ std::optional<RayHit> Tracer::IntersectScene(const Ray& ray, const Scene::Scene&
 
         const RayHitGeometryInfo geom(*bestHit);
         const float alpha = material.SampleMaterial(geom.TexCoord0).alpha;
-        const bool discard = (mode == TransparencyMode::Mask)
-                                 ? (alpha < material.GetAlphaCutoff())
-                                 : (unitFloat(rng) >= alpha);
+        const bool discard = (mode == TransparencyMode::Mask) ? (alpha < material.GetAlphaCutoff())
+                                                              : (unitFloat(rng) >= alpha);
         if (!discard) return bestHit;
 
         mutableRay.origin = bestHit->worldPosition + mutableRay.direction * 0.001f;
