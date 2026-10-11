@@ -127,10 +127,6 @@ MiTrace <input.gltf> [options]
 
 Output files that are not given an explicit name are auto-generated as `outputs/render_<DDMMYYYY_HHMM>.png`.
 
-## Blender Exporter
-
-A Blender add-on for exporting scenes to GLTF in a format compatible with MiTrace is located in `scripts/blender/mitrace_gltf_exporter/`. A pre-packaged `.zip` for installation via *Edit → Preferences → Add-ons → Install* is provided at `scripts/blender/mitrace_gltf_exporter.zip`.
-
 ## Roadmap
 
 ### V1 Goals

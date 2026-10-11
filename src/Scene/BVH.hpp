@@ -19,7 +19,7 @@ class BVHTreeNode
     {
         X,
         Y,
-        Z
+        Z,
     };
 
    private:

@@ -82,23 +82,27 @@ if (ENABLE_PREVIEW_GUI)
         GIT_TAG 3.3.9
 		GIT_PROGRESS TRUE
     )
-    
+
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    
+
     FetchContent_MakeAvailable(glfw)
-    
+
     FetchContent_Declare(
         imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
         GIT_TAG v1.90.4
 		GIT_PROGRESS TRUE
     )
-    
+
     FetchContent_MakeAvailable(imgui)
-    
-    set(IMGUI_BACKEND_FILES
+
+    set(IMGUI_SRC_FILES
+        ${imgui_SOURCE_DIR}/imgui.cpp
+        ${imgui_SOURCE_DIR}/imgui_draw.cpp
+        ${imgui_SOURCE_DIR}/imgui_tables.cpp
+        ${imgui_SOURCE_DIR}/imgui_widgets.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
     )
@@ -106,12 +110,11 @@ if (ENABLE_PREVIEW_GUI)
     set (PREVIEW_SRC_FILES)
 endif()
 
-# Source Files
-set(SRC_FILES
+set(PROJECT_SRC_FILES
     src/main.cpp
     src/Loader/GLTF.cpp
     src/CLI/Config.cpp
-    src/Preview/Preview.cpp 
+    src/Preview/Preview.cpp
     src/Scene/BVH.cpp
     src/Scene/Image.cpp
     src/Scene/Mesh.cpp
@@ -126,7 +129,12 @@ set(SRC_FILES
     src/Tracer/Intersect.cpp
     src/Tracer/Ray.cpp
     src/Tracer/Tracer.cpp
-    ${IMGUI_BACKEND_FILES}
+)
+
+# Source Files
+set(SRC_FILES
+    ${PROJECT_SRC_FILES}
+    ${IMGUI_SRC_FILES}
 )
 
 add_executable(MiTrace ${SRC_FILES})
@@ -142,8 +150,8 @@ target_include_directories(MiTrace PRIVATE ${stb_SOURCE_DIR})
 
 if (ENABLE_PREVIEW_GUI)
     target_compile_definitions(MiTrace PRIVATE ENABLE_PREVIEW_GUI=1)
-    target_include_directories(MiTrace PRIVATE ${imgui_SOURCE_DIR}/backends)
-    target_link_libraries(MiTrace PRIVATE imgui glfw GL)
+    target_include_directories(MiTrace PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
+    target_link_libraries(MiTrace PRIVATE glfw GL)
 endif()
 
 target_compile_definitions(MiTrace PRIVATE MITRACE_VERSION="${PROJECT_VERSION}")

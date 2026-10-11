@@ -76,7 +76,7 @@ glm::vec4 Image::SampleEquirectangular(
 
 void Image::Load()
 {
-    if (path_ == "") return;
+    if (path_.empty()) return;
 
     const auto isFloatImage = path_.ends_with(".hdr") || path_.ends_with(".exr");
     const auto basename = path_.substr(path_.rfind('/') + 1);

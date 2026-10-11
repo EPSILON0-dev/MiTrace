@@ -49,6 +49,7 @@ readability-*,
 -readability-isolate-declaration,
 -modernize-pass-by-value,
 -bugprone-throwing-static-initialization,
+-performance-no-int-to-ptr,
 '
 HeaderFilterRegex: '.*'
 WarningsAsErrors: '*'
