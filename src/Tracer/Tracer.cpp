@@ -50,24 +50,38 @@ static glm::vec3 SampleGGXDirection(
 {
     const float u1 = jobData.randomFloat(jobData.rng);
     const float u2 = jobData.randomFloat(jobData.rng);
-    const float alpha = glm::max(roughness * roughness, 0.0025f);
-    const float alpha2 = alpha * alpha;
-    const float phi = 2.0f * glm::pi<float>() * u2;
-    const float tanTheta2 = alpha2 * u1 / glm::max(1.0f - u1, 0.0001f);
-    const float cosTheta = 1.0f / std::sqrt(1.0f + tanTheta2);
-    const float sinTheta = std::sqrt(glm::max(0.0f, 1.0f - cosTheta * cosTheta));
+    const float alpha = glm::max(roughness * roughness, 1e-4f);
+    const glm::vec3 view = -incident;
 
     glm::vec3 tangent, bitangent;
     BuildTBN(normal, tangent, bitangent);
+    const glm::vec3 vLocal(
+        glm::dot(view, tangent), glm::dot(view, bitangent), glm::dot(view, normal));
+    if (!(vLocal.z > 0.0f)) return SampleCosineHemisphere(jobData, normal);
+    const glm::vec3 vStretch =
+        glm::normalize(glm::vec3(alpha * vLocal.x, alpha * vLocal.y, vLocal.z));
 
-    glm::vec3 halfVector =
-        glm::normalize(tangent * (sinTheta * std::cos(phi)) +
-                       bitangent * (sinTheta * std::sin(phi)) + normal * cosTheta);
-    if (glm::dot(halfVector, -incident) < 0.0f) halfVector = -halfVector;
+    const float lensq = vStretch.x * vStretch.x + vStretch.y * vStretch.y;
+    const glm::vec3 b1 = (lensq > 1e-7f)
+                             ? glm::vec3(-vStretch.y, vStretch.x, 0.0f) / std::sqrt(lensq)
+                             : glm::vec3(1.0f, 0.0f, 0.0f);
+    const glm::vec3 b2 = glm::cross(vStretch, b1);
+
+    const float r = std::sqrt(u1);
+    const float phi = 2.0f * glm::pi<float>() * u2;
+    const float t1 = r * std::cos(phi);
+    const float s = 0.5f * (1.0f + vStretch.z);
+    const float t2 = (1.0f - s) * std::sqrt(glm::max(0.0f, 1.0f - t1 * t1)) + s * r * std::sin(phi);
+
+    const glm::vec3 nH =
+        t1 * b1 + t2 * b2 + std::sqrt(glm::max(0.0f, 1.0f - t1 * t1 - t2 * t2)) * vStretch;
+    const glm::vec3 halfVec = tangent * (alpha * nH.x) + bitangent * (alpha * nH.y) +
+                              normal * glm::max(0.0f, nH.z);
+    if (!(glm::dot(halfVec, halfVec) > 1e-14f)) return SampleCosineHemisphere(jobData, normal);
+    const glm::vec3 halfVector = halfVec / std::sqrt(glm::dot(halfVec, halfVec));
 
     const glm::vec3 reflected = glm::reflect(incident, halfVector);
-    return (glm::dot(reflected, normal) > 0.0f) ? glm::normalize(reflected)
-                                                : SampleCosineHemisphere(jobData, normal);
+    return glm::normalize(reflected);
 }
 
 static float ComputeSpecularProbability(const glm::vec3& viewDir, const glm::vec3& normal,
@@ -360,8 +374,8 @@ Tracer::Tracer::LightOutput Tracer::Tracer::ProcessRayForward(
 
     jobData.samplesTraced++;
 
-    output.totalLight =
-        output.emittedLight + output.directLight + output.indirectLight + output.skyLight;
+    output.totalLight = glm::max(output.emittedLight, 0.0f) + glm::max(output.directLight, 0.0f) +
+                        glm::max(output.indirectLight, 0.0f) + glm::max(output.skyLight, 0.0f);
     output.totalLight = ApplyColorCorrection(jobData, output.totalLight);
     return output;
 }

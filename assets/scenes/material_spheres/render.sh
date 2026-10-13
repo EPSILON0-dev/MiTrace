@@ -15,5 +15,5 @@ OUT_FILE=material_spheres_render.png
 
 find_mitrace_executable
 $MITRACE `dirname $0`/$GLTF_FILE -o `dirname $0`/$OUT_FILE -q \
-    -w 512 -h 512 -s 128 -e 9 \
+    -w 512 -h 512 -s 128 -e 9 -b 5 \
     $@

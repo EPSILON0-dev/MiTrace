@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
@@ -22,12 +23,12 @@ static glm::vec3 BaseReflectivity(const glm::vec3& baseColor, float metallic) no
 static float DistributionGGX(float gotNH, float roughness) noexcept
 {
     gotNH = glm::clamp(gotNH, 0.0f, 1.0f);
-    float a = roughness * roughness;
+    float a = glm::max(roughness * roughness, 1e-4f);
     float a2 = a * a;
     float dotNH2 = gotNH * gotNH;
 
     float denom = (dotNH2 * (a2 - 1.0f) + 1.0f);
-    denom = glm::pi<decltype(denom)>() * denom * denom;
+    denom = glm::max(glm::pi<decltype(denom)>() * denom * denom, 1e-12f);
 
     return a2 / denom;
 }
@@ -49,16 +50,41 @@ static float GeometrySmith(float dotNV, float dotNL, float roughness) noexcept
     return ggx1 * ggx2;
 }
 
+static float FonAlbedo(float mu, float r) noexcept
+{
+    mu = glm::clamp(mu, 0.0f, 1.0f);
+    const float c = 1.0f - mu;
+    const float g = c * (0.0571085289f + c * (0.491881867f + c * (-0.332181442f + c * 0.0714429953f)));
+    return glm::min((1.0f + r * g) / (1.0f + 0.28791033f * r), 1.0f);
+}
+
+static glm::vec3 DiffuseEON(const glm::vec3& rho, float r, float dotNL, float dotNV, float dotLV) noexcept
+{
+    r = glm::clamp(r, 0.0f, 1.0f);
+    const float s = dotLV - dotNL * dotNV;
+    const float t = (s > 0.0f) ? glm::max(glm::max(dotNL, dotNV), s) : 1.0f;
+    const float af = 1.0f / (1.0f + 0.28791033f * r);
+    const glm::vec3 single = (rho / glm::pi<float>()) * af * (1.0f + r * s / glm::max(t, 1e-4f));
+    const float eFo = FonAlbedo(dotNV, r);
+    const float eFi = FonAlbedo(dotNL, r);
+    const float avg = af * (1.0f + 0.07248355f * r);
+    const glm::vec3 denom = glm::max(glm::vec3(1.0f) - rho * (1.0f - avg), glm::vec3(1e-4f));
+    const glm::vec3 rms = (rho * rho) * avg / denom;
+    return single + (rms / glm::pi<float>()) * ((1.0f - eFo) * (1.0f - eFi) / glm::max(1.0f - avg, 1e-7f));
+}
+
 inline glm::vec3 EvaluateBRDF(const glm::vec3& L, const glm::vec3& V, const glm::vec3& N,
     const glm::vec3& baseColor, float roughness, float metallic) noexcept
 {
-    roughness = glm::max(roughness, 0.05f);
+    roughness = glm::clamp(roughness, 0.01f, 1.0f);
 
     float dotNL = glm::max(glm::dot(N, L), 0.0f);
     float dotNV = glm::max(glm::dot(N, V), 0.0f);
     if (dotNL <= 0.0f || dotNV <= 0.0f) return glm::vec3(0.0f);
 
-    glm::vec3 h = glm::normalize(V + L);
+    glm::vec3 hl = V + L;
+    if (!(glm::dot(hl, hl) > 1e-12f)) return glm::vec3(0.0f);
+    glm::vec3 h = hl / std::sqrt(glm::dot(hl, hl));
     float dotNH = glm::max(glm::dot(N, h), 0.0f);
     float dotHV = glm::max(glm::dot(h, V), 0.0f);
 
@@ -70,7 +96,7 @@ inline glm::vec3 EvaluateBRDF(const glm::vec3& L, const glm::vec3& V, const glm:
     glm::vec3 ks = f;
     glm::vec3 kd = (glm::vec3(1.0f) - ks) * (1.0f - metallic);
 
-    glm::vec3 diffuse = kd * baseColor / glm::pi<float>();
+    glm::vec3 diffuse = kd * DiffuseEON(baseColor, roughness, dotNL, dotNV, glm::dot(L, V));
     glm::vec3 specular = (d * g * f) / glm::max(4.0f * dotNV * dotNL, 0.001f);
 
     return glm::max(diffuse + specular, glm::vec3(0.0f));
@@ -87,13 +113,15 @@ inline float SpecularPdf(
     const float dotNL = glm::max(glm::dot(N, L), 0.0f);
     const float dotNV = glm::max(glm::dot(N, V), 0.0f);
     if (dotNL <= 0.0f || dotNV <= 0.0f) return 0.0f;
+    roughness = glm::min(roughness, 1.0f);
 
-    const glm::vec3 h = glm::normalize(V + L);
+    const glm::vec3 hl = V + L;
+    if (!(glm::dot(hl, hl) > 1e-12f)) return 0.0f;
+    const glm::vec3 h = hl / std::sqrt(glm::dot(hl, hl));
     const float dotNH = glm::max(glm::dot(N, h), 0.0f);
-    const float dotVH = glm::max(glm::dot(V, h), 0.0f);
-    if (dotVH <= 0.0f) return 0.0f;
 
-    return DistributionGGX(dotNH, glm::max(roughness, 0.05f)) * dotNH / (4.0f * dotVH);
+    return DistributionGGX(dotNH, roughness) * GeometrySchlickGGX(dotNV, roughness) /
+           glm::max(4.0f * dotNV, 1e-6f);
 }
 
 }  // namespace BasicBackend::BRDF

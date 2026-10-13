@@ -41,7 +41,7 @@ function render_mode() {
     shift
     OUT_FILE=`dirname $0`/render-$mode.png
     $MITRACE `dirname $0`/$GLTF_FILE -o `dirname $0`/$OUT_FILE -q \
-        -w 256 -h 256 -s 32 -e 9 \
+        -w 256 -h 256 -s 32 -e 6 \
         --debug-mode debug-$mode \
         $@
 }
