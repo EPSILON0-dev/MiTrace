@@ -1,7 +1,7 @@
 #include "Image.hpp"
 
 #include <spdlog/spdlog.h>
-#include <stb/stb_image.h>
+#include <stb_image.h>
 
 #include <glm/gtc/constants.hpp>
 #include <stdexcept>

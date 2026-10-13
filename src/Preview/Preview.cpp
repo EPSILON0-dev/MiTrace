@@ -1,5 +1,5 @@
-#include "GLFW/glfw3.h"
 #ifdef ENABLE_PREVIEW_GUI
+#include "GLFW/glfw3.h"
 #include "Preview.hpp"
 
 #include <spdlog/spdlog.h>
