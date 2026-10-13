@@ -127,18 +127,6 @@ MiTrace <input.gltf> [options]
 
 Output files that are not given an explicit name are auto-generated as `outputs/render_<DDMMYYYY_HHMM>.png`.
 
-## Roadmap
-
-### V1 Goals
-
-- [ ] Proper low-roughness non-metals
-- [ ] Test the Blender exporter
-  - [ ] Skybox export
-  - [ ] Lights export
-- [ ] Add bidirectional path tracing
-- [ ] Add light bending on transparency
-- [ ] Integrate OpenImageDenoise
-
 ### Completed
 
 - [x] Break up the golf scene to be uploaded as 2 files (size limit)
@@ -150,6 +138,7 @@ Output files that are not given an explicit name are auto-generated as `outputs/
 - [x] Add alpha (non-physical) transparency
 - [x] Add multiple light types
 - [x] Add mesh-level BVH
+- [x] Proper low-roughness non-metals
 - [x] Add debug render modes
   - [x] Intersections: primary and total BVH and triangle tests
   - [x] Material: albedo, metallic/roughness, geometric normal, shading normal
